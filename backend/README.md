@@ -4,7 +4,7 @@ Challenge 02. Python + FastAPI, Postgres (pgvector), SQLAlchemy 2.0 + Alembic, m
 
 ## Quick start
 
-`.env` and `docker-compose.yml` live at the **repo root** (shared with the future frontend).
+Only **Postgres runs in Docker**; the **FastAPI app runs on your host** with hot-reload (it talks to the DB at `localhost:5433`). `.env` and `docker-compose.yml` live at the **repo root** (shared with the future frontend).
 
 ```bash
 # from repo root
@@ -25,6 +25,19 @@ Ingest a test signal:
 curl -X POST http://localhost:8000/signals/ingest -H "Content-Type: application/json" \
   -d '{"source":"synthetic","signal_type":"post","external_id":"1","title":"hello"}'
 ```
+
+## Run the app (day-to-day)
+
+Leave the DB container up; you only restart the app. **Run from `backend/`** so `app.main` resolves and it uses `backend/.venv`:
+
+```bash
+cd backend
+uv run python -m uvicorn app.main:app --reload
+```
+
+- API <http://localhost:8000> · interactive docs <http://localhost:8000/docs> · health <http://localhost:8000/health>
+- `--reload` restarts on save; stop with Ctrl+C.
+- **Windows `WinError 10013`** = port 8000 already taken (usually a leftover uvicorn). Use another port `--port 8001`, or find/kill the holder: `Get-NetTCPConnection -LocalPort 8000`.
 
 ## Dev checks
 
@@ -54,7 +67,7 @@ app/
   main.py              FastAPI app
 alembic/               migrations (0001 = initial scraping schema)
 tests/                 pure-unit contract tests (no DB)
-docker-compose.yml     pgvector/pgvector:pg16
+../docker-compose.yml  pgvector/pgvector:pg16  (at repo root)
 ```
 
 ## Add a source connector
