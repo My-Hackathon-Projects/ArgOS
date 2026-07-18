@@ -17,6 +17,14 @@ dependencies = [
     "sentry-sdk[fastapi]>=2.63.0,<3.0.0",
     "pyjwt<3.0.0,>=2.13.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
+    # LangGraph service (app/service) — imported into the FastAPI process.
+    "langgraph>=1.0,<2.0",
+    "langchain>=1.0,<2.0",
+    "langchain-core>=1.0,<2.0",
+    "langchain-openai>=1.0,<2.0",
+    "langsmith>=0.3.0",
+    "langgraph-checkpoint-postgres>=2.0,<3.0",
+    "pymupdf>=1.24",
 ]
 
 [dependency-groups]

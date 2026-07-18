@@ -1,7 +1,8 @@
 {
-    "dependencies": ["."],
+    "dependencies": ["../.."],
     "graphs": {
-        "agent": "./my_agent/agent.py:graph"
+        "vc_brain": "./agents.py:main_graph",
+        "scanner": "./agents.py:scanner_graph"
     },
     "env": "./.env",
     "python_version": "3.13"
