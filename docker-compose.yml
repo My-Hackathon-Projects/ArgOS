@@ -1,0 +1,23 @@
+# Shared local infra. Run from repo root: docker compose up -d
+# Frontend service can be added here later alongside the db.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: vcbrain-db
+    environment:
+      POSTGRES_USER: vcbrain
+      POSTGRES_PASSWORD: vcbrain
+      POSTGRES_DB: vcbrain
+    ports:
+      # Host 5433 → avoids clashing with a native Postgres on 5432.
+      - "5433:5432"
+    volumes:
+      - vcbrain_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vcbrain -d vcbrain"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  vcbrain_pgdata:
