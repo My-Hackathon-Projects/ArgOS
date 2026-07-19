@@ -25,8 +25,9 @@ class Settings(BaseSettings):
     queries_per_channel: int = 2  # 13 channels → ~26 queries/run
     max_search_queries: int = 26
     tavily_max_results: int = 8
-    max_candidates: int = 18
-    max_extracts: int = 100
+    max_candidates: int = 25
+    max_extracts: int = 200
+    hit_content_chars: int = 3500  # per-hit content fed to screening (advanced search + raw)
     extract_chunk_size: int = 12  # hits per screening LLM call (chunked + parallel)
     research_rounds: int = 3  # recursive per-founder search rounds
     max_workers: int = 12  # parallel Tavily / LLM calls

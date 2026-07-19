@@ -153,6 +153,16 @@ def _norm(s: str | None) -> str:
     return " ".join("".join(c for c in d if not unicodedata.combining(c)).split())
 
 
+def _worth_researching(cand: dict) -> bool:
+    """Cheap gate before the expensive synthesis: skip junk (no name / 'None' / no identity)."""
+    name = (cand.get("display_name") or "").strip()
+    if not name or name.lower() == "none":
+        return False
+    has_full_name = len(name.split()) >= 2
+    has_identity = any(cand.get(k) for k in ("github", "linkedin", "website", "orcid", "twitter"))
+    return has_full_name or has_identity
+
+
 # ── ① plan_searches (fast model, structured prompt) ──────────────────────────
 def plan_searches(state: DiscoveryState) -> dict:
     t = state["thesis"]
@@ -182,19 +192,22 @@ def plan_searches(state: DiscoveryState) -> dict:
 {chan_lines}
 
 ## Task
-For EACH channel, write {settings.queries_per_channel} focused, executable search queries to
-discover EARLY-STAGE and PRE-FOUNDERS — real people with founder potential who may NOT have
-started a company yet: research-paper authors, hackathon participants & winners, student-club
-members, strong student open-source builders, competition winners, event attendees. "No company
-yet" is a POSITIVE signal — the goal is to find them BEFORE they found.
+Write up to {settings.queries_per_channel} search queries PER channel to discover EARLY-STAGE and
+PRE-FOUNDERS — people who may NOT have a company yet: research-paper authors, hackathon
+participants/winners, student-club members, strong student open-source builders, competition
+winners. "No company yet" is a POSITIVE signal — find them BEFORE they found.
 
-## Requirements
-1. Geographic bias: every query MUST include a geo or institutional anchor from the thesis
-   (geography: {geo}; target schools: {schools}) so results surface LOCAL builders,
-   not global feeds.
-2. Prioritize founders over companies — look for signals of active building.
-3. Target EARLY people matching the founder profile: {signals}. Favor members of the target
-   communities ({communities}) and students/researchers at the target schools ({schools}).
+## How to write good queries
+1. NATURAL LANGUAGE ONLY. Do NOT use search operators — no `site:`, no boolean OR/AND, no
+   `-negation`, no long quoted OR-blocks. The search API is neural; plain descriptive phrases work
+   best, and the domain is already scoped separately.
+2. ONE concrete angle per query. Prefer NAMED entities over abstract institution names — infer and
+   name real local hackathons, specific university labs/chairs and their professors, named student
+   clubs, named accelerator cohorts, notable local repos/competitions (from the thesis geo +
+   schools {schools} + communities {communities}). Split a list of schools into SEPARATE per-school
+   queries rather than one combined block.
+3. Bias to the thesis geography ({geo}) and to the founder signals ({signals}); target people, not
+   companies.
 4. For each query set `channel` to the channel name and `domain` to its domain (null = open web).
 
 Generate the queries now."""
@@ -215,15 +228,20 @@ def _search_one(q: dict) -> list[dict]:
             settings.tavily_api_key,
             max_results=settings.tavily_max_results,
             include_domains=domains,
+            search_depth="advanced",
+            include_raw_content=True,
         )
     except httpx.HTTPError:
-        return []  # one flaky query must not sink a 16-query fan-out (narrow, not silent)
+        return []  # one flaky query must not sink the fan-out (narrow, not silent)
     return [
         {
             "channel": q.get("channel"),
             "title": r.get("title"),
             "url": r.get("url"),
-            "content": (r.get("content") or "")[:1500],
+            # raw_content (fuller page) surfaces author/member/participant names snippets miss
+            "content": (r.get("raw_content") or r.get("content") or "")[
+                : settings.hit_content_chars
+            ],
         }
         for r in res.get("results", [])
     ]
@@ -236,8 +254,10 @@ def run_searches(state: DiscoveryState) -> dict:
     with ThreadPoolExecutor(max_workers=settings.max_workers) as ex:
         for batch in ex.map(_search_one, queries):
             for h in batch:
-                if h["url"] and h["url"] not in seen:  # frontier: skip URLs already seen this run
-                    seen.add(h["url"])
+                # Dedup on the CANONICAL url so www/scheme/param variants collapse (not raw url).
+                key = _canonicalize(h["url"]) if h.get("url") else None
+                if key and key not in seen:
+                    seen.add(key)
                     hits.append(h)
     hits = hits[: settings.max_extracts]
     return {
@@ -263,13 +283,18 @@ From the search results below, extract EVERY distinct FOUNDER candidate — a re
 something aligned with the thesis. Return as many well-supported people as the results contain.
 
 ## Rules
-1. display_name MUST be the person's real full name (first AND last). NEVER a username, handle,
-   single first name, or company name. Skip anyone you cannot tie to a real full name.
-2. One real person per candidate. Do NOT invent multiple candidates from a repo's contributor
-   list, commenters, or org members — only the actual founder(s) / creator(s).
-3. HARD geo filter — include a person ONLY if the results give evidence they are based in or
-   clearly tied to {geo}. Set `city` ONLY from explicit evidence; NEVER assume or fabricate the
-   target geography. If location is unknown or clearly outside {geo}, DROP the person.
+1. display_name = the person's real full name when available. If a result only exposes a
+   USERNAME/HANDLE or a FIRST NAME (common on GitHub, HN, arXiv, hackathon/event pages), STILL
+   extract them — put the handle/first name in display_name, leave first_name/last_name null;
+   later research resolves the real name. Only skip results with NO identifiable individual (pure
+   company/product/marketing/index pages). NEVER emit a candidate literally named "None".
+2. Extract EVERY named individual who is plausibly a builder — INCLUDING multiple co-authors of a
+   paper, multiple members of a lab / student-club / org page, and multiple hackathon participants.
+   Do NOT collapse a multi-person page to one. Do NOT invent a person or stitch a name onto an
+   unrelated handle/company.
+3. Geo is a SOFT preference, NOT a hard gate. KEEP people whose location is unknown (set city null —
+   research verifies later). DROP someone only with explicit evidence they are clearly OUTSIDE
+   {geo} with no tie. Never fabricate a location or emit a person you noted should be dropped.
 4. People only — skip pure companies. PREFER pre-founders (students, PhD researchers, hackathon
    participants, club members) with NO company yet — current_company=null is expected and GOOD,
    we want them BEFORE they found. De-prioritize established, well-funded company founders.
@@ -310,26 +335,43 @@ def extract_candidates(state: DiscoveryState) -> dict:
 def _research_context(cand: dict, thesis: dict) -> str:
     geo = ", ".join(thesis.get("geo") or [])
     inds = " ".join(thesis["industries"])
-    prefs = thesis.get("founder_preferences") or {}
-    schools = " OR ".join((prefs.get("schools") or [])[:3])
-    round2 = f"{cand['display_name']} {geo} founder LinkedIn OR GitHub OR hackathon OR university"
-    if schools:
-        round2 += f" OR {schools}"
+    name = cand["display_name"]
+    # Anchor on the candidate's known identifiers so we don't conflate same-named people.
+    anchors = " ".join(
+        v
+        for v in (
+            cand.get("github"),
+            cand.get("website"),
+            cand.get("linkedin"),
+            cand.get("current_company"),
+        )
+        if v
+    )
     rounds = [
-        f"{cand['display_name']} {cand.get('current_company') or ''} founder {inds}",
-        round2,
+        f"{name} {cand.get('current_company') or ''} founder {inds}",
+        (
+            f"{name} {anchors}".strip()
+            if anchors
+            else f"{name} {geo} LinkedIn GitHub personal website"
+        ),
+        f"{name} {geo} {inds} hackathon research university founder",
     ][: settings.research_rounds]
     parts = []
     for q in rounds:
         try:
             res = tavily.tavily_search(
-                q, settings.tavily_api_key, max_results=settings.tavily_max_results
+                q,
+                settings.tavily_api_key,
+                max_results=settings.tavily_max_results,
+                search_depth="advanced",
+                include_raw_content=True,
             )
         except httpx.HTTPError:
             continue
         parts.append(
             "\n\n".join(
-                f"{r.get('title')}\n{r.get('url')}\n{(r.get('content') or '')[:800]}"
+                f"{r.get('title')}\n{r.get('url')}\n"
+                f"{(r.get('raw_content') or r.get('content') or '')[:1200]}"
                 for r in res.get("results", [])
             )
         )
@@ -346,9 +388,12 @@ def _synthesis_prompt(cand: dict, ctx: str) -> str:
 {ctx}
 
 ## Task
-Produce a structured founder profile.
+Produce a structured founder profile for THIS candidate.
 
 ## Requirements
+- The research may describe SEVERAL different people who share this name. Include a signal ONLY if
+  it is clearly the SAME person as the candidate's known identifiers (github / website / company /
+  field). When uncertain whether a result is the same person, EXCLUDE it.
 - resolved_name: the person's REAL full name if the candidate name was a username/handle
   (else null).
 - education: list of {{school, degree, field, year}}.
@@ -452,7 +497,8 @@ def _profile_one(cand: dict, thesis: dict) -> dict:
 
 
 def research_candidates(state: DiscoveryState) -> dict:
-    cands = state["candidates"]
+    raw = state["candidates"]
+    cands = [c for c in raw if _worth_researching(c)]  # cheap gate before expensive gpt-5.4
     thesis = state["thesis"]
     with ThreadPoolExecutor(max_workers=settings.max_workers) as ex:
         founders = list(ex.map(lambda c: _profile_one(c, thesis), cands))
@@ -460,7 +506,8 @@ def research_candidates(state: DiscoveryState) -> dict:
         "founders": founders,
         "trace": [
             f"research_candidates -> {len(founders)} founders "
-            f"(gpt-5.4 synthesis, {settings.research_rounds} rounds each, parallel)"
+            f"({len(raw) - len(cands)} gated out; gpt-5.4 synthesis, "
+            f"{settings.research_rounds} rounds each, parallel)"
         ],
     }
 

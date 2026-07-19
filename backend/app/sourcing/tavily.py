@@ -11,13 +11,14 @@ def tavily_search(
     max_results: int = 5,
     include_domains: list[str] | None = None,
     search_depth: str = "basic",
+    include_raw_content: bool = False,
 ) -> dict:
     payload: dict = {
         "api_key": api_key,
         "query": query,
         "max_results": max_results,
         "search_depth": search_depth,
-        "include_raw_content": False,
+        "include_raw_content": include_raw_content,
     }
     if include_domains:
         payload["include_domains"] = include_domains
