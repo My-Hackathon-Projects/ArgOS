@@ -8,3 +8,4 @@ ralph/
 .playwright-mcp/
 AGENTS.md
 docs/imagesdocs/demo-script-60s.md
+.DS_Store
