@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VC Brain — Frontend
 
-## Getting Started
+Next.js 16 (App Router) + TypeScript + Tailwind v4. The UI for the sourcing slice, wired to the
+FastAPI backend at `backend/` (`http://localhost:8000`).
 
-First, run the development server:
+For full-stack setup (DB + backend + this app), see the root [`README.md`](../README.md). This file
+covers the frontend only.
+
+## Stack
+
+- **Next.js 16** (App Router, Turbopack) · **React 19** · **TypeScript**
+- **Tailwind v4** — theme tokens live in `src/app/globals.css` (`:root` + `@theme`); reskin by editing them
+- **TanStack Query** + **orval** — typed API client generated from the backend OpenAPI schema
+- **motion** (Framer Motion) — feed animations (heartbeat header, signal fly-in)
+- **lucide-react** — icons
+
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000  (redirects to /sourcing)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires the backend running on `:8000`. The API base URL is read from `frontend/.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Script | What |
+|---|---|
+| `npm run dev` | dev server (Turbopack) on :3000 |
+| `npm run build` / `start` | production build / serve |
+| `npm run typecheck` | `tsc --noEmit` — the FE/BE **type-sync gate** |
+| `npm run api:gen` | regenerate the typed client from `../backend/openapi.json` |
+| `npm run lint` | eslint |
 
-To learn more about Next.js, take a look at the following resources:
+## Data layer (typed, generated)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Never hand-write API types. They are generated from the backend's OpenAPI schema:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+backend Pydantic models → backend/openapi.json → orval → src/api/generated/**
+```
 
-## Deploy on Vercel
+- `orval.config.ts` — codegen config (react-query client, axios http, custom mutator)
+- `src/api/axios-instance.ts` — the axios mutator (base URL, unwraps response body)
+- `src/api/generated/` — **generated**, committed; do not edit by hand
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Regenerate after a backend response-model change:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+cd ../backend && uv run python -m app.export_openapi   # refresh the schema
+cd ../frontend && npm run api:gen && npm run typecheck  # regen client + catch drift
+```
+
+Use a hook by importing from the generated module, e.g.:
+
+```ts
+import { useListSignals, useGetFounder } from "@/api/generated/default/default";
+```
+
+## Layout
+
+```
+src/
+  app/
+    layout.tsx              root layout: fonts, Providers, AppShell
+    providers.tsx           TanStack QueryClientProvider
+    globals.css             design tokens + animations (heartbeat/flash)
+    sourcing/               live signal feed + channels + discovery
+    founders/               table + [id] detail
+    settings/               thesis (read-only)
+    research/               market-research preview (not wired)
+  components/
+    app-shell.tsx           sidebar nav
+    sourcing/               live-header, signal-feed, signal-card, channel-list, discovery-button
+    founders/               founders-table, founder-detail
+    settings/               thesis-view
+    ui/                      button, card, badge, skeleton, page-header
+  lib/                      utils (cn), format (time/initials), source-style (gradients)
+  api/                      axios instance + generated client
+```
