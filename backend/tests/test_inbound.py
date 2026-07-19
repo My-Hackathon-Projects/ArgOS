@@ -82,16 +82,16 @@ def test_parse_deck_no_text_raises():
 # ── hard_filter ──────────────────────────────────────────────────────────────
 def test_hard_filter_rejects_off_thesis_sector():
     thesis = InvestmentThesis(industries=["fintech", "healthcare"], geo=["EU"])
-    r = hard_filter(thesis, "gambling", "EU")
+    r = hard_filter(thesis, "gambling")
     assert r is not None and r.verdict == "reject"
     assert "sector" in r.reason
 
 
 def test_hard_filter_loose_match_and_missing_values_pass():
-    thesis = InvestmentThesis(industries=["healthcare"], geo=["EU"])
-    assert hard_filter(thesis, "healthtech, healthcare AI", "EU") is None  # substring match
-    assert hard_filter(thesis, None, None) is None  # unknown sector/geo -> no hard call
-    assert hard_filter(None, "gambling", "US") is None  # no thesis -> no filter
+    thesis = InvestmentThesis(industries=["healthcare"], geo=["Munich"])
+    assert hard_filter(thesis, "healthtech, healthcare AI") is None  # substring match
+    assert hard_filter(thesis, None) is None  # unknown sector -> no hard call
+    assert hard_filter(None, "gambling") is None  # no thesis -> no filter
 
 
 # ── /apply round trip (LLMs monkeypatched) ───────────────────────────────────

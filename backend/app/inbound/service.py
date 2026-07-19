@@ -25,22 +25,19 @@ from app.models import Claim, ClaimEvidence, InvestmentThesis, Opportunity, Sign
 _RELEVANCE = 0.85  # deck page directly asserts the claim (mirrors app.claims.service)
 
 
-def hard_filter(
-    thesis: InvestmentThesis | None, sector: str | None, geo: str | None
-) -> PreScreenResult | None:
-    """Deterministic thesis filters — a miss rejects without spending an LLM call.
-    Loose match (substring either way) so 'healthtech' vs 'healthcare' doesn't hard-kill."""
-    if thesis is None:
+def hard_filter(thesis: InvestmentThesis | None, sector: str | None) -> PreScreenResult | None:
+    """Deterministic thesis sector filter — a miss rejects without spending an LLM call.
+    Loose match (substring either way) so 'healthtech' vs 'healthcare' doesn't hard-kill.
+    Geo is deliberately NOT hard-filtered: containment ('EU' vs 'Munich') needs semantics
+    a string match can't see — the LLM prescreen judges it (uncertain -> pass)."""
+    if thesis is None or not (thesis.industries and sector):
         return None
-    for value, allowed, label in ((sector, thesis.industries, "sector"), (geo, thesis.geo, "geo")):
-        if not (allowed and value):
-            continue
-        v = value.lower()
-        if not any(v in a.lower() or a.lower() in v for a in allowed):
-            return PreScreenResult(
-                verdict="reject",
-                reason=f"Thesis hard filter: {label}='{value}' not in {allowed}",
-            )
+    v = sector.lower()
+    if not any(v in a.lower() or a.lower() in v for a in thesis.industries):
+        return PreScreenResult(
+            verdict="reject",
+            reason=f"Thesis hard filter: sector='{sector}' not in {thesis.industries}",
+        )
     return None
 
 
@@ -125,9 +122,7 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
         .scalars()
         .first()
     )
-    pre = hard_filter(thesis, extraction.sector, extraction.geo) or prescreen_llm(
-        _thesis_dict(thesis), pages
-    )
+    pre = hard_filter(thesis, extraction.sector) or prescreen_llm(_thesis_dict(thesis), pages)
 
     # Mint claims regardless of verdict — a rejection keeps its evidence trail queryable.
     minted, dropped = _mint_deck_claims(db, opp, extraction.claims, signal_by_page)
