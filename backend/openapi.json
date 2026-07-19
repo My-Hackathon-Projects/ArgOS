@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "VC Brain \u2014 Sourcing",
+    "title": "ArgOS",
     "version": "0.1.0"
   },
   "paths": {

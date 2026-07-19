@@ -1,6 +1,7 @@
-# VC Brain
+# ArgOS
 
-Challenge 02 (Maschmeyer Group x Hack-Nation). An AI-native VC operating system that runs the
+ArgOS is an AI-native VC operating system, built for Challenge 02 (The VC Brain, Maschmeyer
+Group x Hack-Nation). It runs the
 funnel **Sourcing, Screening, Diligence, Decision**: discover founders from their public
 footprint before they appear in any startup database, resolve noisy signals into corroborated
 claims with auditable trust scores, research the market around an opportunity with cited
@@ -108,14 +109,14 @@ Verify: <http://localhost:8000/health> returns `{"status":"ok","signals":N}` and
 
 ## Using the app
 
-- **Home** (`/`): what VC Brain is, the funnel, and the team. Opens with the
+- **Home** (`/`): what ArgOS is, the funnel, and the team. Opens with the
   signal-convergence animation.
 - **Sourcing** (outbound): live signal feed (5 second poll, new signals flash in), search,
   type filters, pagination, the channels being monitored, and a Run discovery button. Every
   card opens its real source.
-- **Inbound**: the applications inbox. Upload a pitch deck (extracted, claim-mined and
-  prescreened by the backend) or log a deal by hand; either way it becomes an opportunity in
-  the screening loop.
+- **Inbound**: the applications inbox. Founders email a pitch deck and company name; the
+  intake agent (`POST /apply`) extracts, claim-mines and prescreens it, and it becomes an
+  opportunity in the screening loop.
 - **Founders**: searchable, sortable, filterable table of every resolved person with their
   Founder Score. The detail view shows identity links, education, corroborated claims with
   per-claim Trust Scores, and the full signal timeline.
@@ -130,8 +131,9 @@ Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs A
 `uv run python -m app.claims.run` from `backend/`. For market research,
 `uv run python -m app.market.run` is a no-DB smoke run that writes
 `backend/examples/market_live_output.json`; persist analyses for the UI by calling
-`app.market.service.run_market_analysis(...)` against an opportunity. Continuous scheduling exists in
-`backend/app/scheduler.py` but is off by default; manual triggers are the supported path.
+`app.market.service.run_market_analysis(...)` against an opportunity. Continuous scheduling
+(`backend/app/scheduler.py`) is on by default: discovery hourly, refresh every 6 hours; set
+`CRON_ENABLED=false` in `.env` to disable it.
 
 ## API surface
 

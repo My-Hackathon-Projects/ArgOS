@@ -18,7 +18,7 @@ export function Footer() {
             <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-primary-foreground">
               <BrainCircuit className="h-3.5 w-3.5" />
             </span>
-            <span className="text-sm font-semibold tracking-tight">VC Brain</span>
+            <span className="text-sm font-semibold tracking-tight">ArgOS</span>
           </div>
           <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2">
             {LINKS.map(({ href, label }) => (
@@ -32,7 +32,7 @@ export function Footer() {
             ))}
           </nav>
         </div>
-        <p className="text-xs text-subtle">© VC Brain. All rights reserved.</p>
+        <p className="text-xs text-subtle">© ArgOS. All rights reserved.</p>
       </div>
     </footer>
   );

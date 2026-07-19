@@ -8,7 +8,7 @@ export default function InboundPage() {
       <PageHeader
         eyebrow="Inbound"
         title="Applications"
-        subtitle="Deals that come to you: founders applying, warm intros, and deals logged by hand. Each application becomes an opportunity in the screening loop."
+        subtitle="Deals that come to you by email: founders send their pitch deck and company name, the intake agent extracts the details, and every application lands here in the screening loop."
       />
       <div className="mt-10">
         <InboundView />

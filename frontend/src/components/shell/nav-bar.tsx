@@ -25,17 +25,17 @@ export function NavBar() {
 
   return (
     <header className="glass sticky top-0 z-50 border-b border-black/[0.06]">
-      <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
           className="flex items-center gap-2"
-          aria-label="VC Brain home"
+          aria-label="ArgOS home"
           onClick={() => setOpen(false)}
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-primary-foreground">
-            <BrainCircuit className="h-3.5 w-3.5" />
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-primary-foreground">
+            <BrainCircuit className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold tracking-tight">VC Brain</span>
+          <span className="text-base font-semibold tracking-tight">ArgOS</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
@@ -46,7 +46,7 @@ export function NavBar() {
                 key={href}
                 href={href}
                 className={cn(
-                  "relative rounded-full px-3.5 py-1.5 text-xs transition-colors duration-200",
+                  "relative rounded-full px-4 py-2 text-sm transition-colors duration-200",
                   active
                     ? "font-medium text-foreground"
                     : "text-muted-foreground hover:text-foreground",

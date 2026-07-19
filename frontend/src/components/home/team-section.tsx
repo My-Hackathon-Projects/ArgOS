@@ -9,7 +9,7 @@ const TEAM = [
     email: "rishtiwari98@gmail.com",
     linkedin: "https://www.linkedin.com/in/icon1c/",
     photo: "/images/rishabh-tiwari.jpeg",
-    bio: "Software developer and applied AI researcher with experience across Amazon, Porsche, and SAP. He builds the resilient software architecture that helps VC Brain scale.",
+    bio: "Software developer and applied AI researcher with experience across Amazon, Porsche, and SAP. He builds the resilient software architecture that helps ArgOS scale.",
     chips: ["SAP", "Porsche", "Amazon"],
   },
   {
@@ -18,7 +18,7 @@ const TEAM = [
     email: "alexandre.boving@gmail.com",
     linkedin: "https://www.linkedin.com/in/alexandre-boving-04422a1b6/",
     photo: null,
-    bio: "Co-founding engineer building VC Brain's autonomous funnel, from raw public signals through to the investment decision.",
+    bio: "Co-founding engineer building ArgOS's autonomous funnel, from raw public signals through to the investment decision.",
     chips: [],
   },
   {
@@ -27,7 +27,7 @@ const TEAM = [
     email: "floriansprick@hotmail.com",
     linkedin: "https://www.linkedin.com/in/florian-sprick/",
     photo: "/images/florian-sprick.jpeg",
-    bio: "Machine learning researcher with experience across ZEISS, Fraunhofer, and AI Center Tübingen. He builds the agent harness that helps VC Brain identify high-potential founders.",
+    bio: "Machine learning researcher with experience across ZEISS, Fraunhofer, and AI Center Tübingen. He builds the agent harness that helps ArgOS identify high-potential founders.",
     chips: ["AI Center Tübingen", "Zeiss", "Fraunhofer"],
   },
 ];
@@ -56,7 +56,7 @@ function Avatar({ photo, name }: { photo: string | null; name: string }) {
   );
 }
 
-/** Team: who built VC Brain. Anchored so the footer and hero can link to it. */
+/** Team: who built ArgOS. Anchored so the footer and hero can link to it. */
 export function TeamSection() {
   return (
     <section id="about" aria-label="Team" className="mt-16 scroll-mt-20 sm:mt-24">

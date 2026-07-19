@@ -75,7 +75,7 @@ def _operation_id(route: APIRoute) -> str:
 
 
 app = FastAPI(
-    title="VC Brain — Sourcing",
+    title="ArgOS",
     lifespan=lifespan,
     generate_unique_id_function=_operation_id,
 )

@@ -38,12 +38,12 @@ UI/UX showcase video: user experience and product flow, 60 seconds.
 
 | Time | Screen | Action and voiceover |
 |---|---|---|
-| 0-6s | Home `/` | Page loads, signal particles converge into the hero, headline fades in. Voiceover: "Great founders leave a public trail long before they raise. VC Brain watches for it." |
+| 0-6s | Home `/` | Page loads, signal particles converge into the hero, headline fades in. Voiceover: "Great founders leave a public trail long before they raise. ArgOS watches for it." |
 | 6-18s | Sourcing | Show the live heartbeat and the feed. New signals flash in (from the discovery run you queued). Filter to Funding, click a card: it opens the real source. "Thirteen public channels, resolved to real people, every signal traceable to its source." |
 | 18-30s | Founders | Search "max planck", sort by Signals, open a founder. Point at education, identity links, the timeline, discovery confidence. "Every person gets a resolved profile and an auditable confidence score." |
-| 30-45s | Market Research | Switch opportunities with the picker. Show the axis score, TAM/SAM/SOM cards with reported versus estimated chips, then the flagged gaps card. "The research agent cites every number, and flags what it does not know instead of inventing it." |
+| 30-45s | Opportunities | Open a deal: the three-axis screen, TAM/SAM/SOM cards with reported versus estimated chips, then the investment memo with cited hypotheses and flagged gaps. "The agents cite every number, and flag what they do not know instead of inventing it." |
 | 45-55s | Any page, narrow window | Drag the window narrow or show a phone frame: nav collapses to the menu, table becomes cards. "The whole funnel, on any screen." |
-| 55-60s | Home `/` | End on the funnel cards and the tagline. "Sourcing to decision. VC Brain." |
+| 55-60s | Home `/` | End on the funnel cards and the tagline. "Sourcing to decision. ArgOS." |
 
 ## Recording mechanics
 

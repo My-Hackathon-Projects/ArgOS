@@ -5,7 +5,7 @@ import { Footer } from "@/components/shell/footer";
 import { NavBar } from "@/components/shell/nav-bar";
 
 export const metadata: Metadata = {
-  title: "VC Brain",
+  title: "ArgOS",
   description: "Detect founders before they show up in any startup database.",
 };
 

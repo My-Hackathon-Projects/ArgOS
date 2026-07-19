@@ -1,4 +1,4 @@
-# VC Brain — Backend (Sourcing / Signal Ingestion)
+# ArgOS — Backend (Sourcing / Signal Ingestion)
 
 Challenge 02. Python + FastAPI, Postgres (pgvector), SQLAlchemy 2.0 + Alembic, managed with `uv`.
 

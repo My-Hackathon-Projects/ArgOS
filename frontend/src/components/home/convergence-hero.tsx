@@ -154,7 +154,7 @@ export function ConvergenceHero() {
           {...appear(0.5)}
           className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary"
         >
-          VC Brain
+          ArgOS
         </motion.div>
         <motion.h1
           {...appear(0.8)}
@@ -166,7 +166,7 @@ export function ConvergenceHero() {
           {...appear(1.1)}
           className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted-foreground sm:text-base"
         >
-          VC Brain watches the open web for founders before they appear in any startup database,
+          ArgOS watches the open web for founders before they appear in any startup database,
           then turns noisy signals into scored, evidence backed investment decisions.
         </motion.p>
         <motion.div

@@ -1,6 +1,6 @@
-# VC Brain — Frontend
+# ArgOS — Frontend
 
-Next.js 16 (App Router) + TypeScript + Tailwind v4. The UI for VC Brain's home, sourcing,
+Next.js 16 (App Router) + TypeScript + Tailwind v4. The UI for ArgOS's home, sourcing,
 founders, thesis, and market research flows, wired to the FastAPI backend at `backend/`
 (`http://localhost:8000`).
 
@@ -84,8 +84,7 @@ src/
     home/                   convergence-hero, team-section (photos from public/images)
     sourcing/               live-header, signal-feed, signal-card, type-filter, channel-list,
                             discovery-button
-    inbound/                inbound-view (inbox rows), deck-apply (POST /apply),
-                            application-form (POST /opportunities)
+    inbound/                inbound-view (email-style inbox rows over /opportunities)
     founders/               founders-table, founder-toolbar, sort, founder-detail,
                             claims-list, timeline-item, status
     opportunities/          opportunities-list, opportunity-detail (Run screening),
