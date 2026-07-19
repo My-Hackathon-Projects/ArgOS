@@ -16,7 +16,7 @@ Domain models (Signal, Claim, Founder, ...) come from the shared contract
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -90,7 +90,7 @@ class ClaimExtraction(BaseModel):
 # later run). One class == one table row. Repository stubs accept these.
 # --------------------------------------------------------------------------- #
 
-OpportunityStage = Literal["screened", "rejected", "queued"]
+OpportunityStage = Literal["received", "screened", "rejected", "queued"]
 
 
 class OpportunityRecord(BaseModel):
@@ -101,7 +101,8 @@ class OpportunityRecord(BaseModel):
     company_id: str | None = None
     founder_id: str | None = None
     stage: OpportunityStage
-    thesis_json: dict = Field(default_factory=dict)  # jsonb, frozen at intake
+    thesis_json: dict[str, Any] = Field(default_factory=dict)  # jsonb, frozen at intake
+    deck_blob_key: str | None = None  # MinIO/S3 key of the raw deck PDF
     created_at: str
     updated_at: str
 
@@ -112,7 +113,7 @@ class SignalRecord(BaseModel):
     id: str  # pk, deterministic (content hash) so re-uploads are idempotent
     source_type: str
     source_url: str | None = None
-    raw_payload: dict = Field(default_factory=dict)  # jsonb, primary evidence
+    raw_payload: dict[str, Any] = Field(default_factory=dict)  # jsonb, primary evidence
     entity_hints: list[str] = Field(default_factory=list)
     fetched_at: str
     opportunity_id: str | None = None  # fk, nullable (outbound scan signals)
@@ -126,7 +127,7 @@ class FounderRecord(BaseModel):
     handles: dict[str, str] = Field(default_factory=dict)  # jsonb
     education: list[str] = Field(default_factory=list)
     founder_score: float | None = None  # current snapshot 0..100
-    score_history: list[dict] = Field(default_factory=list)  # jsonb ScorePoints
+    score_history: list[dict[str, Any]] = Field(default_factory=list)  # jsonb ScorePoints
 
 
 class CompanyRecord(BaseModel):

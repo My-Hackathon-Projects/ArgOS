@@ -12,6 +12,8 @@ the record model (see ``models.py``) defining its exact attributes.
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.service.models import Claim, Founder, Signal, TrustScore
 from app.service.validation_pipeline.utils.models import (
     AxisScoreRecord,
@@ -25,7 +27,7 @@ from app.service.validation_pipeline.utils.models import (
 # ------------------------- External fact-checking -------------------------- #
 
 
-def verify_claim_external(claim: Claim, signals: list[Signal]) -> dict:
+def verify_claim_external(claim: Claim, signals: list[Signal]) -> dict[str, Any]:
     """
     The validator's fact-checking tool. Given a Claim, decide which external
     check applies (GitHub stars -> GitHub API, "launched on HN" -> HN Algolia
@@ -51,7 +53,7 @@ def verify_claim_external(claim: Claim, signals: list[Signal]) -> dict:
 # ------------------------- Repository (Memory) stubs ----------------------- #
 
 
-def load_ticket_context(ticket_like: dict) -> dict:
+def load_ticket_context(ticket_like: dict[str, Any]) -> dict[str, Any]:
     """
     Hydration query for ``hydrate``: given the ticket's ids, load the
     canonical Founder (with full score_history), the Signals in
@@ -64,7 +66,7 @@ def load_ticket_context(ticket_like: dict) -> dict:
     return {}
 
 
-def get_founder_history(founder_id: str) -> dict:
+def get_founder_history(founder_id: str) -> dict[str, Any]:
     """
     Everything Memory knows about a person: past signals, past opportunities
     and decisions, and the full founder score_history. ONE input to the
@@ -135,7 +137,7 @@ def finalize_opportunity(
 
 
 def compute_founder_score_point(
-    founder: Founder | None, axis_scores: dict
+    founder: Founder | None, axis_scores: dict[str, Any]
 ) -> FounderScorePointRecord | None:
     """
     Derive the new appended Founder Score point from the founder-axis score

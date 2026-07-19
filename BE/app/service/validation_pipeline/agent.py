@@ -17,8 +17,11 @@ API routes, checkpoints, domain rows, and LangSmith traces.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.service.checkpointer import get_checkpointer
 from app.service.models import Decision, ProcessingTicket
@@ -29,13 +32,13 @@ from app.service.validation_pipeline.utils.models import ProcessingState
 _AXES = ["founder_axis", "market_axis", "idea_vs_market_axis"]
 
 
-def _route_validation(state: ProcessingState):
+def _route_validation(state: ProcessingState) -> list[str] | str:
     """retry -> re-fan-out to all three axes (contradictions now visible in
     state); ok -> memo_writer."""
     return _AXES if nodes.route_validation(state) == "retry" else "memo_writer"
 
 
-def build_validation_graph():
+def build_validation_graph() -> CompiledStateGraph[Any, Any, Any, Any]:
     """Compile Graph 3 with the shared checkpointer and the one interrupt."""
     builder = (
         StateGraph(ProcessingState)
@@ -78,7 +81,7 @@ graph = build_validation_graph()
 # --------------------------------------------------------------------------- #
 # Run helpers — what the API layer and enqueue_processing() call.
 # --------------------------------------------------------------------------- #
-def _config(opportunity_id: str) -> dict:
+def _config(opportunity_id: str) -> RunnableConfig:
     return {"configurable": {"thread_id": opportunity_id}}
 
 
@@ -110,10 +113,10 @@ def resume_run(opportunity_id: str, decision: Decision) -> ProcessingState:
     """
     config = _config(opportunity_id)
     graph.update_state(config, {"decision": decision})
-    return graph.invoke(None, config)
+    return cast(ProcessingState, graph.invoke(None, config))
 
 
-def get_run_status(opportunity_id: str) -> dict:
+def get_run_status(opportunity_id: str) -> dict[str, Any]:
     """
     Called by GET /opportunities/{id}/status. Reads the LATEST checkpoint
     for the thread and maps it to {stage, stage_timestamps, elapsed_seconds,
@@ -141,4 +144,7 @@ def start_processing_run(ticket: ProcessingTicket) -> ProcessingState:
     the decision_gate interrupt on ``thread_id = opportunity_id``. Kept here
     so demos/tests can bypass the inbound graph.
     """
-    return graph.invoke(ticket_to_state(ticket), _config(ticket.opportunity_id))
+    return cast(
+        ProcessingState,
+        graph.invoke(ticket_to_state(ticket), _config(ticket.opportunity_id)),
+    )
