@@ -24,6 +24,7 @@ dependencies = [
 dev = [
     "ruff>=0.8",
     "pytest>=8.3",
+    "pyright>=1.1.411",
 ]
 
 # Application project, not a distributable package — uv should not build/install it.
@@ -37,6 +38,10 @@ line-length = 100
 # Minimal, universal set: pyflakes(F) + pycodestyle(E) + isort(I) + pyupgrade(UP) + bugbear(B).
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# Tuned LLM prompt templates / Field descriptions — rewrapping would change prompt content.
+"app/claims/*" = ["E501"]
+
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's Depends()/Query()/etc. in defaults are idiomatic, not the B008 anti-pattern.
 extend-immutable-calls = [
@@ -46,6 +51,23 @@ extend-immutable-calls = [
     "fastapi.Header",
     "fastapi.Body",
     "fastapi.Form",
+]
+
+[tool.pyright]
+# Pre-existing errors in other agents' modules (49 on 2026-07-19), several in files the loop
+# must not edit (market/, sourcing/graph.py). Excluded so the gate stays meaningful for new
+# code; re-include per file as they get cleaned.
+exclude = [
+    "app/market",
+    "app/sourcing/graph.py",
+    "app/sourcing/persist.py",
+    "app/sourcing/discover.py",
+    "app/sourcing/fetchers.py",
+    "app/claims/service.py",
+    "app/claims/extract.py",
+    "app/ingest.py",
+    "tests/test_claims.py",
+    ".venv",
 ]
 
 [tool.pytest.ini_options]
