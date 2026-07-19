@@ -27,6 +27,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.config import settings
 from app.sourcing import tavily
+from app.sourcing.fetchers import get_fetcher
 from app.sourcing.schemas import CandidateList, CandidateResearch, SearchPlan
 from app.sourcing.seeds import enabled_channels
 
@@ -220,39 +221,21 @@ Generate the queries now."""
 
 
 # ── ② run_searches (parallel Tavily) ─────────────────────────────────────────
-def _search_one(q: dict) -> list[dict]:
-    domains = [q["domain"]] if q.get("domain") else None
-    try:
-        res = tavily.tavily_search(
-            q["query"],
-            settings.tavily_api_key,
-            max_results=settings.tavily_max_results,
-            include_domains=domains,
-            search_depth="advanced",
-            include_raw_content=True,
-        )
-    except httpx.HTTPError:
-        return []  # one flaky query must not sink the fan-out (narrow, not silent)
-    return [
-        {
-            "channel": q.get("channel"),
-            "title": r.get("title"),
-            "url": r.get("url"),
-            # raw_content (fuller page) surfaces author/member/participant names snippets miss
-            "content": (r.get("raw_content") or r.get("content") or "")[
-                : settings.hit_content_chars
-            ],
-        }
-        for r in res.get("results", [])
-    ]
+def _search_one(q: dict, channels_by_name: dict[str, dict]) -> list[dict]:
+    # Resolve the channel's fetcher (default 'tavily') — the graph never hardcodes a source.
+    channel = channels_by_name.get(
+        q.get("channel"), {"name": q.get("channel"), "domain": q.get("domain")}
+    )
+    return get_fetcher(channel.get("fetcher"))(q["query"], channel)
 
 
 def run_searches(state: DiscoveryState) -> dict:
     queries = state["queries"]
+    channels_by_name = {c["name"]: c for c in enabled_channels()}
     hits: list[dict] = []
     seen: set[str] = set()
     with ThreadPoolExecutor(max_workers=settings.max_workers) as ex:
-        for batch in ex.map(_search_one, queries):
+        for batch in ex.map(lambda q: _search_one(q, channels_by_name), queries):
             for h in batch:
                 # Dedup on the CANONICAL url so www/scheme/param variants collapse (not raw url).
                 key = _canonicalize(h["url"]) if h.get("url") else None
