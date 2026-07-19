@@ -2,15 +2,30 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api_schemas import (
+    ChannelItem,
+    DiscoveryRunResponse,
+    FounderDetail,
+    FounderListItem,
+    HealthResponse,
+    IngestResponse,
+    SignalListItem,
+    ThesisResponse,
+)
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.ingest import upsert_signal
 from app.models import Founder, InvestmentThesis, Signal, SourcingChannel
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
+
+# Next.js dev server. Kept explicit (not "*") so credentialed requests stay allowed.
+CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 @asynccontextmanager
@@ -23,16 +38,33 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="VC Brain — Sourcing", lifespan=lifespan)
+def _operation_id(route: APIRoute) -> str:
+    # operationId = handler name -> clean generated FE hooks (useListSignals, useGetFounder, ...).
+    return route.name
 
 
-@app.get("/health")
+app = FastAPI(
+    title="VC Brain — Sourcing",
+    lifespan=lifespan,
+    generate_unique_id_function=_operation_id,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health", response_model=HealthResponse)
 def health(db: Session = Depends(get_db)) -> dict:
     count = db.execute(select(func.count()).select_from(Signal)).scalar_one()
     return {"status": "ok", "signals": count}
 
 
-@app.get("/signals")
+@app.get("/signals", response_model=list[SignalListItem])
 def list_signals(limit: int = 50, db: Session = Depends(get_db)) -> list[dict]:
     rows = (
         db.execute(select(Signal).order_by(Signal.ingested_at.desc()).limit(limit)).scalars().all()
@@ -53,20 +85,20 @@ def list_signals(limit: int = 50, db: Session = Depends(get_db)) -> list[dict]:
     ]
 
 
-@app.post("/signals/ingest")
+@app.post("/signals/ingest", response_model=IngestResponse)
 def ingest(env: SignalEnvelope, db: Session = Depends(get_db)) -> dict:
     signal, created = upsert_signal(db, env)
     return {"id": str(signal.id), "created": created}
 
 
 # ── Sourcing / outbound ──────────────────────────────────────────────────────
-@app.post("/discovery/run")
+@app.post("/discovery/run", response_model=DiscoveryRunResponse)
 def discovery_run(db: Session = Depends(get_db)) -> dict:
     """Hand-trigger a discovery run (thesis → search → resolve → persist). Synchronous (~30-60s)."""
     return run_discovery(db)
 
 
-@app.get("/founders")
+@app.get("/founders", response_model=list[FounderListItem])
 def list_founders(db: Session = Depends(get_db)) -> list[dict]:
     rows = (
         db.execute(select(Founder).order_by(Founder.first_discovered_at.desc().nullslast()))
@@ -93,7 +125,7 @@ def list_founders(db: Session = Depends(get_db)) -> list[dict]:
     return out
 
 
-@app.get("/founders/{founder_id}")
+@app.get("/founders/{founder_id}", response_model=FounderDetail)
 def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     f = db.get(Founder, founder_id)
     if f is None:
@@ -142,7 +174,7 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     }
 
 
-@app.get("/sourcing-channels")
+@app.get("/sourcing-channels", response_model=list[ChannelItem])
 def list_channels(db: Session = Depends(get_db)) -> list[dict]:
     rows = db.execute(select(SourcingChannel).order_by(SourcingChannel.name)).scalars().all()
     return [
@@ -157,7 +189,7 @@ def list_channels(db: Session = Depends(get_db)) -> list[dict]:
     ]
 
 
-@app.get("/thesis")
+@app.get("/thesis", response_model=ThesisResponse)
 def get_thesis(db: Session = Depends(get_db)) -> dict:
     row = (
         db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))
