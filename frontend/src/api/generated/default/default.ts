@@ -27,6 +27,7 @@ import type {
   ApplyResponse,
   BodyApplyInbound,
   ChannelItem,
+  DecisionRequest,
   DiscoveryRunResponse,
   FounderDetail,
   FounderListItem,
@@ -40,10 +41,12 @@ import type {
   OpportunityCreate,
   OpportunityDetail,
   OpportunityListItem,
+  OutreachDraft,
   ScreenParams,
   SignalEnvelope,
   SignalListItem,
-  ThesisResponse
+  ThesisResponse,
+  ThesisUpdate
 } from '../model';
 
 import { customInstance } from '../../axios-instance';
@@ -636,6 +639,69 @@ export function useGetFounder<TData = Awaited<ReturnType<typeof getFounder>>, TE
 
 
 /**
+ * ACTIVATE — draft a (mocked) cold-outreach email to a sourced founder. Not actually sent.
+ * @summary Outreach
+ */
+export const outreach = (
+    founderId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<OutreachDraft>(
+      {url: `/founders/${founderId}/outreach`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getOutreachMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof outreach>>, TError,{founderId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof outreach>>, TError,{founderId: string}, TContext> => {
+
+const mutationKey = ['outreach'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof outreach>>, {founderId: string}> = (props) => {
+          const {founderId} = props ?? {};
+
+          return  outreach(founderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OutreachMutationResult = NonNullable<Awaited<ReturnType<typeof outreach>>>
+
+    export type OutreachMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Outreach
+ */
+export const useOutreach = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof outreach>>, TError,{founderId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof outreach>>,
+        TError,
+        {founderId: string},
+        TContext
+      > => {
+      return useMutation(getOutreachMutationOptions(options), queryClient);
+    }
+    /**
  * @summary List Channels
  */
 export const listChannels = (
@@ -1383,6 +1449,73 @@ export function useGetMemo<TData = Awaited<ReturnType<typeof getMemo>>, TError =
 
 
 /**
+ * Record the investor's decision (pursue|track|pass) — the funnel's Decision step. Stamps
+ * decided_at (signal->decision latency) and moves the opportunity's status.
+ * @summary Decide
+ */
+export const decide = (
+    opportunityId: string,
+    decisionRequest: BodyType<DecisionRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<OpportunityDetail>(
+      {url: `/opportunities/${opportunityId}/decision`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: decisionRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getDecideMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decide>>, TError,{opportunityId: string;data: BodyType<DecisionRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof decide>>, TError,{opportunityId: string;data: BodyType<DecisionRequest>}, TContext> => {
+
+const mutationKey = ['decide'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decide>>, {opportunityId: string;data: BodyType<DecisionRequest>}> = (props) => {
+          const {opportunityId,data} = props ?? {};
+
+          return  decide(opportunityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideMutationResult = NonNullable<Awaited<ReturnType<typeof decide>>>
+    export type DecideMutationBody = BodyType<DecisionRequest>
+    export type DecideMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Decide
+ */
+export const useDecide = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decide>>, TError,{opportunityId: string;data: BodyType<DecisionRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decide>>,
+        TError,
+        {opportunityId: string;data: BodyType<DecisionRequest>},
+        TContext
+      > => {
+      return useMutation(getDecideMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Get Thesis
  */
 export const getThesis = (
@@ -1474,3 +1607,69 @@ export function useGetThesis<TData = Awaited<ReturnType<typeof getThesis>>, TErr
 
 
 
+/**
+ * Update the default investment thesis — the investor's customizable lens. The DB owns it
+ * (boot-sync no longer overwrites an existing row), so edits persist across restarts.
+ * @summary Update Thesis
+ */
+export const updateThesis = (
+    thesisUpdate: BodyType<ThesisUpdate>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<ThesisResponse>(
+      {url: `/thesis`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: thesisUpdate, signal
+    },
+      options);
+    }
+
+
+
+
+export const getUpdateThesisMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateThesis>>, TError,{data: BodyType<ThesisUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateThesis>>, TError,{data: BodyType<ThesisUpdate>}, TContext> => {
+
+const mutationKey = ['updateThesis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateThesis>>, {data: BodyType<ThesisUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateThesis(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateThesisMutationResult = NonNullable<Awaited<ReturnType<typeof updateThesis>>>
+    export type UpdateThesisMutationBody = BodyType<ThesisUpdate>
+    export type UpdateThesisMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Thesis
+ */
+export const useUpdateThesis = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateThesis>>, TError,{data: BodyType<ThesisUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateThesis>>,
+        TError,
+        {data: BodyType<ThesisUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateThesisMutationOptions(options), queryClient);
+    }

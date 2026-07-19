@@ -1,5 +1,6 @@
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.api_schemas import (
     ApplyResponse,
     ChannelItem,
+    DecisionRequest,
     DiscoveryRunResponse,
     FounderDetail,
     FounderListItem,
@@ -21,8 +23,10 @@ from app.api_schemas import (
     OpportunityCreate,
     OpportunityDetail,
     OpportunityListItem,
+    OutreachDraft,
     SignalListItem,
     ThesisResponse,
+    ThesisUpdate,
 )
 from app.config import settings
 from app.connectors.base import SignalEnvelope
@@ -40,6 +44,7 @@ from app.models import (
     Signal,
     SourcingChannel,
 )
+from app.outbound.draft import draft_outreach
 from app.screening.assemble import screen_opportunity
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
@@ -241,11 +246,22 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
                 "trust_score": c.trust_score,
                 "status": c.status,
                 "evidence_count": len(c.evidence),
+                "supporting_count": sum(1 for e in c.evidence if e.stance == "supports"),
+                "refuting_count": sum(1 for e in c.evidence if e.stance == "refutes"),
                 "updated_at": c.updated_at,
             }
             for c in claims
         ],
     }
+
+
+@app.post("/founders/{founder_id}/outreach", response_model=OutreachDraft)
+def outreach(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """ACTIVATE — draft a (mocked) cold-outreach email to a sourced founder. Not actually sent."""
+    try:
+        return draft_outreach(db, founder_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @app.get("/sourcing-channels", response_model=list[ChannelItem])
@@ -388,15 +404,28 @@ def get_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     return _memo_dict(row)
 
 
-@app.get("/thesis", response_model=ThesisResponse)
-def get_thesis(db: Session = Depends(get_db)) -> dict:
-    row = (
-        db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))
-        .scalars()
-        .first()
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail="no default thesis")
+# pursue -> committed, track -> keep in diligence, pass -> rejected
+_DECISION_STATUS = {"pursue": "decided", "track": "diligence", "pass": "rejected"}
+
+
+@app.post("/opportunities/{opportunity_id}/decision", response_model=OpportunityDetail)
+def decide(
+    opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depends(get_db)
+) -> dict:
+    """Record the investor's decision (pursue|track|pass) — the funnel's Decision step. Stamps
+    decided_at (signal->decision latency) and moves the opportunity's status."""
+    opp = db.get(Opportunity, opportunity_id)
+    if opp is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    opp.decision = body.decision
+    opp.status = _DECISION_STATUS[body.decision]
+    opp.decided_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(opp)
+    return _opportunity_dict(opp)
+
+
+def _thesis_dict(row: InvestmentThesis) -> dict:
     return {
         "name": row.name,
         "industries": row.industries,
@@ -404,4 +433,47 @@ def get_thesis(db: Session = Depends(get_db)) -> dict:
         "stage": row.stage,
         "keywords": row.keywords,
         "founder_preferences": row.founder_preferences,
+        "check_size": row.check_size,
+        "ownership": row.ownership,
+        "risk": row.risk,
+        "free_text": row.free_text,
     }
+
+
+def _default_thesis(db: Session) -> InvestmentThesis | None:
+    return (
+        db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))
+        .scalars()
+        .first()
+    )
+
+
+@app.get("/thesis", response_model=ThesisResponse)
+def get_thesis(db: Session = Depends(get_db)) -> dict:
+    row = _default_thesis(db)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no default thesis")
+    return _thesis_dict(row)
+
+
+@app.put("/thesis", response_model=ThesisResponse)
+def update_thesis(body: ThesisUpdate, db: Session = Depends(get_db)) -> dict:
+    """Update the default investment thesis — the investor's customizable lens. The DB owns it
+    (boot-sync no longer overwrites an existing row), so edits persist across restarts."""
+    row = _default_thesis(db)
+    if row is None:
+        row = InvestmentThesis(is_default=True)
+        db.add(row)
+    row.name = body.name
+    row.industries = body.industries
+    row.geo = body.geo
+    row.stage = body.stage
+    row.keywords = body.keywords
+    row.founder_preferences = body.founder_preferences
+    row.check_size = body.check_size
+    row.ownership = body.ownership
+    row.risk = body.risk
+    row.free_text = body.free_text
+    db.commit()
+    db.refresh(row)
+    return _thesis_dict(row)

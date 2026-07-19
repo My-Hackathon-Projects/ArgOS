@@ -2,9 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, AtSign, Briefcase, Code2, GraduationCap, Globe, MapPin } from "lucide-react";
-import { useGetFounder } from "@/api/generated/default/default";
+import {
+  ArrowLeft,
+  AtSign,
+  Briefcase,
+  Check,
+  Code2,
+  GraduationCap,
+  Globe,
+  Loader2,
+  MapPin,
+  Send,
+  Sparkles,
+} from "lucide-react";
+import { useGetFounder, useOutreach } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
@@ -33,6 +46,69 @@ function educationLine(e: EducationEntry): string {
     (v): v is string | number => typeof v === "string" || typeof v === "number",
   );
   return parts.join(", ");
+}
+
+function OutreachPanel({ founderId }: { founderId: string }) {
+  const outreach = useOutreach();
+  const [sent, setSent] = useState(false);
+  const draft = outreach.data;
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Outbound — Activate</h2>
+          <p className="mt-0.5 text-xs text-subtle">
+            Draft a cold outreach email (identify → activate). Mocked — not actually sent.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => {
+            setSent(false);
+            outreach.mutate({ founderId });
+          }}
+          disabled={outreach.isPending}
+        >
+          {outreach.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Drafting…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" /> {draft ? "Redraft" : "Draft outreach"}
+            </>
+          )}
+        </Button>
+      </div>
+      {draft && (
+        <div className="mt-4 space-y-3 rounded-xl border border-border bg-surface-muted p-4">
+          <div className="text-xs italic text-subtle">{draft.rationale}</div>
+          <div>
+            <div className="text-xs uppercase tracking-wider text-subtle">Subject</div>
+            <div className="mt-0.5 text-sm font-medium text-foreground">{draft.subject}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wider text-subtle">Message</div>
+            <textarea
+              className="mt-1 min-h-[140px] w-full resize-y rounded-lg border border-border bg-surface p-3 text-sm leading-relaxed text-foreground focus:border-primary focus:outline-none"
+              defaultValue={draft.body}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setSent(true)} disabled={sent}>
+              <Send className="h-4 w-4" /> {sent ? "Sent" : "Send (demo)"}
+            </Button>
+            {sent && (
+              <span className="flex items-center gap-1 text-xs text-emerald-600">
+                <Check className="h-3.5 w-3.5" /> Outreach logged (mocked — no real email sent)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      {outreach.isError && <p className="mt-2 text-xs text-rose-600">Could not draft outreach.</p>}
+    </Card>
+  );
 }
 
 export function FounderDetail({ founderId }: { founderId: string }) {
@@ -168,6 +244,8 @@ export function FounderDetail({ founderId }: { founderId: string }) {
           </div>
         )}
       </Card>
+
+      <OutreachPanel founderId={founderId} />
 
       <div>
         <h2 className="mb-4 text-sm font-semibold text-foreground">

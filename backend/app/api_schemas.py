@@ -7,6 +7,7 @@ frontend generates its TS types from (openapi.json -> orval). Keep them 1:1 with
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, model_validator
 
@@ -70,6 +71,8 @@ class FounderClaimItem(BaseModel):
     trust_score: float | None
     status: str
     evidence_count: int
+    supporting_count: int  # supports edges — corroboration
+    refuting_count: int  # refutes edges — contradiction flags
     updated_at: datetime | None
 
 
@@ -105,6 +108,39 @@ class ThesisResponse(BaseModel):
     stage: list[str] | None
     keywords: list[str] | None
     founder_preferences: dict | None
+    check_size: float | None
+    ownership: float | None
+    risk: str | None
+    free_text: str | None
+
+
+class ThesisUpdate(BaseModel):
+    """Editable investment thesis — the investor's customizable lens (PUT /thesis)."""
+
+    name: str | None = None
+    industries: list[str] = []
+    geo: list[str] = []
+    stage: list[str] = []
+    keywords: list[str] = []
+    founder_preferences: dict | None = None
+    check_size: float | None = None
+    ownership: float | None = None
+    risk: str | None = None
+    free_text: str | None = None
+
+
+class DecisionRequest(BaseModel):
+    decision: Literal["pursue", "track", "pass"]  # completes the funnel to a Decision
+
+
+class OutreachDraft(BaseModel):
+    """Mocked cold-outreach draft (identify -> ACTIVATE). LLM-drafted, not actually sent."""
+
+    founder_id: str
+    to_name: str | None
+    subject: str
+    body: str
+    rationale: str  # why this founder fits the thesis (the hook)
 
 
 class DiscoveryRunResponse(BaseModel):

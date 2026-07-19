@@ -73,7 +73,12 @@ export function ClaimsList({ claims }: { claims: FounderClaimItem[] }) {
                     {c.category && <Badge variant="outline">{humanize(c.category)}</Badge>}
                     <TrustBar value={c.trust_score} />
                     <span>
-                      {c.evidence_count} source{c.evidence_count === 1 ? "" : "s"}
+                      {c.supporting_count} supporting
+                      {c.refuting_count > 0 && (
+                        <span className="ml-1 font-medium text-rose-600">
+                          · {c.refuting_count} refuting
+                        </span>
+                      )}
                     </span>
                     <Badge variant={s.variant}>{s.label}</Badge>
                   </div>

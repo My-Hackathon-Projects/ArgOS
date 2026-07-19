@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, Scale, User } from "lucide-react";
-import { useGetOpportunity, useScreen } from "@/api/generated/default/default";
+import { useDecide, useGetOpportunity, useScreen } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,40 @@ import { relativeTime } from "@/lib/format";
 import { AXIS_ORDER, AxisScoreCard } from "@/components/opportunities/axis";
 import { MarketAnalysis } from "@/components/market/market-analysis";
 import { MemoSection } from "@/components/opportunities/memo-section";
+
+const DECISIONS = [
+  { key: "pursue", label: "Pursue" },
+  { key: "track", label: "Track" },
+  { key: "pass", label: "Pass" },
+] as const;
+
+function DecisionBar({ opportunityId, decision }: { opportunityId: string; decision: string | null }) {
+  const qc = useQueryClient();
+  const decide = useDecide({ mutation: { onSuccess: () => qc.invalidateQueries() } });
+  return (
+    <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">Decision</h2>
+        <p className="mt-0.5 text-xs text-subtle">
+          Record the call — completes the funnel and stamps signal→decision latency.
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        {DECISIONS.map((d) => (
+          <Button
+            key={d.key}
+            size="sm"
+            variant={decision === d.key ? "primary" : "outline"}
+            onClick={() => decide.mutate({ opportunityId, data: { decision: d.key } })}
+            disabled={decide.isPending}
+          >
+            {d.label}
+          </Button>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 export function OpportunityDetail({ opportunityId }: { opportunityId: string }) {
   const qc = useQueryClient();
@@ -110,6 +144,9 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
 
       {/* Investment memo */}
       <MemoSection opportunityId={o.id} />
+
+      {/* Decision — completes the funnel */}
+      <DecisionBar opportunityId={o.id} decision={o.decision} />
     </div>
   );
 }

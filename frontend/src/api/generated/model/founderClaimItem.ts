@@ -11,5 +11,7 @@ export interface FounderClaimItem {
   trust_score: number | null;
   status: string;
   evidence_count: number;
+  supporting_count: number;
+  refuting_count: number;
   updated_at: string | null;
 }
