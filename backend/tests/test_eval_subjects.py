@@ -34,9 +34,9 @@ def test_bed_resolves_with_coverage(db):
     assert all(
         (o["idea"] or "").strip() or (o["sector"] or "").strip() for o in summary["opportunities"]
     )
-    # Bed currently has no contradiction case (tracked in human-backlog); the flag must
-    # exist so item-2's scorecard surfaces it every round.
-    assert summary["has_contradiction_subject"] is False
+    # The bed now carries a live contradiction subject (refuting evidence in the dev DB);
+    # keep asserting it so the contradiction path stays exercised every round.
+    assert summary["has_contradiction_subject"] is True
 
 
 def test_missing_founder_crashes(db):

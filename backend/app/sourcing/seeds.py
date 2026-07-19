@@ -13,16 +13,20 @@ Evertrace-style primary-event sources (patents, X co-founder-search, build-in-pu
 
 SEED_CHANNELS = [
     # ── Primary / high-signal builder sources ──
+    # "fetcher" selects a native API fetcher (fetchers.py); absent = tavily web search.
+    # Native fetchers fall back to tavily on failure/zero hits, so flipping is safe.
     {
         "name": "GitHub — repos, commits, releases",
         "type": "code",
         "domain": "github.com",
+        "fetcher": "github",
         "enabled": True,
     },
     {
         "name": "arXiv — research-paper authors",
         "type": "paper",
         "domain": "arxiv.org",
+        "fetcher": "arxiv",
         "enabled": True,
     },
     {
@@ -42,6 +46,7 @@ SEED_CHANNELS = [
         "name": "Hacker News — Show HN",
         "type": "launch",
         "domain": "news.ycombinator.com",
+        "fetcher": "hn",
         "enabled": True,
     },
     # ── Hackathons ──

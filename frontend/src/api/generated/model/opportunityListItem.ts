@@ -13,6 +13,7 @@ export interface OpportunityListItem {
   idea: string | null;
   sector: string | null;
   geo: string | null;
+  source: string | null;
   status: string;
   created_at: string;
   axes: OpportunityAxisSummary[];

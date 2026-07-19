@@ -63,7 +63,7 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
   );
 
   const cardCls = cn(
-    "card-shadow flex gap-3.5 rounded-[1.125rem] border bg-surface p-4 transition-all duration-300",
+    "card-shadow flex gap-3.5 rounded-[1.125rem] border bg-surface p-4 transition-[box-shadow,border-color,transform] duration-300",
     flash ? "signal-flash border-primary/40" : "border-black/[0.04]",
   );
 

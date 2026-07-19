@@ -23,7 +23,7 @@ founder, but every new or materially-changed claim is.
 - `statement`, `category`, `attributes` — what it says (category also routes matching + memo section).
 - `trust_score` + `trust_components` — the number and its receipts (deterministic; see below).
 - `status` — `unverified | verified | contradicted | needs_review`.
-- `embedding`, `dedup_key` — used to match a new signal to an existing claim.
+- `dedup_key` — used to match a new signal to an existing claim.
 - `updated_at` — bumps on evidence/trust change → **this is the rescore trigger**.
 
 `claim_evidence` — `claim ↔ signal`, many-to-many.
@@ -37,7 +37,7 @@ On each new signal, decide **attach to an existing claim** (bump corroboration) 
 claim**. This is entity-resolution-for-claims, done **incrementally** so cost stays bounded:
 
 1. `dedup_key` exact hit → attach, no LLM.
-2. else `embedding` kNN within `(founder_id, category)` → a few candidate claims.
+2. else the founder's existing claims in the same `category` → candidate claims.
 3. LLM adjudicates attach-vs-mint on just those candidates, and sets `stance`.
 
 Never re-extract all of a founder's claims per signal — cost explodes as signals accumulate.

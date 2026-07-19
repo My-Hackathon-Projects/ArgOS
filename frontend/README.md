@@ -1,7 +1,7 @@
 # ArgOS — Frontend
 
 Next.js 16 (App Router) + TypeScript + Tailwind v4. The UI for ArgOS's home, sourcing,
-founders, thesis, and market research flows, wired to the FastAPI backend at `backend/`
+inbound, founders, thesis, decisions, and market research flows, wired to the FastAPI backend at `backend/`
 (`http://localhost:8000`).
 
 For full-stack setup (DB + backend + this app), see the root [`README.md`](../README.md). This file
@@ -34,7 +34,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 |---|---|
 | `npm run dev` | dev server (Turbopack) on :3000 |
 | `npm run build` / `start` | production build / serve |
-| `npm run typecheck` | `tsc --noEmit` — the FE/BE **type-sync gate** |
+| `npm run typecheck` | `next typegen && tsc --noEmit` — route types plus the FE/BE **type-sync gate** |
 | `npm run api:gen` | regenerate the typed client from `../backend/openapi.json` |
 | `npm run lint` | eslint |
 
@@ -76,18 +76,18 @@ src/
     sourcing/               live signal feed + search + type filters + channels + discovery
     inbound/                applications inbox + new-application form
     founders/               searchable/sortable table + [id] detail (claims, Founder Score)
-    opportunities/          list + [id] detail (three-axis screen, market analysis, memo)
+    opportunities/          Decisions UI: list + [id] detail (three-axis screen, market analysis, memo)
     settings/               thesis (read-only)
     research/               redirect to /opportunities (old URL kept working)
   components/
-    shell/                  nav-bar (sticky blurred top nav + mobile menu), footer
+    shell/                  nav-bar (sticky top nav with Thesis on the right), footer
     home/                   convergence-hero, team-section (photos from public/images)
     sourcing/               live-header, signal-feed, signal-card, type-filter, channel-list,
                             discovery-button
     inbound/                inbound-view (email-style inbox rows over /opportunities)
     founders/               founders-table, founder-toolbar, sort, founder-detail,
                             claims-list, timeline-item, status
-    opportunities/          opportunities-list, opportunity-detail (Run screening),
+    opportunities/          Decisions page components: opportunities-list, opportunity-detail,
                             memo-section (generate/read memo), axis (chips + score cards)
     market/                 market-analysis (embedded in opportunity detail) + axis-card,
                             figure-card, entity-cards, gaps-card, section, meta

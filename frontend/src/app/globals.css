@@ -4,15 +4,15 @@
    Apple-inspired light theme. The whole theme lives here; components read the
    tokens via Tailwind utilities (bg-surface, text-muted-foreground, ...). */
 :root {
-  --background: #f5f5f7;
+  --background: #f6f5f1;
   --surface: #ffffff;
-  --surface-muted: #fafafc;
-  --foreground: #1d1d1f;
-  --muted: #f0f0f2;
-  --muted-foreground: #6e6e73;
-  --subtle: #86868b;
-  --border: #e8e8ed;
-  --border-strong: #d2d2d7;
+  --surface-muted: #faf9f6;
+  --foreground: #1c1b18;
+  --muted: #f0efea;
+  --muted-foreground: #6e6d68;
+  --subtle: #8a8983;
+  --border: #e9e7e0;
+  --border-strong: #d6d4cc;
   --primary: #0071e3;
   --primary-hover: #0077ed;
   --primary-foreground: #ffffff;
@@ -50,10 +50,17 @@
   --color-axis-market: var(--axis-market);
   --color-axis-idea: var(--axis-idea);
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+    var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono:
-    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    var(--font-jbmono), ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  /* Display face for page/hero headlines only — body copy stays on Inter. */
+  --font-display: var(--font-bricolage), var(--font-inter), "Segoe UI", sans-serif;
+  /* Strong easings (built-in CSS curves are too weak): ease-out for enters/feedback,
+     ease-in-out for on-screen movement. Available as ease-out-strong / ease-in-out-strong. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 * {
@@ -72,16 +79,18 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Faint color wash behind every page so surfaces sit on more than flat gray. */
+/* Texture + color washes behind every page: a faint dot grid over three soft
+   radial tints, so surfaces sit on a crafted canvas instead of flat white. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(60rem 30rem at 15% -5%, color-mix(in srgb, #0071e3 7%, transparent), transparent 70%),
-    radial-gradient(50rem 26rem at 85% 0%, color-mix(in srgb, #7c3aed 6%, transparent), transparent 70%),
-    radial-gradient(40rem 22rem at 50% 110%, color-mix(in srgb, #059669 5%, transparent), transparent 70%);
+    radial-gradient(circle at 1px 1px, rgba(28, 27, 24, 0.05) 1px, transparent 1.4px) 0 0 / 26px 26px,
+    radial-gradient(60rem 32rem at 15% -5%, color-mix(in srgb, #0071e3 9%, transparent), transparent 70%),
+    radial-gradient(52rem 28rem at 85% 0%, color-mix(in srgb, #7c3aed 8%, transparent), transparent 70%),
+    radial-gradient(44rem 24rem at 50% 112%, color-mix(in srgb, #059669 7%, transparent), transparent 70%);
   pointer-events: none;
 }
 
@@ -93,9 +102,9 @@ body::before {
   color: transparent;
 }
 
-/* Translucent, blurred chrome (nav bar, mobile menu). */
+/* Translucent, blurred chrome (nav island, mobile menu). */
 .glass {
-  background: color-mix(in srgb, #fbfbfd 78%, transparent);
+  background: color-mix(in srgb, #fdfcf9 76%, transparent);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
 }

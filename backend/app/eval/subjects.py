@@ -80,7 +80,7 @@ def validate_subjects(
     opportunities: tuple[Subject, ...] = OPPORTUNITY_SUBJECTS,
 ) -> dict:
     """Assert every subject resolves + the bed keeps its coverage properties; return the
-    resolved summary for run_eval to log. Crashes (fail-fast) if the bed degraded — never
+    resolved summary for the eval runner to log. Crashes (fail-fast) if the bed degraded — never
     silently run quality rounds against missing or shifted data.
     """
     founder_rows = []

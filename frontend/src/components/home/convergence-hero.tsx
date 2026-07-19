@@ -158,7 +158,7 @@ export function ConvergenceHero() {
         </motion.div>
         <motion.h1
           {...appear(0.8)}
-          className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
+          className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-6xl"
         >
           An operating system for <span className="text-gradient">venture sourcing</span>
         </motion.h1>

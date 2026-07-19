@@ -3,6 +3,7 @@ import { LineChart, Radar, Scale, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
 import { ConvergenceHero } from "@/components/home/convergence-hero";
+import { StatsBand } from "@/components/home/stats-band";
 import { TeamSection } from "@/components/home/team-section";
 
 const PIPELINE = [
@@ -45,6 +46,9 @@ export default function HomePage() {
     <Container>
       {/* Hero with the signal-convergence intro animation */}
       <ConvergenceHero />
+
+      {/* Live product numbers */}
+      <StatsBand />
 
       {/* What we do */}
       <section aria-label="What we do" className="mt-14 sm:mt-20">

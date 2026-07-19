@@ -13,4 +13,8 @@ export interface ThesisResponse {
   stage: string[] | null;
   keywords: string[] | null;
   founder_preferences: ThesisResponseFounderPreferences;
+  check_size: number | null;
+  ownership: number | null;
+  risk: string | null;
+  free_text: string | null;
 }

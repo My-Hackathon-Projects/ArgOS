@@ -60,13 +60,14 @@ type ChannelLogo = {
   fallback: string;
 };
 
-const CHANNEL_LOGOS: Array<{ match: string[]; domain: string; label: string }> = [
+const CHANNEL_LOGOS: Array<{ match: string[]; domain: string; label: string; src?: string }> = [
   { match: ["github"], domain: "github.com", label: "GitHub" },
   { match: ["arxiv"], domain: "arxiv.org", label: "arXiv" },
   {
     match: ["google patents", "patents.google.com"],
     domain: "patents.google.com",
     label: "Google Patents",
+    src: "https://patents.google.com/favicon.ico",
   },
   { match: ["product hunt", "producthunt"], domain: "producthunt.com", label: "Product Hunt" },
   {
@@ -105,7 +106,7 @@ export function channelLogo(channel: ChannelLogoInput): ChannelLogo {
   const label = mapped?.label ?? title;
 
   return {
-    src: domain ? faviconUrl(domain) : null,
+    src: mapped?.src ?? (domain ? faviconUrl(domain) : null),
     label,
     fallback: label.trim().charAt(0).toUpperCase() || "?",
   };

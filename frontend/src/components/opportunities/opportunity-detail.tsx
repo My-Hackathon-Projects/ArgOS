@@ -2,16 +2,60 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Scale, User } from "lucide-react";
-import { useGetOpportunity, useScreen } from "@/api/generated/default/default";
+import { ArrowLeft, Loader2, Scale, Timer, User } from "lucide-react";
+import { useDecide, useGetOpportunity, useScreen } from "@/api/generated/default/default";
+import type { OpportunityDetail as OpportunityDetailType } from "@/api/generated/model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { relativeTime } from "@/lib/format";
+import { duration, relativeTime } from "@/lib/format";
 import { AXIS_ORDER, AxisScoreCard } from "@/components/opportunities/axis";
 import { MarketAnalysis } from "@/components/market/market-analysis";
 import { MemoSection } from "@/components/opportunities/memo-section";
+
+const DECISIONS = [
+  { key: "pursue", label: "Pursue" },
+  { key: "track", label: "Track" },
+  { key: "pass", label: "Pass" },
+] as const;
+
+function DecisionBar({ o }: { o: OpportunityDetailType }) {
+  const qc = useQueryClient();
+  const decide = useDecide({ mutation: { onSuccess: () => qc.invalidateQueries() } });
+  const { id: opportunityId, decision } = o;
+  return (
+    <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">Decision</h2>
+        <p className="mt-0.5 text-xs text-subtle">
+          {decision
+            ? `Decided ${relativeTime(o.decided_at)} — you can revise it.`
+            : "Record the call — completes the funnel and stamps signal→decision latency."}
+        </p>
+        {decision && o.signal_to_decision_seconds != null && (
+          <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-subtle">
+            <Timer className="h-3.5 w-3.5" />
+            first signal → decision in {duration(o.signal_to_decision_seconds)}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {DECISIONS.map((d) => (
+          <Button
+            key={d.key}
+            size="sm"
+            variant={decision === d.key ? "primary" : "outline"}
+            onClick={() => decide.mutate({ opportunityId, data: { decision: d.key } })}
+            disabled={decide.isPending}
+          >
+            {d.label}
+          </Button>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 export function OpportunityDetail({ opportunityId }: { opportunityId: string }) {
   const qc = useQueryClient();
@@ -21,7 +65,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
   });
 
   if (isError) {
-    return <Card className="p-6 text-sm text-muted-foreground">Opportunity not found.</Card>;
+    return <Card className="p-6 text-sm text-muted-foreground">Decision record not found.</Card>;
   }
 
   if (isLoading || !o) {
@@ -46,7 +90,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Opportunities
+        Decisions
       </Link>
 
       {/* Header */}
@@ -55,7 +99,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                {o.company_name ?? "Unnamed opportunity"}
+                {o.company_name ?? "Unnamed deal"}
               </h1>
               <Badge variant="muted">{o.status}</Badge>
               {o.decision && <Badge variant="primary">{o.decision}</Badge>}
@@ -110,6 +154,9 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
 
       {/* Investment memo */}
       <MemoSection opportunityId={o.id} />
+
+      {/* Decision — completes the funnel */}
+      <DecisionBar o={o} />
     </div>
   );
 }

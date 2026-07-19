@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Founder, Identity, JobRun, Signal
+from app.models import Founder, Identity, JobRun, Signal, TraceStep
 
 _STRONG_KEYS = ("github", "twitter", "linkedin", "website", "orcid")
 
@@ -109,6 +109,7 @@ def persist_delivery(db: Session, founders: list[dict]) -> dict:
                 if not getattr(founder, attr) and f.get(attr):
                     setattr(founder, attr, f[attr])
 
+        founder_new_ids: list[str] = []
         for s in f.get("signals", []):
             canon = s.get("canonical_url")
             chash = s.get("content_hash")
@@ -117,26 +118,45 @@ def persist_delivery(db: Session, founders: list[dict]) -> dict:
             seen_urls.add(canon)
             if chash:
                 seen_hashes.add(chash)
+            sig = Signal(
+                source=s["source"],
+                signal_type=s["signal_type"],
+                external_id=canon,
+                canonical_url=canon,
+                content_hash=chash,
+                url=s.get("url"),
+                title=s.get("title"),
+                summary=s.get("summary"),
+                occurred_at=_parse_dt(s.get("occurred_at")),
+                source_reliability=s.get("source_reliability"),
+                resolution_confidence=s.get("resolution_confidence"),
+                resolution_method=s.get("resolution_method"),
+                sources_seen=s.get("sources_seen"),
+                founder_id=fid,
+                raw=s,
+            )
+            db.add(sig)
+            db.flush()
+            founder_new_ids.append(str(sig.id))
+            new_signals += 1
+
+        if founder_new_ids or fid:
+            # Agentic traceability (stretch #1): record what sourcing did for this founder.
             db.add(
-                Signal(
-                    source=s["source"],
-                    signal_type=s["signal_type"],
-                    external_id=canon,
-                    canonical_url=canon,
-                    content_hash=chash,
-                    url=s.get("url"),
-                    title=s.get("title"),
-                    summary=s.get("summary"),
-                    occurred_at=_parse_dt(s.get("occurred_at")),
-                    source_reliability=s.get("source_reliability"),
-                    resolution_confidence=s.get("resolution_confidence"),
-                    resolution_method=s.get("resolution_method"),
-                    sources_seen=s.get("sources_seen"),
+                TraceStep(
                     founder_id=fid,
-                    raw=s,
+                    stage="sourcing",
+                    agent="discovery",
+                    input={"candidate": f.get("display_name")},
+                    output={
+                        "resolved": "existing" if method else "new_founder",
+                        "resolution_method": method or "created",
+                        "new_signals": len(founder_new_ids),
+                        "discovery_confidence": f.get("discovery_confidence"),
+                    },
+                    evidence_ids=founder_new_ids,
                 )
             )
-            new_signals += 1
 
     job.finished_at = datetime.now(UTC)
     job.new_signals = new_signals

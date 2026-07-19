@@ -15,6 +15,17 @@ export function relativeTime(iso: string | null | undefined): string {
   return `${Math.round(mo / 12)}y ago`;
 }
 
+export function duration(totalSeconds: number | null | undefined): string {
+  if (totalSeconds == null || !Number.isFinite(totalSeconds) || totalSeconds < 0) return "";
+  const s = Math.round(totalSeconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h ${m % 60}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";
   const parts = name.trim().split(/\s+/);

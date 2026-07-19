@@ -9,6 +9,7 @@ export default function SettingsPage() {
         eyebrow="Configuration"
         title="Investment thesis"
         subtitle="The lens that drives discovery: sectors, stage, geography, and the founder traits worth chasing."
+        accent="#0d9488"
       />
       <div className="mt-10">
         <ThesisView />

@@ -13,8 +13,12 @@ export interface OpportunityDetail {
   idea: string | null;
   sector: string | null;
   geo: string | null;
+  source: string | null;
   status: string;
   created_at: string;
   axes: OpportunityAxisSummary[];
   decision: string | null;
+  decided_at: string | null;
+  first_signal_at: string | null;
+  signal_to_decision_seconds: number | null;
 }

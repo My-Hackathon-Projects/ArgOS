@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import type { FounderClaimItem } from "@/api/generated/model";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
+import { relativeTime } from "@/lib/format";
 import { humanize } from "@/lib/source-style";
 
 function claimStatusBadge(status: string): { variant: BadgeProps["variant"]; label: string } {
@@ -16,17 +18,23 @@ function claimStatusBadge(status: string): { variant: BadgeProps["variant"]; lab
 }
 
 function TrustBar({ value }: { value: number | null }) {
+  const reduceMotion = useReducedMotion();
   if (value == null) return <span className="text-xs text-subtle">—</span>;
   const pct = Math.round(value * 100);
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-        <div
+        {/* Full-width bar scaled by trust — scaleX stays on the GPU, width doesn't. */}
+        <motion.div
           className="h-full rounded-full"
-          style={{ width: `${pct}%`, background: "var(--axis-founder)" }}
+          style={{ background: "var(--axis-founder)", transformOrigin: "left" }}
+          initial={reduceMotion ? false : { scaleX: 0 }}
+          whileInView={{ scaleX: pct / 100 }}
+          viewport={{ once: true, margin: "-20px" }}
+          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
         />
       </div>
-      <span className="text-xs tabular-nums text-muted-foreground">{pct}%</span>
+      <span className="font-mono text-xs tabular-nums text-muted-foreground">{pct}%</span>
     </div>
   );
 }
@@ -66,8 +74,14 @@ export function ClaimsList({ claims }: { claims: FounderClaimItem[] }) {
                     {c.category && <Badge variant="outline">{humanize(c.category)}</Badge>}
                     <TrustBar value={c.trust_score} />
                     <span>
-                      {c.evidence_count} source{c.evidence_count === 1 ? "" : "s"}
+                      {c.supporting_count} supporting
+                      {c.refuting_count > 0 && (
+                        <span className="ml-1 font-medium text-rose-600">
+                          · {c.refuting_count} refuting
+                        </span>
+                      )}
                     </span>
+                    {c.updated_at && <span>updated {relativeTime(c.updated_at)}</span>}
                     <Badge variant={s.variant}>{s.label}</Badge>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.api_schemas import (
     ApplyResponse,
     ChannelItem,
+    DecisionRequest,
     DiscoveryRunResponse,
     FounderDetail,
     FounderListItem,
@@ -21,14 +23,17 @@ from app.api_schemas import (
     OpportunityCreate,
     OpportunityDetail,
     OpportunityListItem,
+    OutreachDraft,
     SignalListItem,
     ThesisResponse,
+    ThesisUpdate,
+    TraceStepItem,
 )
 from app.config import settings
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.inbound.service import run_inbound_application
-from app.ingest import upsert_signal
+from app.ingest import earliest_signal_at, upsert_signal
 from app.market import read as market_read
 from app.memo.generate import generate_memo
 from app.models import (
@@ -37,15 +42,16 @@ from app.models import (
     InvestmentThesis,
     Memo,
     Opportunity,
+    ScoreHistory,
     Signal,
     SourcingChannel,
+    TraceStep,
 )
+from app.outbound.draft import draft_outreach
 from app.screening.assemble import screen_opportunity
+from app.search.founder_search import FounderSearchResponse, SearchRequest, run_founder_search
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
-
-# Next.js dev server. Kept explicit (not "*") so credentialed requests stay allowed.
-CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 @asynccontextmanager
@@ -62,7 +68,8 @@ async def lifespan(app: FastAPI):
         scheduler = start_scheduler()
         print(
             f"[cron] active — discovery every {settings.discovery_interval_min}min, "
-            f"refresh every {settings.refresh_interval_min}min (claims registered, paused)"
+            f"refresh every {settings.refresh_interval_min}min, "
+            f"claims every {settings.claims_interval_min}min"
         )
     yield
     if scheduler is not None:
@@ -82,7 +89,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -178,6 +185,16 @@ def list_founders(db: Session = Depends(get_db)) -> list[dict]:
     return out
 
 
+@app.post("/founders/search", response_model=FounderSearchResponse)
+def search_founders(body: SearchRequest, db: Session = Depends(get_db)) -> FounderSearchResponse:
+    """NL compound / multi-attribute query — one reasoning pass, not five filters.
+
+    e.g. "technical founder, Berlin, AI infra, no prior VC backing, top-tier accelerator"."""
+    if not body.query.strip():
+        raise HTTPException(status_code=422, detail="query is empty")
+    return run_founder_search(db, body.query.strip())
+
+
 @app.get("/founders/{founder_id}", response_model=FounderDetail)
 def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     f = db.get(Founder, founder_id)
@@ -241,11 +258,53 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
                 "trust_score": c.trust_score,
                 "status": c.status,
                 "evidence_count": len(c.evidence),
+                "supporting_count": sum(1 for e in c.evidence if e.stance == "supports"),
+                "refuting_count": sum(1 for e in c.evidence if e.stance == "refutes"),
                 "updated_at": c.updated_at,
             }
             for c in claims
         ],
+        "score_history": [
+            {"ts": h.created_at, "score": h.score}
+            for h in db.execute(
+                select(ScoreHistory)
+                .where(ScoreHistory.founder_id == f.id)
+                .order_by(ScoreHistory.created_at.asc())
+            ).scalars()
+        ],
     }
+
+
+@app.get("/founders/{founder_id}/trace", response_model=list[TraceStepItem])
+def get_founder_trace(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> list[dict]:
+    """Step-level reasoning trace (stretch #1): each agent's work for this founder + evidence."""
+    if db.get(Founder, founder_id) is None:
+        raise HTTPException(status_code=404, detail="founder not found")
+    steps = db.execute(
+        select(TraceStep)
+        .where(TraceStep.founder_id == founder_id)
+        .order_by(TraceStep.created_at.asc())
+    ).scalars()
+    return [
+        {
+            "stage": t.stage,
+            "agent": t.agent,
+            "input": t.input,
+            "output": t.output,
+            "evidence_ids": t.evidence_ids,
+            "created_at": t.created_at,
+        }
+        for t in steps
+    ]
+
+
+@app.post("/founders/{founder_id}/outreach", response_model=OutreachDraft)
+def outreach(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """ACTIVATE — draft a (mocked) cold-outreach email to a sourced founder. Not actually sent."""
+    try:
+        return draft_outreach(db, founder_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @app.get("/sourcing-channels", response_model=list[ChannelItem])
@@ -291,9 +350,17 @@ def _opportunity_dict(opp: Opportunity) -> dict:
         "idea": opp.idea,
         "sector": opp.sector,
         "geo": opp.geo,
+        "source": opp.source,
         "status": opp.status,
         "created_at": opp.created_at,
         "decision": opp.decision,
+        "decided_at": opp.decided_at,
+        "first_signal_at": opp.first_signal_at,
+        "signal_to_decision_seconds": (
+            (opp.decided_at - opp.first_signal_at).total_seconds()
+            if opp.decided_at and opp.first_signal_at
+            else None
+        ),
         "axes": [
             {
                 "axis": a.axis,
@@ -314,12 +381,15 @@ def _opportunity_dict(opp: Opportunity) -> dict:
 def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -> dict:
     if body.founder_id is not None and db.get(Founder, body.founder_id) is None:
         raise HTTPException(status_code=404, detail="founder not found")
+    # Latency clock: earliest signal we ever saw for this founder; manual deal → creation.
+    first_signal_at = earliest_signal_at(db, body.founder_id) if body.founder_id else None
     opp = Opportunity(
         founder_id=body.founder_id,
         company_name=body.company_name,
         idea=(body.idea or "").strip() or None,
         sector=(body.sector or "").strip() or None,
         geo=body.geo,
+        first_signal_at=first_signal_at or datetime.now(UTC),
     )
     db.add(opp)
     db.commit()
@@ -380,23 +450,36 @@ def create_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dic
     return _memo_dict(generate_memo(db, opportunity_id))
 
 
-@app.get("/opportunities/{opportunity_id}/memo", response_model=MemoView)
-def get_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+@app.get("/opportunities/{opportunity_id}/memo", response_model=MemoView | None)
+def get_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict | None:
+    if db.get(Opportunity, opportunity_id) is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
     row = db.execute(select(Memo).where(Memo.opportunity_id == opportunity_id)).scalars().first()
     if row is None:
-        raise HTTPException(status_code=404, detail="memo not generated yet")
+        return None
     return _memo_dict(row)
 
 
-@app.get("/thesis", response_model=ThesisResponse)
-def get_thesis(db: Session = Depends(get_db)) -> dict:
-    row = (
-        db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))
-        .scalars()
-        .first()
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail="no default thesis")
+# pursue -> committed, track -> keep in diligence, pass -> rejected
+_DECISION_STATUS = {"pursue": "decided", "track": "diligence", "pass": "rejected"}
+
+
+@app.post("/opportunities/{opportunity_id}/decision", response_model=OpportunityDetail)
+def decide(opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depends(get_db)) -> dict:
+    """Record the investor's decision (pursue|track|pass) — the funnel's Decision step. Stamps
+    decided_at (signal->decision latency) and moves the opportunity's status."""
+    opp = db.get(Opportunity, opportunity_id)
+    if opp is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    opp.decision = body.decision
+    opp.status = _DECISION_STATUS[body.decision]
+    opp.decided_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(opp)
+    return _opportunity_dict(opp)
+
+
+def _thesis_dict(row: InvestmentThesis) -> dict:
     return {
         "name": row.name,
         "industries": row.industries,
@@ -404,4 +487,47 @@ def get_thesis(db: Session = Depends(get_db)) -> dict:
         "stage": row.stage,
         "keywords": row.keywords,
         "founder_preferences": row.founder_preferences,
+        "check_size": row.check_size,
+        "ownership": row.ownership,
+        "risk": row.risk,
+        "free_text": row.free_text,
     }
+
+
+def _default_thesis(db: Session) -> InvestmentThesis | None:
+    return (
+        db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))
+        .scalars()
+        .first()
+    )
+
+
+@app.get("/thesis", response_model=ThesisResponse)
+def get_thesis(db: Session = Depends(get_db)) -> dict:
+    row = _default_thesis(db)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no default thesis")
+    return _thesis_dict(row)
+
+
+@app.put("/thesis", response_model=ThesisResponse)
+def update_thesis(body: ThesisUpdate, db: Session = Depends(get_db)) -> dict:
+    """Update the default investment thesis — the investor's customizable lens. The DB owns it
+    (boot-sync no longer overwrites an existing row), so edits persist across restarts."""
+    row = _default_thesis(db)
+    if row is None:
+        row = InvestmentThesis(is_default=True)
+        db.add(row)
+    row.name = body.name
+    row.industries = body.industries
+    row.geo = body.geo
+    row.stage = body.stage
+    row.keywords = body.keywords
+    row.founder_preferences = body.founder_preferences
+    row.check_size = body.check_size
+    row.ownership = body.ownership
+    row.risk = body.risk
+    row.free_text = body.free_text
+    db.commit()
+    db.refresh(row)
+    return _thesis_dict(row)

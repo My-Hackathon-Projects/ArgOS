@@ -33,12 +33,14 @@ def sync_reference_data(db: Session) -> None:
         .first()
     )
     if row is None:
+        # Create-if-missing only: the thesis is now UI-editable (PUT /thesis), so once a row
+        # exists the DB owns it — don't clobber the investor's edits on every boot.
         row = InvestmentThesis(is_default=True)
         db.add(row)
-    row.name = _THESIS_NAME
-    row.industries = t.industries
-    row.geo = t.geo
-    row.stage = t.stage
-    row.keywords = t.keywords
-    row.founder_preferences = t.founder_preferences
+        row.name = _THESIS_NAME
+        row.industries = t.industries
+        row.geo = t.geo
+        row.stage = t.stage
+        row.keywords = t.keywords
+        row.founder_preferences = t.founder_preferences
     db.commit()

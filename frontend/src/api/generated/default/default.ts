@@ -27,9 +27,11 @@ import type {
   ApplyResponse,
   BodyApplyInbound,
   ChannelItem,
+  DecisionRequest,
   DiscoveryRunResponse,
   FounderDetail,
   FounderListItem,
+  FounderSearchResponse,
   HTTPValidationError,
   HealthResponse,
   IngestResponse,
@@ -40,10 +42,14 @@ import type {
   OpportunityCreate,
   OpportunityDetail,
   OpportunityListItem,
+  OutreachDraft,
   ScreenParams,
+  SearchRequest,
   SignalEnvelope,
   SignalListItem,
-  ThesisResponse
+  ThesisResponse,
+  ThesisUpdate,
+  TraceStepItem
 } from '../model';
 
 import { customInstance } from '../../axios-instance';
@@ -544,6 +550,73 @@ export function useListFounders<TData = Awaited<ReturnType<typeof listFounders>>
 
 
 /**
+ * NL compound / multi-attribute query — one reasoning pass, not five filters.
+ *
+ * e.g. "technical founder, Berlin, AI infra, no prior VC backing, top-tier accelerator".
+ * @summary Search Founders
+ */
+export const searchFounders = (
+    searchRequest: BodyType<SearchRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<FounderSearchResponse>(
+      {url: `/founders/search`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: searchRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getSearchFoundersMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchFounders>>, TError,{data: BodyType<SearchRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchFounders>>, TError,{data: BodyType<SearchRequest>}, TContext> => {
+
+const mutationKey = ['searchFounders'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchFounders>>, {data: BodyType<SearchRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  searchFounders(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchFoundersMutationResult = NonNullable<Awaited<ReturnType<typeof searchFounders>>>
+    export type SearchFoundersMutationBody = BodyType<SearchRequest>
+    export type SearchFoundersMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Search Founders
+ */
+export const useSearchFounders = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchFounders>>, TError,{data: BodyType<SearchRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof searchFounders>>,
+        TError,
+        {data: BodyType<SearchRequest>},
+        TContext
+      > => {
+      return useMutation(getSearchFoundersMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Get Founder
  */
 export const getFounder = (
@@ -636,6 +709,162 @@ export function useGetFounder<TData = Awaited<ReturnType<typeof getFounder>>, TE
 
 
 /**
+ * Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence.
+ * @summary Get Founder Trace
+ */
+export const getFounderTrace = (
+    founderId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<TraceStepItem[]>(
+      {url: `/founders/${founderId}/trace`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetFounderTraceQueryKey = (founderId: string,) => {
+    return [
+    `/founders/${founderId}/trace`
+    ] as const;
+    }
+
+
+export const getGetFounderTraceQueryOptions = <TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFounderTraceQueryKey(founderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFounderTrace>>> = ({ signal }) => getFounderTrace(founderId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: founderId !== null && founderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFounderTraceQueryResult = NonNullable<Awaited<ReturnType<typeof getFounderTrace>>>
+export type GetFounderTraceQueryError = ErrorType<HTTPValidationError>
+
+
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFounderTrace>>,
+          TError,
+          Awaited<ReturnType<typeof getFounderTrace>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFounderTrace>>,
+          TError,
+          Awaited<ReturnType<typeof getFounderTrace>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Founder Trace
+ */
+
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFounderTraceQueryOptions(founderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * ACTIVATE — draft a (mocked) cold-outreach email to a sourced founder. Not actually sent.
+ * @summary Outreach
+ */
+export const outreach = (
+    founderId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<OutreachDraft>(
+      {url: `/founders/${founderId}/outreach`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getOutreachMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof outreach>>, TError,{founderId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof outreach>>, TError,{founderId: string}, TContext> => {
+
+const mutationKey = ['outreach'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof outreach>>, {founderId: string}> = (props) => {
+          const {founderId} = props ?? {};
+
+          return  outreach(founderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OutreachMutationResult = NonNullable<Awaited<ReturnType<typeof outreach>>>
+
+    export type OutreachMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Outreach
+ */
+export const useOutreach = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof outreach>>, TError,{founderId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof outreach>>,
+        TError,
+        {founderId: string},
+        TContext
+      > => {
+      return useMutation(getOutreachMutationOptions(options), queryClient);
+    }
+    /**
  * @summary List Channels
  */
 export const listChannels = (
@@ -1299,7 +1528,7 @@ export const getMemo = (
 ) => {
 
 
-      return customInstance<MemoView>(
+      return customInstance<MemoView | null>(
       {url: `/opportunities/${opportunityId}/memo`, method: 'GET', signal
     },
       options);
@@ -1383,6 +1612,73 @@ export function useGetMemo<TData = Awaited<ReturnType<typeof getMemo>>, TError =
 
 
 /**
+ * Record the investor's decision (pursue|track|pass) — the funnel's Decision step. Stamps
+ * decided_at (signal->decision latency) and moves the opportunity's status.
+ * @summary Decide
+ */
+export const decide = (
+    opportunityId: string,
+    decisionRequest: BodyType<DecisionRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<OpportunityDetail>(
+      {url: `/opportunities/${opportunityId}/decision`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: decisionRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getDecideMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decide>>, TError,{opportunityId: string;data: BodyType<DecisionRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof decide>>, TError,{opportunityId: string;data: BodyType<DecisionRequest>}, TContext> => {
+
+const mutationKey = ['decide'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decide>>, {opportunityId: string;data: BodyType<DecisionRequest>}> = (props) => {
+          const {opportunityId,data} = props ?? {};
+
+          return  decide(opportunityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideMutationResult = NonNullable<Awaited<ReturnType<typeof decide>>>
+    export type DecideMutationBody = BodyType<DecisionRequest>
+    export type DecideMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Decide
+ */
+export const useDecide = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decide>>, TError,{opportunityId: string;data: BodyType<DecisionRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decide>>,
+        TError,
+        {opportunityId: string;data: BodyType<DecisionRequest>},
+        TContext
+      > => {
+      return useMutation(getDecideMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Get Thesis
  */
 export const getThesis = (
@@ -1474,3 +1770,69 @@ export function useGetThesis<TData = Awaited<ReturnType<typeof getThesis>>, TErr
 
 
 
+/**
+ * Update the default investment thesis — the investor's customizable lens. The DB owns it
+ * (boot-sync no longer overwrites an existing row), so edits persist across restarts.
+ * @summary Update Thesis
+ */
+export const updateThesis = (
+    thesisUpdate: BodyType<ThesisUpdate>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<ThesisResponse>(
+      {url: `/thesis`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: thesisUpdate, signal
+    },
+      options);
+    }
+
+
+
+
+export const getUpdateThesisMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateThesis>>, TError,{data: BodyType<ThesisUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateThesis>>, TError,{data: BodyType<ThesisUpdate>}, TContext> => {
+
+const mutationKey = ['updateThesis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateThesis>>, {data: BodyType<ThesisUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateThesis(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateThesisMutationResult = NonNullable<Awaited<ReturnType<typeof updateThesis>>>
+    export type UpdateThesisMutationBody = BodyType<ThesisUpdate>
+    export type UpdateThesisMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Thesis
+ */
+export const useUpdateThesis = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateThesis>>, TError,{data: BodyType<ThesisUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateThesis>>,
+        TError,
+        {data: BodyType<ThesisUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateThesisMutationOptions(options), queryClient);
+    }

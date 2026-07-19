@@ -1,6 +1,6 @@
-import Image from "next/image";
 import { Mail } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { TeamAvatar } from "@/components/home/team-avatar";
 
 const TEAM = [
   {
@@ -19,7 +19,7 @@ const TEAM = [
     linkedin: "https://www.linkedin.com/in/alexandre-boving-04422a1b6/",
     photo: "/images/alexandre-boving.png",
     bio: "Co-founding engineer building ArgOS's autonomous funnel, from raw public signals through to the investment decision.",
-    chips: [],
+    chips: ["Uncovr", "Deloitte"],
   },
   {
     name: "Florian Sprick",
@@ -31,30 +31,6 @@ const TEAM = [
     chips: ["AI Center Tübingen", "Zeiss", "Fraunhofer"],
   },
 ];
-
-function Avatar({ photo, name }: { photo: string | null; name: string }) {
-  if (photo) {
-    return (
-      <Image
-        src={photo}
-        alt={name}
-        width={112}
-        height={112}
-        className="h-14 w-14 shrink-0 rounded-full object-cover ring-1 ring-black/[0.06]"
-      />
-    );
-  }
-  // Initials placeholder until the teammate drops their picture into public/images.
-  const initials = name
-    .split(" ")
-    .map((part) => part[0])
-    .join("");
-  return (
-    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold tracking-wide text-subtle ring-1 ring-black/[0.06]">
-      {initials}
-    </span>
-  );
-}
 
 /** Team: who built ArgOS. Anchored so the footer and hero can link to it. */
 export function TeamSection() {
@@ -73,7 +49,7 @@ export function TeamSection() {
             className="card-shadow-hover flex flex-col p-6 transition-shadow duration-300"
           >
             <div className="flex items-center gap-4">
-              <Avatar photo={photo} name={name} />
+              <TeamAvatar photo={photo} name={name} />
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-foreground">{name}</h3>
                 <div className="mt-0.5 flex items-center gap-2">

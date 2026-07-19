@@ -5,13 +5,23 @@ so re-polling a source never creates duplicates.
 """
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.connectors.base import SignalEnvelope
 from app.models import Signal
+
+
+def earliest_signal_at(db: Session, founder_id: uuid.UUID) -> datetime | None:
+    """When we first saw this founder — starts the signal→decision latency clock."""
+    return db.execute(
+        select(func.min(func.coalesce(Signal.occurred_at, Signal.ingested_at))).where(
+            Signal.founder_id == founder_id
+        )
+    ).scalar()
 
 
 def upsert_signal(db: Session, env: SignalEnvelope) -> tuple[Signal, bool]:

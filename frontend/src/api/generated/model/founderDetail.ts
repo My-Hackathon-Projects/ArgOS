@@ -8,6 +8,7 @@ import type { FounderClaimItem } from './founderClaimItem';
 import type { FounderDetailEducation } from './founderDetailEducation';
 import type { FounderIdentity } from './founderIdentity';
 import type { FounderSignal } from './founderSignal';
+import type { ScorePoint } from './scorePoint';
 
 export interface FounderDetail {
   id: string;
@@ -24,4 +25,5 @@ export interface FounderDetail {
   identity: FounderIdentity;
   signals: FounderSignal[];
   claims: FounderClaimItem[];
+  score_history: ScorePoint[];
 }

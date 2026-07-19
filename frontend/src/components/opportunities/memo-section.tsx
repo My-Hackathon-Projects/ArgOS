@@ -2,15 +2,19 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, FileText, Loader2, RefreshCw } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCreateMemo, useGetMemo } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { relativeTime } from "@/lib/format";
 import { GapsCard } from "@/components/market/gaps-card";
 import { Section } from "@/components/market/section";
 
 type Hypothesis = { statement: string; evidence_claim_ids?: string[] };
+type TractionItem = { metric: string; value: string; evidence_claim_ids?: string[] };
+type TractionKpis = { items?: TractionItem[]; note?: string | null };
 
 function SourceLinks({ urls }: { urls: string[] }) {
   if (urls.length === 0) return null;
@@ -39,6 +43,7 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
   const create = useCreateMemo({
     mutation: { onSuccess: () => qc.invalidateQueries() },
   });
+  const reduceMotion = useReducedMotion();
 
   const generate = () => create.mutate({ opportunityId });
   const m = memo.data;
@@ -46,23 +51,39 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
   if (!m) {
     return (
       <Section title="Investment memo">
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-primary">
-              <FileText className="h-4.5 w-4.5" />
-            </span>
-            <div>
-              <div className="text-sm font-medium text-foreground">No memo yet</div>
-              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                Compose a cited, decision-ready memo from the three-axis screen, founder claims
-                and market evidence.
-              </p>
+        <Card className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-primary">
+                <FileText className="h-4.5 w-4.5" />
+              </span>
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  {create.isPending ? "Drafting memo" : "No memo yet"}
+                </div>
+                <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                  {create.isPending
+                    ? "Reading the three-axis screen, founder claims and market evidence…"
+                    : "Compose a cited, decision-ready memo from the three-axis screen, founder claims and market evidence."}
+                </p>
+              </div>
             </div>
+            <Button size="sm" onClick={generate} disabled={create.isPending}>
+              {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {create.isPending ? "Generating…" : "Generate memo"}
+            </Button>
           </div>
-          <Button size="sm" onClick={generate} disabled={create.isPending}>
-            {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {create.isPending ? "Generating…" : "Generate memo"}
-          </Button>
+          {create.isPending && (
+            <div className="mt-4 space-y-2.5 border-t border-border pt-4" aria-hidden>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-11/12" />
+              <Skeleton className="h-3 w-4/5" />
+              <Skeleton className="mt-4 h-3 w-32" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          )}
         </Card>
       </Section>
     );
@@ -71,12 +92,22 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
   const s = (m.sections ?? {}) as Record<string, unknown>;
   const hyps = Array.isArray(s.hypotheses) ? (s.hypotheses as Hypothesis[]) : [];
   const swot = (s.swot ?? {}) as Record<string, string[]>;
+  const traction = (s.traction_kpis ?? {}) as TractionKpis;
+  const tractionItems = traction.items ?? [];
+  const unavailable = Array.isArray(s.unavailable) ? (s.unavailable as string[]) : [];
   const q = (m.quality ?? {}) as Record<string, unknown>;
   const provUrls = Array.isArray(q.provenance_urls) ? (q.provenance_urls as string[]) : [];
 
   return (
     <Section title="Investment memo">
-      <div className="space-y-3">
+      {/* Blur bridges the skeleton -> prose swap so it reads as one surface resolving,
+          not two elements trading places. */}
+      <motion.div
+        className="space-y-3"
+        initial={reduceMotion ? false : { opacity: 0, y: 8, filter: "blur(4px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+      >
         <Card className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -111,6 +142,17 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
             </div>
           )}
 
+          {typeof s.problem_product === "string" && s.problem_product && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                Problem &amp; product
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+                {s.problem_product}
+              </p>
+            </div>
+          )}
+
           {hyps.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
               <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
@@ -124,6 +166,46 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
                     <span className="ml-1 text-[11px] text-subtle">
                       [{h.evidence_claim_ids?.length ?? 0} cited]
                     </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {(tractionItems.length > 0 || traction.note) && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                Traction &amp; KPIs
+              </div>
+              {tractionItems.length > 0 ? (
+                <ul className="mt-2 space-y-1.5">
+                  {tractionItems.map((t, i) => (
+                    <li key={i} className="text-sm leading-relaxed text-foreground">
+                      <span className="font-medium">{t.metric}:</span> {t.value}
+                      <span className="ml-1 text-[11px] text-subtle">
+                        [{t.evidence_claim_ids?.length ?? 0} cited]
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                // Honest empty state — an evidenced "nothing yet" beats an invented KPI.
+                <p className="mt-1.5 text-[13px] italic leading-relaxed text-muted-foreground">
+                  {traction.note}
+                </p>
+              )}
+            </div>
+          )}
+
+          {unavailable.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                Not available at this stage
+              </div>
+              <ul className="mt-1.5 space-y-0.5">
+                {unavailable.map((u, i) => (
+                  <li key={i} className="text-[13px] italic leading-relaxed text-muted-foreground">
+                    {u}
                   </li>
                 ))}
               </ul>
@@ -168,7 +250,7 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
 
         {m.gaps.length > 0 && <GapsCard gaps={m.gaps} />}
         <SourceLinks urls={provUrls} />
-      </div>
+      </motion.div>
     </Section>
   );
 }

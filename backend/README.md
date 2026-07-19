@@ -4,7 +4,7 @@ Challenge 02. Python + FastAPI, Postgres (pgvector), SQLAlchemy 2.0 + Alembic, m
 
 ## Quick start
 
-Only **Postgres runs in Docker**; the **FastAPI app runs on your host** with hot-reload (it talks to the DB at `localhost:5433`). `.env` and `docker-compose.yml` live at the **repo root** (shared with the future frontend).
+Only **Postgres runs in Docker**; the **FastAPI app runs on your host** with hot-reload (it talks to the DB at `localhost:5433`). `.env` and `docker-compose.yml` live at the **repo root** and are shared with the frontend.
 
 ```bash
 # from repo root
@@ -30,18 +30,22 @@ curl -X POST http://localhost:8000/signals/ingest -H "Content-Type: application/
 
 ## Sourcing / discovery
 
-Discovery is thesis → web search (Tavily) → founder resolution → persist. Needs
-`OPENAI_API_KEY` + `TAVILY_API_KEY` in the root `.env`.
+Discovery is thesis → per-channel fetch (native GitHub/arXiv/HN APIs, Tavily web search for
+the rest) → founder resolution → persist. Needs `OPENAI_API_KEY` + `TAVILY_API_KEY` in the
+root `.env`; `GITHUB_TOKEN` optional (keyless works at 10 req/min).
 
 ```bash
 curl -X POST http://localhost:8000/discovery/run     # ~30-60s; persists founders + signals
 ```
 
-APScheduler jobs exist in `app/scheduler.py` but are **OFF by default** (not wired into `main.py`).
-Manual discovery is the supported path today.
+APScheduler cron is **ON by default** (`app/scheduler.py`, wired into the app lifespan;
+disable via `CRON_ENABLED=false` for local demos): discovery every 60min, signal refresh every
+360min, and claims/scoring every 15min. A discovery run also tail-calls the claims layer
+directly, so freshly discovered founders get a Founder Score in the same pass.
 
 Endpoints: `/health` · `/signals` · `/signals/ingest` · `/discovery/run` · `/founders` ·
-`/founders/{id}` · `/sourcing-channels` · `/thesis`. Full schema at `/docs`.
+`/founders/search` · `/founders/{id}` · `/sourcing-channels` · `/thesis` · `/opportunities`
+(+ `/screen`, `/memo`, `/decision`) · `/apply`. Full schema at `/docs`.
 
 ## OpenAPI export (frontend contract)
 
@@ -52,7 +56,8 @@ The frontend generates its client from it; regenerate the file after any respons
 uv run python -m app.export_openapi     # writes backend/openapi.json (the FE/BE contract)
 ```
 
-CORS is enabled for the Next.js dev origin (`localhost:3000`) in `app/main.py`.
+CORS origins come from `CORS_ORIGINS` in the root `.env`, with local defaults for
+`http://localhost:3000` and `http://127.0.0.1:3000`.
 
 ## Run the app (day-to-day)
 
@@ -90,14 +95,14 @@ app/
   config.py            settings (DATABASE_URL + OpenAI/Tavily keys from .env)
   db.py                engine, session, Base
   models.py            Founder, Identity, Signal, JobRun, Claim, ClaimEvidence,
-                       InvestmentThesis, SourcingChannel
+                       InvestmentThesis, SourcingChannel, Opportunity, ThreeAxis, Memo
   ingest.py            upsert_signal() — idempotent ON CONFLICT dedupe
   connectors/base.py   SignalEnvelope + Connector ABC  (the source contract)
   sourcing/            discovery graph, thesis, persistence, seed reference data
   api_schemas.py       Pydantic response_models  (the FE/BE wire contract)
   export_openapi.py    dump backend/openapi.json for frontend codegen
-  scheduler.py         APScheduler jobs (OFF by default)
-  main.py              FastAPI app (+ CORS for localhost:3000)
+  scheduler.py         APScheduler cron (ON by default; CRON_ENABLED=false to disable)
+  main.py              FastAPI app (+ env-driven CORS)
 alembic/               migrations
 tests/                 pure-unit contract tests (no DB)
 ../docker-compose.yml  pgvector/pgvector:pg16  (at repo root)
@@ -105,4 +110,12 @@ tests/                 pure-unit contract tests (no DB)
 
 ## Add a source connector
 
-Subclass `Connector` (`app/connectors/base.py`), implement `fetch()` + `normalize(raw) -> SignalEnvelope`, feed envelopes to `upsert_signal()`. No schema change needed.
+Preferred (full pipeline — screening, resolution, dedup, claims all reused): write
+`fetch(query, channel) -> list[hit]` in `app/sourcing/fetchers.py`, decorate
+`@register("my_source")`, set `"fetcher": "my_source"` on the channel in
+`app/sourcing/seeds.py`. Native fetchers fall back to Tavily on failure/zero hits.
+
+Push-style alternative (pre-structured signals, no discovery pass): subclass `Connector`
+(`app/connectors/base.py`), implement `fetch()` + `normalize(raw) -> SignalEnvelope`, feed
+envelopes to `upsert_signal()` — note this path stores signals unresolved (`founder_id`
+NULL), so claims scoring won't pick them up until resolution runs.

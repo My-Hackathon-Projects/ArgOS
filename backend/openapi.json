@@ -185,6 +185,45 @@
         }
       }
     },
+    "/founders/search": {
+      "post": {
+        "summary": "Search Founders",
+        "description": "NL compound / multi-attribute query \u2014 one reasoning pass, not five filters.\n\ne.g. \"technical founder, Berlin, AI infra, no prior VC backing, top-tier accelerator\".",
+        "operationId": "search_founders",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FounderSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/founders/{founder_id}": {
       "get": {
         "summary": "Get Founder",
@@ -208,6 +247,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FounderDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/founders/{founder_id}/trace": {
+      "get": {
+        "summary": "Get Founder Trace",
+        "description": "Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence.",
+        "operationId": "get_founder_trace",
+        "parameters": [
+          {
+            "name": "founder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Founder Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraceStepItem"
+                  },
+                  "title": "Response Get Founder Trace"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/founders/{founder_id}/outreach": {
+      "post": {
+        "summary": "Outreach",
+        "description": "ACTIVATE \u2014 draft a (mocked) cold-outreach email to a sourced founder. Not actually sent.",
+        "operationId": "outreach",
+        "parameters": [
+          {
+            "name": "founder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Founder Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutreachDraft"
                 }
               }
             }
@@ -521,7 +646,66 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MemoView"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MemoView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Memo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/opportunities/{opportunity_id}/decision": {
+      "post": {
+        "summary": "Decide",
+        "description": "Record the investor's decision (pursue|track|pass) \u2014 the funnel's Decision step. Stamps\ndecided_at (signal->decision latency) and moves the opportunity's status.",
+        "operationId": "decide",
+        "parameters": [
+          {
+            "name": "opportunity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Opportunity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityDetail"
                 }
               }
             }
@@ -550,6 +734,43 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ThesisResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Thesis",
+        "description": "Update the default investment thesis \u2014 the investor's customizable lens. The DB owns it\n(boot-sync no longer overwrites an existing row), so edits persist across restarts.",
+        "operationId": "update_thesis",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThesisUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThesisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -702,6 +923,24 @@
         ],
         "title": "ChannelItem"
       },
+      "DecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "pursue",
+              "track",
+              "pass"
+            ],
+            "title": "Decision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "DecisionRequest"
+      },
       "DiscoveryRunResponse": {
         "properties": {
           "new_founders": {
@@ -778,6 +1017,14 @@
             "type": "integer",
             "title": "Evidence Count"
           },
+          "supporting_count": {
+            "type": "integer",
+            "title": "Supporting Count"
+          },
+          "refuting_count": {
+            "type": "integer",
+            "title": "Refuting Count"
+          },
           "updated_at": {
             "anyOf": [
               {
@@ -798,6 +1045,8 @@
           "trust_score",
           "status",
           "evidence_count",
+          "supporting_count",
+          "refuting_count",
           "updated_at"
         ],
         "title": "FounderClaimItem"
@@ -933,6 +1182,13 @@
             },
             "type": "array",
             "title": "Claims"
+          },
+          "score_history": {
+            "items": {
+              "$ref": "#/components/schemas/ScorePoint"
+            },
+            "type": "array",
+            "title": "Score History"
           }
         },
         "type": "object",
@@ -950,7 +1206,8 @@
           "last_checked_at",
           "identity",
           "signals",
-          "claims"
+          "claims",
+          "score_history"
         ],
         "title": "FounderDetail"
       },
@@ -1104,6 +1361,116 @@
           "signal_count"
         ],
         "title": "FounderListItem"
+      },
+      "FounderMatch": {
+        "properties": {
+          "founder_id": {
+            "type": "string",
+            "title": "Founder Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "founder_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Founder Score"
+          },
+          "current_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Company"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "relevance": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Relevance"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "matched": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "founder_id",
+          "display_name",
+          "founder_score",
+          "current_company",
+          "city",
+          "relevance",
+          "reason",
+          "matched"
+        ],
+        "title": "FounderMatch"
+      },
+      "FounderSearchResponse": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "criteria": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Criteria"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/FounderMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "criteria",
+          "matches"
+        ],
+        "title": "FounderSearchResponse"
       },
       "FounderSignal": {
         "properties": {
@@ -2041,6 +2408,17 @@
             ],
             "title": "Geo"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -2067,6 +2445,41 @@
               }
             ],
             "title": "Decision"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "first_signal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Signal At"
+          },
+          "signal_to_decision_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal To Decision Seconds"
           }
         },
         "type": "object",
@@ -2077,10 +2490,14 @@
           "idea",
           "sector",
           "geo",
+          "source",
           "status",
           "created_at",
           "axes",
-          "decision"
+          "decision",
+          "decided_at",
+          "first_signal_at",
+          "signal_to_decision_seconds"
         ],
         "title": "OpportunityDetail"
       },
@@ -2145,6 +2562,17 @@
             ],
             "title": "Geo"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -2170,11 +2598,92 @@
           "idea",
           "sector",
           "geo",
+          "source",
           "status",
           "created_at",
           "axes"
         ],
         "title": "OpportunityListItem"
+      },
+      "OutreachDraft": {
+        "properties": {
+          "founder_id": {
+            "type": "string",
+            "title": "Founder Id"
+          },
+          "to_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Name"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "founder_id",
+          "to_name",
+          "subject",
+          "body",
+          "rationale"
+        ],
+        "title": "OutreachDraft",
+        "description": "Mocked cold-outreach draft (identify -> ACTIVATE). LLM-drafted, not actually sent."
+      },
+      "ScorePoint": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ts",
+          "score"
+        ],
+        "title": "ScorePoint"
+      },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest"
       },
       "SignalEnvelope": {
         "properties": {
@@ -2436,6 +2945,50 @@
               }
             ],
             "title": "Founder Preferences"
+          },
+          "check_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Size"
+          },
+          "ownership": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownership"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
+          },
+          "free_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Text"
           }
         },
         "type": "object",
@@ -2445,9 +2998,189 @@
           "geo",
           "stage",
           "keywords",
-          "founder_preferences"
+          "founder_preferences",
+          "check_size",
+          "ownership",
+          "risk",
+          "free_text"
         ],
         "title": "ThesisResponse"
+      },
+      "ThesisUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "industries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Industries",
+            "default": []
+          },
+          "geo": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Geo",
+            "default": []
+          },
+          "stage": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stage",
+            "default": []
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords",
+            "default": []
+          },
+          "founder_preferences": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Founder Preferences"
+          },
+          "check_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Size"
+          },
+          "ownership": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownership"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
+          },
+          "free_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Text"
+          }
+        },
+        "type": "object",
+        "title": "ThesisUpdate",
+        "description": "Editable investment thesis \u2014 the investor's customizable lens (PUT /thesis)."
+      },
+      "TraceStepItem": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "evidence_ids": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Ids"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "agent",
+          "input",
+          "output",
+          "evidence_ids",
+          "created_at"
+        ],
+        "title": "TraceStepItem"
       },
       "ValidationError": {
         "properties": {

@@ -7,6 +7,7 @@ frontend generates its TS types from (openapi.json -> orval). Keep them 1:1 with
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, model_validator
 
@@ -70,7 +71,14 @@ class FounderClaimItem(BaseModel):
     trust_score: float | None
     status: str
     evidence_count: int
+    supporting_count: int  # supports edges — corroboration
+    refuting_count: int  # refutes edges — contradiction flags
     updated_at: datetime | None
+
+
+class ScorePoint(BaseModel):
+    ts: datetime
+    score: float | None
 
 
 class FounderDetail(BaseModel):
@@ -88,6 +96,16 @@ class FounderDetail(BaseModel):
     identity: FounderIdentity
     signals: list[FounderSignal]
     claims: list[FounderClaimItem]
+    score_history: list[ScorePoint]  # trend over time, not just the snapshot
+
+
+class TraceStepItem(BaseModel):
+    stage: str  # sourcing|claims|screen|score_founder|score_market|score_idea|memo|decide
+    agent: str | None
+    input: dict | None
+    output: dict | None
+    evidence_ids: list | None
+    created_at: datetime
 
 
 class ChannelItem(BaseModel):
@@ -105,6 +123,39 @@ class ThesisResponse(BaseModel):
     stage: list[str] | None
     keywords: list[str] | None
     founder_preferences: dict | None
+    check_size: float | None
+    ownership: float | None
+    risk: str | None
+    free_text: str | None
+
+
+class ThesisUpdate(BaseModel):
+    """Editable investment thesis — the investor's customizable lens (PUT /thesis)."""
+
+    name: str | None = None
+    industries: list[str] = []
+    geo: list[str] = []
+    stage: list[str] = []
+    keywords: list[str] = []
+    founder_preferences: dict | None = None
+    check_size: float | None = None
+    ownership: float | None = None
+    risk: str | None = None
+    free_text: str | None = None
+
+
+class DecisionRequest(BaseModel):
+    decision: Literal["pursue", "track", "pass"]  # completes the funnel to a Decision
+
+
+class OutreachDraft(BaseModel):
+    """Mocked cold-outreach draft (identify -> ACTIVATE). LLM-drafted, not actually sent."""
+
+    founder_id: str
+    to_name: str | None
+    subject: str
+    body: str
+    rationale: str  # why this founder fits the thesis (the hook)
 
 
 class DiscoveryRunResponse(BaseModel):
@@ -226,6 +277,7 @@ class OpportunityListItem(BaseModel):
     idea: str | None
     sector: str | None
     geo: str | None
+    source: str | None  # inbound|outbound — which funnel door the deal came through
     status: str
     created_at: datetime
     axes: list["OpportunityAxisSummary"]
@@ -233,6 +285,9 @@ class OpportunityListItem(BaseModel):
 
 class OpportunityDetail(OpportunityListItem):
     decision: str | None
+    decided_at: datetime | None
+    first_signal_at: datetime | None  # earliest founder signal (or intake) — starts the clock
+    signal_to_decision_seconds: float | None  # funnel latency; None until decided
 
 
 class MemoView(BaseModel):

@@ -1,0 +1,10 @@
+.venv
+__pycache__
+tests
+examples
+alembic
+alembic.ini
+uv.lock
+pyproject.toml
+openapi.json
+README.md
