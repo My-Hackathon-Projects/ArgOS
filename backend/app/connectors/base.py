@@ -20,7 +20,7 @@ class SignalEnvelope(BaseModel):
     entity_hint: str | None = None  # raw handle/name for resolution ("github:torvalds")
     url: str | None = None
     title: str | None = None
-    summary: str | None = None  # short normalized text → feed + embedding
+    summary: str | None = None  # short normalized text → feed
     occurred_at: datetime | None = None
     source_reliability: float = 0.5  # per-source prior 0..1
     raw: dict = Field(default_factory=dict)  # full original payload, nothing discarded

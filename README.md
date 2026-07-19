@@ -19,10 +19,10 @@ Design docs: `docs/public/Technical Design Document.md` (system design),
 flowchart TD
     subgraph SRC[Sourcing]
         T[Investment thesis] --> G[LangGraph discovery graph]
-        G --> W[Tavily search across 13 public channels]
+        G --> W[Native GitHub / arXiv / HN APIs + Tavily search, 13 channels]
         W --> R[Screening and founder resolution]
     end
-    R -->|founders, identities, signals| DB[(Postgres + pgvector)]
+    R -->|founders, identities, signals| DB[(Postgres)]
 
     subgraph CLM[Screening: claims and scoring]
         X[Claim extraction from new signals] --> M[Attach or mint: dedup key, then LLM adjudication]
@@ -44,9 +44,11 @@ flowchart TD
 
 How the pieces run in practice:
 
-1. **Sourcing** (`backend/app/sourcing/`): a LangGraph graph takes the investment thesis,
-   searches 13 public channels through Tavily (arXiv, GitHub, Devpost, Product Hunt, patents,
-   accelerators, and more), screens the hits, resolves them to people, and persists founders,
+1. **Sourcing** (`backend/app/sourcing/`): a LangGraph graph takes the investment thesis and
+   searches 13 public channels — native keyless APIs for GitHub (repo search + owner handle),
+   arXiv (export API) and Hacker News (Algolia Show HN), Tavily web search for the rest
+   (Devpost, Product Hunt, patents, accelerators, and more; native fetchers fall back to
+   Tavily on failure). Hits are screened, resolved to people, and persisted as founders,
    identities, and signals. Triggered manually from the UI or `POST /discovery/run`.
 2. **Claims** (`backend/app/claims/`): new signals are collapsed into deduplicated,
    corroborated claims (exact dedup key hit, then LLM adjudication over the founder's

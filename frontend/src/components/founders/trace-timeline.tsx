@@ -7,15 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { relativeTime } from "@/lib/format";
 
+// Only stages the backend actually emits (sourcing/persist.py, claims/service.py,
+// inbound/service.py). Add labels here as new trace writers ship.
 const STAGE_LABEL: Record<string, string> = {
   sourcing: "Sourcing",
   claims: "Claims",
   screen: "Screening",
-  score_founder: "Founder axis",
-  score_market: "Market axis",
-  score_idea: "Idea axis",
-  memo: "Memo",
-  decide: "Decision",
 };
 
 function fmt(v: unknown): string {

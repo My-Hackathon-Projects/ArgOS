@@ -30,8 +30,9 @@ curl -X POST http://localhost:8000/signals/ingest -H "Content-Type: application/
 
 ## Sourcing / discovery
 
-Discovery is thesis → web search (Tavily) → founder resolution → persist. Needs
-`OPENAI_API_KEY` + `TAVILY_API_KEY` in the root `.env`.
+Discovery is thesis → per-channel fetch (native GitHub/arXiv/HN APIs, Tavily web search for
+the rest) → founder resolution → persist. Needs `OPENAI_API_KEY` + `TAVILY_API_KEY` in the
+root `.env`; `GITHUB_TOKEN` optional (keyless works at 10 req/min).
 
 ```bash
 curl -X POST http://localhost:8000/discovery/run     # ~30-60s; persists founders + signals
@@ -109,4 +110,12 @@ tests/                 pure-unit contract tests (no DB)
 
 ## Add a source connector
 
-Subclass `Connector` (`app/connectors/base.py`), implement `fetch()` + `normalize(raw) -> SignalEnvelope`, feed envelopes to `upsert_signal()`. No schema change needed.
+Preferred (full pipeline — screening, resolution, dedup, claims all reused): write
+`fetch(query, channel) -> list[hit]` in `app/sourcing/fetchers.py`, decorate
+`@register("my_source")`, set `"fetcher": "my_source"` on the channel in
+`app/sourcing/seeds.py`. Native fetchers fall back to Tavily on failure/zero hits.
+
+Push-style alternative (pre-structured signals, no discovery pass): subclass `Connector`
+(`app/connectors/base.py`), implement `fetch()` + `normalize(raw) -> SignalEnvelope`, feed
+envelopes to `upsert_signal()` — note this path stores signals unresolved (`founder_id`
+NULL), so claims scoring won't pick them up until resolution runs.

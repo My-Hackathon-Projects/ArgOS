@@ -1,5 +1,11 @@
 # The VC Brain Technical Design Document
 
+> **Historical pre-build design (unmaintained).** The as-built system differs materially —
+> see `docs/SYSTEM_DESIGN.md` (with its as-built banner) and the code. Notably: the backend
+> is Python/FastAPI (not Next.js), there is **no embedding/vector tier** (no
+> `signal_embeddings` table, no fuzzy/embedding resolution — strong-ID + normalized-name
+> match only), and the NL query is a one-pass LLM ranking, not vector retrieval.
+
 This document expands `docs/public/Design Document.pdf` into an implementation-oriented technical design for The VC Brain. The product is a founder-sourcing and investment-intelligence system that helps an investor find early founders, evaluate opportunities on evidence, and produce a decision-ready memo.
 
 This design replaces the technology stack listed in section 12 of the source document. The implementation uses Next.js with TypeScript for both the frontend and the backend, Postgres with pgvector as the only database, and no Supabase services.

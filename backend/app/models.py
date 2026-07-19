@@ -12,7 +12,6 @@ See docs/claims-layer.md for how claims relate to signals + scoring.
 import uuid
 from datetime import date, datetime
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
     Boolean,
@@ -29,8 +28,6 @@ from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-
-EMBED_DIM = 1536  # text-embedding-3-small
 
 
 class Founder(Base):
@@ -112,7 +109,7 @@ class Signal(Base):
     canonical_url: Mapped[str | None]  # normalized artifact URL — global dedup key
     content_hash: Mapped[str | None]  # sha256 of normalized text — catches mirrors/syndication
     title: Mapped[str | None]
-    summary: Mapped[str | None]  # short normalized text → feed + embedding
+    summary: Mapped[str | None]  # short normalized text → feed
     occurred_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     ingested_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
@@ -121,9 +118,7 @@ class Signal(Base):
     resolution_confidence: Mapped[float | None]  # "is this signal really this founder's"
     resolution_method: Mapped[str | None]  # exact_key|fuzzy|llm
     sources_seen: Mapped[list | None] = mapped_column(JSONB)  # channels that surfaced this artifact
-    features: Mapped[dict | None] = mapped_column(JSONB)  # LLM-extracted once, cached
     raw: Mapped[dict | None] = mapped_column(JSONB)  # full original payload, nothing discarded
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIM))
 
     founder: Mapped[Founder | None] = relationship(back_populates="signals")
     claim_links: Mapped[list["ClaimEvidence"]] = relationship(back_populates="signal")
@@ -236,9 +231,6 @@ class Claim(Base):
         JSONB
     )  # formula inputs, auditable receipts
     status: Mapped[str] = mapped_column(server_default=text("'unverified'"))
-    embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(EMBED_DIM)
-    )  # statement -> matching kNN
     dedup_key: Mapped[str | None]  # optional deterministic key -> cheap exact attach, skips the LLM
     first_seen_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
@@ -347,7 +339,6 @@ class Opportunity(Base):
     sector: Mapped[str | None]
     geo: Mapped[str | None]
     source: Mapped[str | None]  # inbound|outbound
-    thesis_match: Mapped[float | None]
     status: Mapped[str] = mapped_column(server_default=text("'screening'"))
     decision: Mapped[str | None]
     first_signal_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
