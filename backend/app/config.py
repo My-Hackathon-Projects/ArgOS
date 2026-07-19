@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     tavily_api_key: str | None = None
+    # Optional — native GitHub fetcher works keyless (10 req/min); token raises to 30.
+    github_token: str | None = None
 
     # Comma-separated browser origins allowed to call the API.
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
@@ -34,6 +36,7 @@ class Settings(BaseSettings):
     queries_per_channel: int = 2  # 13 channels → ~26 queries/run
     max_search_queries: int = 26
     tavily_max_results: int = 8
+    native_max_results: int = 8  # per-query cap for native fetchers (github/arxiv/hn)
     max_candidates: int = 25
     max_extracts: int = 200
     hit_content_chars: int = 3500  # per-hit content fed to screening (advanced search + raw)
