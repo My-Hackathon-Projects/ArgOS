@@ -52,7 +52,7 @@ export function ApplyButton() {
     <>
       <Button onClick={() => setOpen(true)}>
         <FileUp className="h-4 w-4" />
-        Submit a deck
+        Upload a deck
       </Button>
       <Dialog open={open} onClose={close} title="New application">
         <p className="mb-4 flex items-start gap-2 text-[13px] leading-relaxed text-muted-foreground">
