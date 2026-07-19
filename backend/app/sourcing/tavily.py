@@ -24,3 +24,13 @@ def tavily_search(
     resp = httpx.post(_SEARCH_URL, json=payload, timeout=45)
     resp.raise_for_status()
     return resp.json()
+
+
+_EXTRACT_URL = "https://api.tavily.com/extract"
+
+
+def tavily_extract(urls: list[str], api_key: str) -> dict:
+    """Full page content for given URLs — used to mine a personal site for GitHub/social links."""
+    resp = httpx.post(_EXTRACT_URL, json={"api_key": api_key, "urls": urls}, timeout=45)
+    resp.raise_for_status()
+    return resp.json()

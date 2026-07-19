@@ -15,6 +15,12 @@ SEED_CHANNELS = [
         "enabled": True,
     },
     {"name": "GitHub", "type": "code", "domain": "github.com", "enabled": True},
+    {
+        "name": "arXiv (research-paper authors)",
+        "type": "paper",
+        "domain": "arxiv.org",
+        "enabled": True,
+    },
     {"name": "Devpost (hackathons)", "type": "hackathon", "domain": "devpost.com", "enabled": True},
     # German / European AI founder ecosystem (open-web; the name drives the query)
     {"name": "TUM.ai student club members", "type": "club", "domain": None, "enabled": True},

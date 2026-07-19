@@ -177,8 +177,10 @@ def plan_searches(state: DiscoveryState) -> dict:
 
 ## Task
 For EACH channel, write {settings.queries_per_channel} focused, executable search queries to
-discover EARLY-STAGE FOUNDERS — real people actively building (code, launches, papers, hackathons,
-open source), not companies.
+discover EARLY-STAGE and PRE-FOUNDERS — real people with founder potential who may NOT have
+started a company yet: research-paper authors, hackathon participants & winners, student-club
+members, strong student open-source builders, competition winners, event attendees. "No company
+yet" is a POSITIVE signal — the goal is to find them BEFORE they found.
 
 ## Requirements
 1. Geographic bias: every query MUST include a geo or institutional anchor from the thesis
@@ -265,8 +267,9 @@ something aligned with the thesis. Return as many well-supported people as the r
 3. HARD geo filter — include a person ONLY if the results give evidence they are based in or
    clearly tied to {geo}. Set `city` ONLY from explicit evidence; NEVER assume or fabricate the
    target geography. If location is unknown or clearly outside {geo}, DROP the person.
-4. People only — skip pure companies. Prefer EARLY builders (students, hackathon participants,
-   stealth) over established, well-funded company founders.
+4. People only — skip pure companies. PREFER pre-founders (students, PhD researchers, hackathon
+   participants, club members) with NO company yet — current_company=null is expected and GOOD,
+   we want them BEFORE they found. De-prioritize established, well-funded company founders.
 5. Merge results about the same person. Capture handles/links present (github, twitter, linkedin,
    website, orcid), occupation, current_company (null if pre-company), why_relevant, source_urls.
 
@@ -388,7 +391,35 @@ def _assemble_founder(cand: dict, research: CandidateResearch) -> dict:
     }
 
 
+def _enrich_from_website(cand: dict) -> None:
+    """Personal site / portfolio → mine GitHub + socials (people almost always link them).
+
+    Deterministic regex over the fetched page — no LLM. Fills only missing handles.
+    """
+    site = cand.get("website")
+    if not site:
+        return
+    try:
+        data = tavily.tavily_extract([site], settings.tavily_api_key)
+    except httpx.HTTPError:
+        return
+    text = " ".join(r.get("raw_content", "") or "" for r in data.get("results", []))
+    if not cand.get("github"):
+        m = re.search(r"github\.com/([A-Za-z0-9_.-]+)", text)
+        if m and m.group(1).lower() not in ("orgs", "topics", "search", "about", "sponsors"):
+            cand["github"] = m.group(1)
+    if not cand.get("twitter"):
+        m = re.search(r"(?:twitter|x)\.com/([A-Za-z0-9_]+)", text)
+        if m and m.group(1).lower() not in ("i", "home", "search", "share", "intent"):
+            cand["twitter"] = m.group(1)
+    if not cand.get("linkedin"):
+        m = re.search(r"linkedin\.com/in/([A-Za-z0-9%-]+)", text)
+        if m:
+            cand["linkedin"] = f"https://www.linkedin.com/in/{m.group(1)}"
+
+
 def _profile_one(cand: dict, thesis: dict) -> dict:
+    _enrich_from_website(cand)  # portfolio → GitHub/socials before we resolve identity
     ctx = _research_context(cand, thesis)
     research = _llm(CandidateResearch, smart=True).invoke(_synthesis_prompt(cand, ctx))
     return _assemble_founder(cand, research)
