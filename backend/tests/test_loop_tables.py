@@ -50,15 +50,28 @@ def test_loop_tables_round_trip():
         db.add_all([sh, memo, step])
         db.flush()
 
-        assert db.execute(
-            select(func.count()).select_from(ScoreHistory).where(ScoreHistory.founder_id == f.id)
-        ).scalar_one() == 1
-        assert db.execute(
-            select(func.count()).select_from(Memo).where(Memo.opportunity_id == opp.id)
-        ).scalar_one() == 1
-        assert db.execute(
-            select(func.count()).select_from(TraceStep).where(TraceStep.opportunity_id == opp.id)
-        ).scalar_one() == 1
+        assert (
+            db.execute(
+                select(func.count())
+                .select_from(ScoreHistory)
+                .where(ScoreHistory.founder_id == f.id)
+            ).scalar_one()
+            == 1
+        )
+        assert (
+            db.execute(
+                select(func.count()).select_from(Memo).where(Memo.opportunity_id == opp.id)
+            ).scalar_one()
+            == 1
+        )
+        assert (
+            db.execute(
+                select(func.count())
+                .select_from(TraceStep)
+                .where(TraceStep.opportunity_id == opp.id)
+            ).scalar_one()
+            == 1
+        )
 
         # JSONB round-trips + forward relationships resolve.
         db.refresh(sh)

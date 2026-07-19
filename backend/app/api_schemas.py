@@ -221,3 +221,13 @@ class OpportunityListItem(BaseModel):
 class OpportunityDetail(OpportunityListItem):
     decision: str | None
     axes: list[OpportunityAxisSummary]
+
+
+class MemoView(BaseModel):
+    opportunity_id: str
+    sections: dict | None  # {snapshot, hypotheses:[{statement, evidence_claim_ids}], swot, axes}
+    recommendation: str | None
+    confidence: float | None
+    gaps: list[str]
+    quality: dict | None  # deterministic anchor scorecard (citations resolved, sections present)
+    generated_at: datetime

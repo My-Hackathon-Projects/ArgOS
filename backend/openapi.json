@@ -105,6 +105,45 @@
         }
       }
     },
+    "/apply": {
+      "post": {
+        "summary": "Apply Inbound",
+        "description": "Inbound application intake: deck PDF + company name -> opportunity + per-page signals +\nclaims + prescreen. Synchronous (~10-20s: one extraction + one prescreen call, fast model).\nFull 3-axis screening stays manual-dispatch via POST /opportunities/{id}/screen.",
+        "operationId": "apply_inbound",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_apply_inbound"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/discovery/run": {
       "post": {
         "summary": "Discovery Run",
@@ -370,6 +409,57 @@
         }
       }
     },
+    "/opportunities/{opportunity_id}/screen": {
+      "post": {
+        "summary": "Screen",
+        "description": "Manual-dispatch 3-axis screening: founder (deterministic) + market (consumed) + idea (LLM),\npersisted as 3 independent rows \u2014 never averaged. Reuses market axis unless refresh_market.",
+        "operationId": "screen",
+        "parameters": [
+          {
+            "name": "opportunity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Opportunity Id"
+            }
+          },
+          {
+            "name": "refresh_market",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh Market"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/thesis": {
       "get": {
         "summary": "Get Thesis",
@@ -391,6 +481,101 @@
   },
   "components": {
     "schemas": {
+      "ApplyResponse": {
+        "properties": {
+          "opportunity_id": {
+            "type": "string",
+            "title": "Opportunity Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "prescreen_verdict": {
+            "type": "string",
+            "title": "Prescreen Verdict"
+          },
+          "prescreen_reason": {
+            "type": "string",
+            "title": "Prescreen Reason"
+          },
+          "signals_ingested": {
+            "type": "integer",
+            "title": "Signals Ingested"
+          },
+          "claims_minted": {
+            "type": "integer",
+            "title": "Claims Minted"
+          },
+          "idea": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idea"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "geo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "opportunity_id",
+          "status",
+          "prescreen_verdict",
+          "prescreen_reason",
+          "signals_ingested",
+          "claims_minted",
+          "idea",
+          "sector",
+          "geo"
+        ],
+        "title": "ApplyResponse"
+      },
+      "Body_apply_inbound": {
+        "properties": {
+          "deck": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Deck",
+            "description": "Pitch deck PDF"
+          },
+          "company_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Company Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck",
+          "company_name"
+        ],
+        "title": "Body_apply_inbound"
+      },
       "ChannelItem": {
         "properties": {
           "name": {
@@ -1442,6 +1627,37 @@
               }
             ],
             "title": "Confidence"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Gaps",
+            "default": []
           }
         },
         "type": "object",

@@ -28,6 +28,7 @@ class LLMOut(BaseModel):
                         data[name] = []
         return data
 
+
 # Sub-goals that queries + hits are tagged by (shared tagged search pool).
 SUBGOALS = ("sizing", "competition", "comparables", "kpi", "trend")
 
@@ -151,12 +152,8 @@ class Hypothesis(LLMOut):
 class MarketAxis(LLMOut):
     verdict: Literal["bull", "neutral", "bear"]
     score: float = Field(ge=0.0, le=100.0, description="0..100, thesis-relative attractiveness.")
-    trend: Literal["improving", "declining", "stable"] = Field(
-        description="market-momentum proxy"
-    )
-    rationale: str = Field(
-        description="Grounded in the findings; names the evidence it rests on."
-    )
+    trend: Literal["improving", "declining", "stable"] = Field(description="market-momentum proxy")
+    rationale: str = Field(description="Grounded in the findings; names the evidence it rests on.")
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 

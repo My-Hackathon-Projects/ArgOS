@@ -106,8 +106,7 @@ def validate_subjects(
     if not any(r["cold_start"] for r in founder_rows):
         raise RuntimeError("eval bed lost its cold-start founder — coverage property broken")
     if not any(
-        r["founder_score"] is not None and r["founder_score"] >= BULL_AT_LEAST
-        for r in founder_rows
+        r["founder_score"] is not None and r["founder_score"] >= BULL_AT_LEAST for r in founder_rows
     ):
         raise RuntimeError("eval bed lost its bull-band founder — coverage property broken")
 

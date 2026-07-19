@@ -7,6 +7,7 @@ preserved so downstream claims can cite "deck p.N". (source, external_id) unique
 """
 
 import uuid
+from typing import cast
 
 from app.connectors.base import SignalEnvelope
 
@@ -26,8 +27,9 @@ def parse_deck(
 
     envelopes: list[SignalEnvelope] = []
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-        for page_no, page in enumerate(doc, start=1):
-            text = page.get_text().strip()
+        for page_index in range(doc.page_count):
+            page_no = page_index + 1
+            text = cast(str, doc.load_page(page_index).get_text("text")).strip()
             envelopes.append(
                 SignalEnvelope(
                     source="inbound",

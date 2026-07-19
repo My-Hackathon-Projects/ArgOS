@@ -202,11 +202,15 @@ def test_upsert_founder_axis_real_db():
         row2 = upsert_founder_axis(db, opp.id)
         db.flush()
         assert row2.id == row.id
-        n = db.execute(
-            select(ThreeAxis).where(
-                ThreeAxis.opportunity_id == opp.id, ThreeAxis.axis == "founder"
+        n = (
+            db.execute(
+                select(ThreeAxis).where(
+                    ThreeAxis.opportunity_id == opp.id, ThreeAxis.axis == "founder"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(n) == 1
     finally:
         db.rollback()

@@ -23,9 +23,7 @@ def _opp_from_row(row: Opportunity) -> dict:
     }
 
 
-def run_market_analysis(
-    db: Session, opp: dict | None = None, opportunity_id=None
-) -> dict:
+def run_market_analysis(db: Session, opp: dict | None = None, opportunity_id=None) -> dict:
     """Analyze the market for an opportunity. Pass a dict (creates the opportunity) OR an
     opportunity_id (re-runs against an existing row). Returns a structured result + persist summary.
     """

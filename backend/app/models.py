@@ -311,9 +311,7 @@ class FounderCompany(Base):
     """founder <-> company (co-founders, serial founders). Independent of any single deal."""
 
     __tablename__ = "founder_company"
-    __table_args__ = (
-        UniqueConstraint("founder_id", "company_id", name="uq_founder_company"),
-    )
+    __table_args__ = (UniqueConstraint("founder_id", "company_id", name="uq_founder_company"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))

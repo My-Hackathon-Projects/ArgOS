@@ -91,8 +91,9 @@ def _mint_deck_claims(
                 rationale=f"asserted in deck p.{ec.source_page}",
             )
         )
-        claim.trust_score = trust_mod.trust_score([weight], [])
-        claim.status = trust_mod.derive_status(claim.trust_score, [])
+        trust = trust_mod.trust_score([weight], [])
+        claim.trust_score = trust
+        claim.status = trust_mod.derive_status(trust, [])
         claim.trust_components = trust_mod.trust_components([weight], [], ["inbound"])
         minted += 1
     return minted, dropped

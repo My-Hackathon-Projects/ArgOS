@@ -93,26 +93,50 @@ def test_mint_drops_colliding_dedup_key():
         used: set = set()
         key = "https://example.com/shared-profile-page"
         c1 = _mint(
-            db, f.id,
-            ExtractedClaim(statement="Role A", category="employment", impact=0.5,
-                           dedup_key=key, supporting_signals=[0]),
-            [s], seen, used,
+            db,
+            f.id,
+            ExtractedClaim(
+                statement="Role A",
+                category="employment",
+                impact=0.5,
+                dedup_key=key,
+                supporting_signals=[0],
+            ),
+            [s],
+            seen,
+            used,
         )
         c2 = _mint(
-            db, f.id,
-            ExtractedClaim(statement="Role B", category="employment", impact=0.5,
-                           dedup_key=key, supporting_signals=[0]),
-            [s], seen, used,
+            db,
+            f.id,
+            ExtractedClaim(
+                statement="Role B",
+                category="employment",
+                impact=0.5,
+                dedup_key=key,
+                supporting_signals=[0],
+            ),
+            [s],
+            seen,
+            used,
         )
         db.flush()  # WITHOUT the guard this raises UniqueViolation on uq_claim_founder_dedup
 
         assert c1.dedup_key == key and c2.dedup_key is None  # both kept, spurious key dropped
-        assert db.execute(
-            select(func.count()).select_from(Claim).where(Claim.founder_id == f.id)
-        ).scalar_one() == 2
-        assert db.execute(
-            select(func.count()).select_from(ClaimEvidence).where(ClaimEvidence.claim_id == c1.id)
-        ).scalar_one() == 1
+        assert (
+            db.execute(
+                select(func.count()).select_from(Claim).where(Claim.founder_id == f.id)
+            ).scalar_one()
+            == 2
+        )
+        assert (
+            db.execute(
+                select(func.count())
+                .select_from(ClaimEvidence)
+                .where(ClaimEvidence.claim_id == c1.id)
+            ).scalar_one()
+            == 1
+        )
     finally:
         db.rollback()  # never persist test rows into the shared dev DB
         db.close()

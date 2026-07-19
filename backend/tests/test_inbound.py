@@ -157,9 +157,7 @@ def test_apply_round_trip(client, monkeypatch):
         assert sig.source == "inbound" and sig.signal_type == "deck"
 
     trace = (
-        session.execute(select(TraceStep).where(TraceStep.opportunity_id == opp_id))
-        .scalars()
-        .all()
+        session.execute(select(TraceStep).where(TraceStep.opportunity_id == opp_id)).scalars().all()
     )
     assert len(trace) == 1
     assert trace[0].agent == "inbound_intake"

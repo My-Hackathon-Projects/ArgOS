@@ -15,16 +15,26 @@ class DeckClaim(BaseModel):
     """One checkable factual assertion extracted from a deck page."""
 
     category: Literal["traction", "revenue", "team", "market", "product"]
-    statement: str = Field(description="Verbatim-faithful assertion, e.g. '$50K MRR as of Q2 2026'.")
+    statement: str = Field(
+        description="Verbatim-faithful assertion, e.g. '$50K MRR as of Q2 2026'."
+    )
     source_page: int = Field(ge=1, description="1-based deck page the assertion appears on.")
 
 
 class DeckExtraction(BaseModel):
     """Output of the one-pass deck extraction call."""
 
-    idea: str | None = Field(default=None, description="One sentence: what the company does. null if the deck doesn't say.")
-    sector: str | None = Field(default=None, description="Lowercase sector label, e.g. 'fintech', 'robotics'. null if unclear.")
-    geo: str | None = Field(default=None, description="Primary geography, e.g. 'US', 'EU'. null if unclear.")
+    idea: str | None = Field(
+        default=None,
+        description="One sentence: what the company does. null if the deck doesn't say.",
+    )
+    sector: str | None = Field(
+        default=None,
+        description="Lowercase sector label, e.g. 'fintech', 'robotics'. null if unclear.",
+    )
+    geo: str | None = Field(
+        default=None, description="Primary geography, e.g. 'US', 'EU'. null if unclear."
+    )
     claims: list[DeckClaim] = Field(default_factory=list)
 
 

@@ -58,7 +58,7 @@ fundings, and sector KPI benchmarks.</role>
 
 <task>
 Write {per_goal} focused, executable web-search queries for EACH of these sub-goals
-({', '.join(SUBGOALS)}):
+({", ".join(SUBGOALS)}):
 - sizing        — size the GENERAL / PARENT market (broad sector, e.g. "robotics market size",
                   "edge AI market size 2025") + growth/CAGR. Don't over-narrow to the exact product.
 - competition   — direct competitors, incumbents, and challengers to this idea.
@@ -70,7 +70,7 @@ Write {per_goal} focused, executable web-search queries for EACH of these sub-go
 </task>
 
 <rules>
-1. Set `subgoal` to exactly one of {', '.join(SUBGOALS)}.
+1. Set `subgoal` to exactly one of {", ".join(SUBGOALS)}.
 2. Anchor queries to the idea + sector; add the geo when it sharpens the result.
 3. Prefer specific, recent phrasing (include years 2023-2025 for comparables/trends).
 4. `domain` optional — set it only to force a specific site; else null (open web).

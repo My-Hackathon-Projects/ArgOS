@@ -32,7 +32,11 @@ from app.sourcing import tavily
 
 # Comparables precision bias — funding-news outlets Tavily can see (paywalled DBs it can't).
 FUNDING_NEWS_DOMAINS = [
-    "techcrunch.com", "sifted.eu", "eu-startups.com", "tech.eu", "crunchbase.com",
+    "techcrunch.com",
+    "sifted.eu",
+    "eu-startups.com",
+    "tech.eu",
+    "crunchbase.com",
 ]
 
 

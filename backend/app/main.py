@@ -17,6 +17,7 @@ from app.api_schemas import (
     IngestResponse,
     MarketAnalysisResponse,
     MarketOpportunityListItem,
+    MemoView,
     OpportunityCreate,
     OpportunityDetail,
     OpportunityListItem,
@@ -28,7 +29,8 @@ from app.db import SessionLocal, get_db
 from app.inbound.service import run_inbound_application
 from app.ingest import upsert_signal
 from app.market import read as market_read
-from app.models import Founder, InvestmentThesis, Opportunity, Signal, SourcingChannel
+from app.memo.generate import generate_memo
+from app.models import Founder, InvestmentThesis, Memo, Opportunity, Signal, SourcingChannel
 from app.screening.assemble import screen_opportunity
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
@@ -285,9 +287,7 @@ def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -
 
 @app.get("/opportunities", response_model=list[OpportunityListItem])
 def list_opportunities(db: Session = Depends(get_db)) -> list[dict]:
-    rows = (
-        db.execute(select(Opportunity).order_by(Opportunity.created_at.desc())).scalars().all()
-    )
+    rows = db.execute(select(Opportunity).order_by(Opportunity.created_at.desc())).scalars().all()
     return [_opportunity_dict(o) for o in rows]
 
 
@@ -313,6 +313,34 @@ def screen(
     screen_opportunity(db, opportunity_id, refresh_market=refresh_market)
     db.expire_all()
     return _opportunity_dict(db.get(Opportunity, opportunity_id))
+
+
+def _memo_dict(m: Memo) -> dict:
+    return {
+        "opportunity_id": str(m.opportunity_id),
+        "sections": m.sections,
+        "recommendation": m.recommendation,
+        "confidence": m.confidence,
+        "gaps": m.gaps or [],
+        "quality": m.quality,
+        "generated_at": m.generated_at,
+    }
+
+
+@app.post("/opportunities/{opportunity_id}/memo", response_model=MemoView)
+def create_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """Generate (or regenerate) the mini investment memo — requires the opportunity be screened."""
+    if db.get(Opportunity, opportunity_id) is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return _memo_dict(generate_memo(db, opportunity_id))
+
+
+@app.get("/opportunities/{opportunity_id}/memo", response_model=MemoView)
+def get_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    row = db.execute(select(Memo).where(Memo.opportunity_id == opportunity_id)).scalars().first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="memo not generated yet")
+    return _memo_dict(row)
 
 
 @app.get("/thesis", response_model=ThesisResponse)

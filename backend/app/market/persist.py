@@ -87,10 +87,7 @@ def _mint_signals(db: Session, hits_by_goal: dict) -> dict:
     """One `web` signal per unique cited URL -> {canonical_url: signal_id} (incl. existing)."""
     canon_map: dict[str, uuid.UUID] = {}
     all_canon = {
-        _canonicalize(h["url"])
-        for hits in hits_by_goal.values()
-        for h in hits
-        if h.get("url")
+        _canonicalize(h["url"]) for hits in hits_by_goal.values() for h in hits if h.get("url")
     }
     all_canon.discard(None)
     if all_canon:
@@ -265,8 +262,14 @@ def _persist_claims(db: Session, opp_id, analysis: dict, canon_map: dict) -> tup
             {
                 k: cmp.get(k)
                 for k in (
-                    "one_liner", "stage", "round_size", "valuation", "investors",
-                    "date", "similarity_rationale", "confidence",
+                    "one_liner",
+                    "stage",
+                    "round_size",
+                    "valuation",
+                    "investors",
+                    "date",
+                    "similarity_rationale",
+                    "confidence",
                 )
             },
             "comparables",
@@ -283,9 +286,9 @@ def _persist_claims(db: Session, opp_id, analysis: dict, canon_map: dict) -> tup
 def _gap_figures(analysis: dict) -> list[str]:
     gaps = []
     for section in ("sizing", "kpi"):
-        figs = (analysis.get(section) or {}).get("figures") or (
-            analysis.get(section) or {}
-        ).get("benchmarks", [])
+        figs = (analysis.get(section) or {}).get("figures") or (analysis.get(section) or {}).get(
+            "benchmarks", []
+        )
         for f in figs:
             if f.get("basis") == "gap":
                 gaps.append(f"{f.get('metric')}: not found / unverified")
@@ -299,9 +302,7 @@ def _upsert_axis(
     synthesis = analysis.get("synthesis") or {}
     row = (
         db.execute(
-            select(ThreeAxis).where(
-                ThreeAxis.opportunity_id == opp_id, ThreeAxis.axis == "market"
-            )
+            select(ThreeAxis).where(ThreeAxis.opportunity_id == opp_id, ThreeAxis.axis == "market")
         )
         .scalars()
         .first()

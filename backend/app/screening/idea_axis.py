@@ -32,9 +32,13 @@ class IdeaAxisLLM(BaseModel):
     """Structured LLM output for the idea-vs-market judgment."""
 
     verdict: Literal["survives_as_is", "pivot_needed", "fails"]
-    score: float = Field(ge=0.0, le=100.0, description="idea-vs-market attractiveness, thesis-relative")
+    score: float = Field(
+        ge=0.0, le=100.0, description="idea-vs-market attractiveness, thesis-relative"
+    )
     confidence: float = Field(ge=0.0, le=1.0)
-    rationale: str = Field(description="grounded in the cited claims; names the evidence it rests on")
+    rationale: str = Field(
+        description="grounded in the cited claims; names the evidence it rests on"
+    )
     evidence_claim_ids: list[str] = Field(
         default_factory=list, description="ids of the provided claims this verdict rests on"
     )

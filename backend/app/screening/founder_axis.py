@@ -84,9 +84,7 @@ def compute_founder_axis(
 
     if len(history_scores) < 2:
         trend: Literal["improving", "declining", "stable"] = "stable"
-        gaps.append(
-            f"score history has {len(history_scores)} point(s) — trend defaults to stable"
-        )
+        gaps.append(f"score history has {len(history_scores)} point(s) — trend defaults to stable")
         parts.append("Trend stable (insufficient score history).")
     else:
         delta = history_scores[-1] - history_scores[-2]
@@ -160,9 +158,7 @@ def upsert_founder_axis(db: Session, opportunity_id: uuid.UUID) -> ThreeAxis:
     )
     row = (
         db.execute(
-            select(ThreeAxis).where(
-                ThreeAxis.opportunity_id == opp.id, ThreeAxis.axis == "founder"
-            )
+            select(ThreeAxis).where(ThreeAxis.opportunity_id == opp.id, ThreeAxis.axis == "founder")
         )
         .scalars()
         .first()
