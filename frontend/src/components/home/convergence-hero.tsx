@@ -152,7 +152,7 @@ export function ConvergenceHero() {
       <div className="relative mx-auto flex max-w-2xl flex-col items-center pt-6 text-center sm:pt-12">
         <motion.div
           {...appear(0.5)}
-          className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary"
+          className="mb-2 text-xs font-semibold tracking-[0.14em] text-primary"
         >
           ArgOS
         </motion.div>
