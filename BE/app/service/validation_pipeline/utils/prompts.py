@@ -1,60 +1,13 @@
-"""Validation (processing) pipeline prompts — one constant per LLM node (README §8)."""
+"""Validation (processing) pipeline prompts — loaded from prompts.yaml (README §8)."""
 
-SHARED_PREAMBLE = (
-    "You are a component of a venture-capital analysis system. You must "
-    "respond only via the provided structured schema. Never invent facts: "
-    "every factual statement must reference provided evidence ids. If "
-    "evidence is missing, say so explicitly and lower your confidence."
-)
+from pathlib import Path
 
-FOUNDER_AXIS_PROMPT = f"""{SHARED_PREAMBLE}
+from app.service.prompt_loader import load_prompts
 
-Score the founder(s) 0-100 on capability to build a venture-scale company,
-with trend and confidence. Weigh: track record (founder score history
-provided — one input among several, never a substitute for your own
-judgment), shipping velocity, domain expertise, evidence quality.
+_PROMPTS = load_prompts(Path(__file__).resolve().parents[1] / "prompts.yaml")
 
-COLD-START RULE: if the founder has no track record (no repos, no funding,
-no network signals), you must still score using public-footprint proxies —
-quality/specificity of the application text, domain expertise revealed in
-writing, velocity of whatever exists — and set confidence low (<= 0.5) with
-a rationale naming the missing evidence. A silent low score without
-explanation is a failure. Cite evidence ids per point."""
-
-MARKET_AXIS_PROMPT = f"""{SHARED_PREAMBLE}
-
-Assess the market through the provided fund thesis: sizing sanity check
-(flag implausible TAM claims), competitor clusters (named), SWOT bullets,
-verdict bullish/neutral/bear mapped to score. A great market outside the
-thesis still scores low against this fund's lens — say so explicitly.
-Cite evidence ids; state assumptions."""
-
-IDEA_VS_MARKET_AXIS_PROMPT = f"""{SHARED_PREAMBLE}
-
-Judge fit: does this idea, as-is, survive scrutiny in this market? If not,
-is this specific team strong enough to pivot? Do not use or reference the
-other axes' scores. Distinguish 'wrong idea, right team' from 'right idea,
-wrong team' explicitly in the rationale. Cite evidence ids."""
-
-VALIDATOR_PROMPT = f"""{SHARED_PREAMBLE}
-
-For each claim: determine what external evidence could verify it, use the
-verification results provided by tools, and assign status
-verified/unverified/contradicted with confidence and supporting/conflicting
-evidence ids. Cross-check claims against EACH OTHER for internal
-contradictions (e.g. revenue vs founding date). Be adversarial: your job is
-to catch what the primary analysis missed. Never mark verified without at
-least one independent evidence id."""
-
-MEMO_WRITER_PROMPT = f"""{SHARED_PREAMBLE}
-
-Write the investment memo with exactly these sections: snapshot (company
-snapshot, one paragraph), hypotheses (investment hypotheses, bullets), swot,
-problem_product (problem & product), traction (traction & KPIs). Every
-factual sentence must carry a claim/evidence citation id in brackets. Where
-required information is missing, add a gaps[] entry like 'Cap table: not
-disclosed' — NEVER fabricate, never silently omit. Be as brief as clarity
-allows; padding is penalized. End with recommendation invest/pass/review
-justified against the thesis and the three axis scores WITHOUT averaging
-them — if the axes disagree, surface the disagreement as the central
-tension of the memo."""
+FOUNDER_AXIS_PROMPT = _PROMPTS["founder_axis"]
+MARKET_AXIS_PROMPT = _PROMPTS["market_axis"]
+IDEA_VS_MARKET_AXIS_PROMPT = _PROMPTS["idea_vs_market_axis"]
+VALIDATOR_PROMPT = _PROMPTS["validator"]
+MEMO_WRITER_PROMPT = _PROMPTS["memo_writer"]
