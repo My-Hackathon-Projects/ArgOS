@@ -96,28 +96,13 @@ Both sides write `claim`:
 It is a shared contract: change the table in the open (edit this doc) and **chain the Alembic
 revision** — `0002` is taken, next is `0003`. Don't both fork the same revision.
 
-## Reconciliation with the validation pipeline (`BE/`)
+## Reconciliation with the validation pipeline (resolved 2026-07-19)
 
-`BE/app/service/validation_pipeline` produces the same claim / trust / contradiction concepts.
-These tables are the **canonical persistence** for them — the pipeline should write *into* them via
-its `tools.py` repository stubs, **not** define a parallel schema. (Its domain contract
-`app.service.models` was deleted in `552857d`, so `Claim` / `TrustScore` / `Contradiction` imports
-are currently dangling — that is the moment to re-point them here rather than redefine a DB.)
-
-The two independently converged, so the mapping is mechanical:
-
-| Validation-pipeline surface | Persists into |
-|---|---|
-| `ExtractedClaim` / `ClaimRecord` | one `claim` row |
-| `ClaimVerdict.status` (`TrustStatus`) | `claim.status` — values already align (unverified/verified/contradicted) |
-| `ClaimVerdict.confidence` (0..1) | `claim.trust_score` |
-| `ClaimVerdict.supporting_evidence_ids` | `claim_evidence` rows, `stance='supports'` |
-| `ClaimVerdict.conflicting_evidence_ids` | `claim_evidence` rows, `stance='refutes'` |
-| `ClaimVerdict.note` / validator rationale | `claim.trust_components` (or `claim_evidence.rationale`) |
-| `update_claim_trust(claim_id, trust)` | UPDATE `claim.trust_score` + `trust_components` |
-| `verify_claim_external(claim, signals)` output | new `signal` rows (fetched evidence) + `claim_evidence` links |
-| `Contradiction` / `ContradictionRecord` / `save_contradictions()` | **already** = `claim_evidence WHERE stance='refutes'` — no separate `contradictions` table (severity/explanation → `claim_evidence.rationale`) |
-
-Out of scope for these tables (the pipeline's diligence / triggered-loop layer — needs its own tables:
-`opportunity`, `three_axis`/`axis_scores`, `memo`, `thesis`): `AxisScoreRecord`, `MemoDraft`,
-`Decision`, `opportunity_id`. Coordinate who owns those before building them.
+The separate `BE/` project (FastAPI template + LangGraph inbound/validation pipelines) has been
+**removed**. Its genuinely new piece — inbound deck intake — was ported into
+`backend/app/inbound/` (`POST /apply`: deck PDF -> per-page `signal` rows -> thesis pre-screen ->
+opportunity-anchored `claim` rows with `claim_evidence` links, trust via the shared
+`app.claims.trust` formula). Its validation-pipeline concepts were repository stubs that map onto
+these tables natively: extracted claims = `claim` rows, trust verdicts = `claim.trust_score` +
+`status`, contradictions = `claim_evidence WHERE stance='refutes'`. The diligence layer
+(`opportunity`, `three_axis`, `memo`) already exists in `backend/` (migrations 0005/0006).

@@ -61,10 +61,9 @@ How the pieces run in practice:
 
 | Piece | Where | Runs on |
 |---|---|---|
-| Postgres + pgvector, MinIO | `docker-compose.yml` | `:5433` (DB), `:9000` / `:9001` (MinIO) |
-| Backend (FastAPI) | `backend/` | `localhost:8000` |
+| Postgres + pgvector | `docker-compose.yml` | `:5433` |
+| Backend (FastAPI, incl. inbound `/apply` intake) | `backend/` | `localhost:8000` |
 | Frontend (Next.js 16 + TypeScript) | `frontend/` | `localhost:3000` |
-| Inbound deck pipelines (separate template) | `BE/` | not wired to the frontend |
 
 ---
 
@@ -82,7 +81,7 @@ From the repo root, in order:
 
 ```bash
 cp .env.example .env          # fill OPENAI_API_KEY and TAVILY_API_KEY
-docker compose up -d          # Postgres + pgvector on :5433, MinIO on :9000/:9001
+docker compose up -d          # Postgres + pgvector on :5433
 ```
 
 Backend:
@@ -188,12 +187,11 @@ Postgres must be up and migrated for `pytest`; only `test_contract.py` is DB-fre
 ## Repo layout
 
 ```
-backend/     FastAPI app: sourcing, claims, market research, opportunities
+backend/     FastAPI app: sourcing, inbound intake (/apply), claims, market research, opportunities
 frontend/    Next.js app: home, sourcing, founders, thesis, market research
-BE/          FastAPI template with inbound deck pipelines (separate uv project)
 docs/        design docs, demo guide, challenge brief
-docker-compose.yml   pgvector Postgres (:5433) + MinIO
-.env.example         copy to .env at the root; serves both backends
+docker-compose.yml   pgvector Postgres (:5433)
+.env.example         copy to .env at the root
 ```
 
 ## Authors
