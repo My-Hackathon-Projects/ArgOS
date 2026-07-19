@@ -30,9 +30,7 @@ def _postgres_dsn() -> str:
     """Reuse the FastAPI app's Postgres DSN, stripped to a plain psycopg DSN."""
     from app.core.config import settings
 
-    return str(settings.SQLALCHEMY_DATABASE_URI).replace(
-        "postgresql+psycopg", "postgresql"
-    )
+    return str(settings.SQLALCHEMY_DATABASE_URI).replace("postgresql+psycopg", "postgresql")
 
 
 def get_checkpointer():
@@ -150,11 +148,7 @@ def build_scanner_graph():
     def scan_channels(state: GraphState) -> dict:
         thesis: Thesis = state.get("thesis") or Thesis()
         q = " ".join(thesis.sectors) or "ai"
-        signals = (
-            tools.scan_github(q, 20)
-            + tools.scan_hackernews(q, 20)
-            + tools.scan_arxiv(q, 20)
-        )
+        signals = tools.scan_github(q, 20) + tools.scan_hackernews(q, 20) + tools.scan_arxiv(q, 20)
         tools.save_signals(signals)
         return {"signals": signals}
 
@@ -201,9 +195,7 @@ def _config(opportunity_id: str) -> dict:
     return {"configurable": {"thread_id": opportunity_id}}
 
 
-def start_run(
-    opportunity_id: str, track: str, thesis: Thesis, intake_payload: dict
-) -> None:
+def start_run(opportunity_id: str, track: str, thesis: Thesis, intake_payload: dict) -> None:
     """
     Called by POST /apply (background task — the endpoint returns
     {opportunity_id, status: "running"} in <1s). Builds state0

@@ -241,6 +241,47 @@ class Decision(BaseModel):
     decided_at: str  # ISO timestamp
 
 
+class ProcessingTicket(BaseModel):
+    """
+    The handoff contract (§5) — the ONLY interface between the intake graphs
+    (inbound / outbound) and the processing ("validation") graph. Both tracks
+    produce it; processing accepts nothing else, so it cannot tell the tracks
+    apart except by the ``track`` field — one funnel, per brief.
+
+    thesis is a FROZEN copy taken at intake time: a later PUT /thesis must not
+    retroactively change how an in-flight opportunity is judged.
+    """
+
+    opportunity_id: str
+    track: Track
+    thesis: Thesis
+    founder_id: str
+    company_id: str
+    signal_ids: list[str] = Field(default_factory=list)
+    claim_ids: list[str] = Field(default_factory=list)
+    handoff_at: str  # ISO timestamp
+
+
+class TraceEvent(BaseModel):
+    """
+    One per-node trace record: what the node did, WHY (rationale), and which
+    evidence it touched. Appended to state by every node in both pipelines
+    (append-only reducer) and persisted later to the ``traces`` Postgres table
+    — this powers the UI "show reasoning" panel alongside the LangSmith trace.
+    """
+
+    id: str
+    opportunity_id: str
+    node: str
+    started_at: str  # ISO timestamp
+    ended_at: str  # ISO timestamp
+    duration_ms: float
+    model: str | None = None  # LLM used, None for deterministic nodes
+    rationale: str  # why the node decided what it decided
+    summary: str  # what the node produced
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
 def merge_axis_dicts(left: dict, right: dict) -> dict:
     """
     Reducer for GraphState.axis_scores.
