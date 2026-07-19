@@ -399,3 +399,86 @@ class ThreeAxis(Base):
     )
 
     opportunity: Mapped[Opportunity] = relationship(back_populates="axes")
+
+
+# ── LOOP TABLES (0006) — score_history / memo / trace_step ───────────────────
+# The triggered/diligence loop's persistence. score_history is the Founder Score time series
+# (one point per recompute that moved the number → the trend arrow); memo is the generated
+# investment memo; trace_step records what each screening/memo node did + the evidence it used.
+# Relationships are forward-only (no back_populates) so these append cleanly without editing the
+# shared Founder / Opportunity / Claim classes above.
+
+
+class ScoreHistory(Base):
+    """One Founder Score point in time. Appended whenever a rescore moves founder.founder_score.
+
+    `trigger_claim_id` links the point to the claim whose mint/rescore caused it (audit); the
+    series ordered by created_at yields the trend arrow (see compute_trend, item 3).
+    """
+
+    __tablename__ = "score_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
+    score: Mapped[float | None]
+    components: Mapped[dict | None] = mapped_column(JSONB)  # founder_score component breakdown
+    trigger_claim_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("claim.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+    founder: Mapped[Founder] = relationship()
+
+
+class Memo(Base):
+    """The investment memo generated for an opportunity — LLM prose + deterministic guardrails.
+
+    `sections` holds the required memo sections (present-or-gapped); `gaps` lists explicitly-flagged
+    missing data / unresolved citations. Never averages the 3 axes — it surfaces their disagreement.
+    """
+
+    __tablename__ = "memo"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("opportunity.id", ondelete="CASCADE")
+    )
+    sections: Mapped[dict | None] = mapped_column(JSONB)  # {section_name: prose}
+    recommendation: Mapped[str | None]
+    confidence: Mapped[float | None]
+    gaps: Mapped[list | None] = mapped_column(JSONB)  # explicit missing-data / unresolved-citation
+    quality: Mapped[dict | None] = mapped_column(JSONB)  # eval scorecard (anchors + judge scores)
+    generated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+    opportunity: Mapped[Opportunity] = relationship()
+
+
+class TraceStep(Base):
+    """One step of the screening/memo flow — agentic traceability (stretch goal #1).
+
+    Plumbing, not LLM: records what a formula/LLM node did (stage, agent, input/output summaries)
+    and the evidence_ids it stood on, so a screen or memo can be replayed and audited. Anchored to
+    an opportunity and/or a founder (both nullable — a founder-only step has no opportunity yet).
+    """
+
+    __tablename__ = "trace_step"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("opportunity.id", ondelete="CASCADE")
+    )
+    founder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("founder.id", ondelete="CASCADE")
+    )
+    stage: Mapped[str]  # screen|score_founder|score_market|score_idea|memo|decide
+    agent: Mapped[str | None]
+    input: Mapped[dict | None] = mapped_column(JSONB)  # input summary (not the full payload)
+    output: Mapped[dict | None] = mapped_column(JSONB)  # output summary
+    evidence_ids: Mapped[list | None] = mapped_column(JSONB)  # cited claim/signal ids (provenance)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
