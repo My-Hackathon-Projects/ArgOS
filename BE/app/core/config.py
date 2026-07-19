@@ -66,6 +66,13 @@ class Settings(BaseSettings):
             path=self.POSTGRES_DB,
         )
 
+    # Blob storage (S3-compatible; MinIO locally, real S3 in deployments)
+    S3_ENDPOINT: str = "http://localhost:9000"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET: str = "app"
+    S3_REGION: str = "us-east-1"
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (
