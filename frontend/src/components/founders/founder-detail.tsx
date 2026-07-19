@@ -25,6 +25,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { initials, relativeTime } from "@/lib/format";
 import { ClaimsList } from "@/components/founders/claims-list";
 import { PromoteButton } from "@/components/founders/promote-dialog";
+import { ScoreSparkline } from "@/components/founders/score-sparkline";
+import { TraceTimeline } from "@/components/founders/trace-timeline";
 import { statusBadge } from "@/components/founders/status";
 import { TimelineItem } from "@/components/founders/timeline-item";
 
@@ -222,6 +224,7 @@ export function FounderDetail({ founderId }: { founderId: string }) {
                   <CountUp value={f.founder_score} />
                 </div>
                 <div className="text-xs text-subtle">Founder Score</div>
+                <ScoreSparkline history={f.score_history} />
               </div>
             )}
             {f.discovery_confidence != null && (
@@ -254,6 +257,8 @@ export function FounderDetail({ founderId }: { founderId: string }) {
         </h2>
         <ClaimsList claims={f.claims} />
       </div>
+
+      <TraceTimeline founderId={founderId} />
 
       <div>
         <h2 className="mb-4 text-sm font-semibold text-foreground">

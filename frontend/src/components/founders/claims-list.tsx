@@ -7,6 +7,7 @@ import type { FounderClaimItem } from "@/api/generated/model";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
+import { relativeTime } from "@/lib/format";
 import { humanize } from "@/lib/source-style";
 
 function claimStatusBadge(status: string): { variant: BadgeProps["variant"]; label: string } {
@@ -80,6 +81,7 @@ export function ClaimsList({ claims }: { claims: FounderClaimItem[] }) {
                         </span>
                       )}
                     </span>
+                    {c.updated_at && <span>updated {relativeTime(c.updated_at)}</span>}
                     <Badge variant={s.variant}>{s.label}</Badge>
                   </div>
                 </div>
