@@ -4,6 +4,7 @@
  * VC Brain — Sourcing
  * OpenAPI spec version: 0.1.0
  */
+import type { OpportunityAxisSummaryEvidence } from './opportunityAxisSummaryEvidence';
 
 export interface OpportunityAxisSummary {
   axis: string;
@@ -11,4 +12,7 @@ export interface OpportunityAxisSummary {
   verdict: string;
   trend: string;
   confidence: number | null;
+  rationale?: string | null;
+  evidence?: OpportunityAxisSummaryEvidence;
+  gaps?: string[];
 }

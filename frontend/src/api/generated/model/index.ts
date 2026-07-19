@@ -5,6 +5,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './applyResponse';
+export * from './bodyApplyInbound';
 export * from './channelItem';
 export * from './discoveryRunResponse';
 export * from './discoveryRunResponseStats';
@@ -23,10 +25,15 @@ export * from './marketComparableItem';
 export * from './marketCompetitorItem';
 export * from './marketFigureItem';
 export * from './marketOpportunityListItem';
+export * from './memoView';
+export * from './memoViewQuality';
+export * from './memoViewSections';
 export * from './opportunityAxisSummary';
+export * from './opportunityAxisSummaryEvidence';
 export * from './opportunityCreate';
 export * from './opportunityDetail';
 export * from './opportunityListItem';
+export * from './screenParams';
 export * from './signalEnvelope';
 export * from './signalEnvelopeRaw';
 export * from './signalListItem';

@@ -24,6 +24,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApplyResponse,
+  BodyApplyInbound,
   ChannelItem,
   DiscoveryRunResponse,
   FounderDetail,
@@ -34,9 +36,11 @@ import type {
   ListSignalsParams,
   MarketAnalysisResponse,
   MarketOpportunityListItem,
+  MemoView,
   OpportunityCreate,
   OpportunityDetail,
   OpportunityListItem,
+  ScreenParams,
   SignalEnvelope,
   SignalListItem,
   ThesisResponse
@@ -313,6 +317,76 @@ export const useIngest = <TError = ErrorType<HTTPValidationError>,
         TContext
       > => {
       return useMutation(getIngestMutationOptions(options), queryClient);
+    }
+    /**
+ * Inbound application intake: deck PDF + company name -> opportunity + per-page signals +
+ * claims + prescreen. Synchronous (~10-20s: one extraction + one prescreen call, fast model).
+ * Full 3-axis screening stays manual-dispatch via POST /opportunities/{id}/screen.
+ * @summary Apply Inbound
+ */
+export const applyInbound = (
+    bodyApplyInbound: BodyType<BodyApplyInbound>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+      const formData = new FormData();
+formData.append(`deck`, bodyApplyInbound.deck);
+formData.append(`company_name`, bodyApplyInbound.company_name);
+
+      return customInstance<ApplyResponse>(
+      {url: `/apply`, method: 'POST',
+      headers: {'Content-Type': 'multipart/form-data', },
+       data: formData, signal
+    },
+      options);
+    }
+
+
+
+
+export const getApplyInboundMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyInbound>>, TError,{data: BodyType<BodyApplyInbound>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyInbound>>, TError,{data: BodyType<BodyApplyInbound>}, TContext> => {
+
+const mutationKey = ['applyInbound'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyInbound>>, {data: BodyType<BodyApplyInbound>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  applyInbound(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyInboundMutationResult = NonNullable<Awaited<ReturnType<typeof applyInbound>>>
+    export type ApplyInboundMutationBody = BodyType<BodyApplyInbound>
+    export type ApplyInboundMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Apply Inbound
+ */
+export const useApplyInbound = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyInbound>>, TError,{data: BodyType<BodyApplyInbound>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof applyInbound>>,
+        TError,
+        {data: BodyType<BodyApplyInbound>},
+        TContext
+      > => {
+      return useMutation(getApplyInboundMutationOptions(options), queryClient);
     }
     /**
  * Hand-trigger a discovery run (thesis → search → resolve → persist). Synchronous (~30-60s).
@@ -1076,6 +1150,227 @@ export function useGetOpportunity<TData = Awaited<ReturnType<typeof getOpportuni
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetOpportunityQueryOptions(opportunityId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * Manual-dispatch 3-axis screening: founder (deterministic) + market (consumed) + idea (LLM),
+ * persisted as 3 independent rows — never averaged. Reuses market axis unless refresh_market.
+ * @summary Screen
+ */
+export const screen = (
+    opportunityId: string,
+    params?: ScreenParams,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<OpportunityDetail>(
+      {url: `/opportunities/${opportunityId}/screen`, method: 'POST',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getScreenMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof screen>>, TError,{opportunityId: string;params?: ScreenParams}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof screen>>, TError,{opportunityId: string;params?: ScreenParams}, TContext> => {
+
+const mutationKey = ['screen'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof screen>>, {opportunityId: string;params?: ScreenParams}> = (props) => {
+          const {opportunityId,params} = props ?? {};
+
+          return  screen(opportunityId,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScreenMutationResult = NonNullable<Awaited<ReturnType<typeof screen>>>
+
+    export type ScreenMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Screen
+ */
+export const useScreen = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof screen>>, TError,{opportunityId: string;params?: ScreenParams}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof screen>>,
+        TError,
+        {opportunityId: string;params?: ScreenParams},
+        TContext
+      > => {
+      return useMutation(getScreenMutationOptions(options), queryClient);
+    }
+    /**
+ * Generate (or regenerate) the mini investment memo — requires the opportunity be screened.
+ * @summary Create Memo
+ */
+export const createMemo = (
+    opportunityId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<MemoView>(
+      {url: `/opportunities/${opportunityId}/memo`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getCreateMemoMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMemo>>, TError,{opportunityId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMemo>>, TError,{opportunityId: string}, TContext> => {
+
+const mutationKey = ['createMemo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMemo>>, {opportunityId: string}> = (props) => {
+          const {opportunityId} = props ?? {};
+
+          return  createMemo(opportunityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMemoMutationResult = NonNullable<Awaited<ReturnType<typeof createMemo>>>
+
+    export type CreateMemoMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Memo
+ */
+export const useCreateMemo = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMemo>>, TError,{opportunityId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createMemo>>,
+        TError,
+        {opportunityId: string},
+        TContext
+      > => {
+      return useMutation(getCreateMemoMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Get Memo
+ */
+export const getMemo = (
+    opportunityId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<MemoView>(
+      {url: `/opportunities/${opportunityId}/memo`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetMemoQueryKey = (opportunityId: string,) => {
+    return [
+    `/opportunities/${opportunityId}/memo`
+    ] as const;
+    }
+
+
+export const getGetMemoQueryOptions = <TData = Awaited<ReturnType<typeof getMemo>>, TError = ErrorType<HTTPValidationError>>(opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMemo>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoQueryKey(opportunityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemo>>> = ({ signal }) => getMemo(opportunityId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: opportunityId !== null && opportunityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMemo>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMemoQueryResult = NonNullable<Awaited<ReturnType<typeof getMemo>>>
+export type GetMemoQueryError = ErrorType<HTTPValidationError>
+
+
+export function useGetMemo<TData = Awaited<ReturnType<typeof getMemo>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMemo>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMemo>>,
+          TError,
+          Awaited<ReturnType<typeof getMemo>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMemo<TData = Awaited<ReturnType<typeof getMemo>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMemo>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMemo>>,
+          TError,
+          Awaited<ReturnType<typeof getMemo>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMemo<TData = Awaited<ReturnType<typeof getMemo>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMemo>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Memo
+ */
+
+export function useGetMemo<TData = Awaited<ReturnType<typeof getMemo>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMemo>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMemoQueryOptions(opportunityId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
