@@ -67,6 +67,9 @@ class Founder(Base):
     last_checked_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True)
     )  # refresh cursor
+    last_claimed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True)
+    )  # claim-generation cursor (warm-update gate)
 
     identities: Mapped[list["Identity"]] = relationship(back_populates="founder")
     signals: Mapped[list["Signal"]] = relationship(back_populates="founder")
@@ -204,14 +207,24 @@ class Claim(Base):
             "status IN ('unverified', 'verified', 'contradicted', 'needs_review')",
             name="ck_claim_status",
         ),
+        # A claim is anchored to a founder (person-level) OR an opportunity (company/market-level).
+        # Market-research claims set opportunity_id + founder_id NULL so they never roll into the
+        # Founder Score (which sums claims WHERE founder_id = x). See docs/market-layer.md.
+        CheckConstraint(
+            "founder_id IS NOT NULL OR opportunity_id IS NOT NULL", name="ck_claim_owner"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
-    # opportunity_id lands when the inbound/diligence side adds the opportunity table.
+    # Nullable since 0005: founder-level claims set founder_id; company/market-level claims (from the
+    # market-research agent) set opportunity_id instead. The ck_claim_owner CHECK requires >= 1.
+    founder_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("opportunity.id", ondelete="CASCADE")
+    )
     category: Mapped[
         str
-    ]  # publication|technical_skill|achievement|traction|revenue|team|market|...
+    ]  # publication|technical_skill|achievement|traction|revenue|team|market|market_size|...
     statement: Mapped[str]  # canonical NL claim, shown in memo/UI
     attributes: Mapped[dict | None] = mapped_column(
         JSONB
@@ -232,7 +245,8 @@ class Claim(Base):
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )  # bumps on evidence/trust change -> the rescore trigger
 
-    founder: Mapped[Founder] = relationship(back_populates="claims")
+    founder: Mapped[Founder | None] = relationship(back_populates="claims")
+    opportunity: Mapped["Opportunity | None"] = relationship(back_populates="claims")
     evidence: Mapped[list["ClaimEvidence"]] = relationship(
         back_populates="claim", cascade="all, delete-orphan"
     )
@@ -265,3 +279,121 @@ class ClaimEvidence(Base):
 
     claim: Mapped[Claim] = relationship(back_populates="evidence")
     signal: Mapped[Signal] = relationship(back_populates="claim_links")
+
+
+# ── DILIGENCE (0005) — company / opportunity / 3-axis ────────────────────────
+# Entity model (see docs/market-layer.md, SYSTEM_DESIGN §4):
+#   founder (person, persistent) — optional company (the venture) — opportunity (the deal).
+# A founder can exist with no company (pre-idea, cold-start). An opportunity can exist with no
+# company (investing in people + idea). Market research runs on an opportunity that has an
+# idea/sector; its claims + 3-axis 'market' row hang on the opportunity.
+
+
+class Company(Base):
+    """The venture — optional. Created only when a real startup exists (not for pre-idea founders)."""
+
+    __tablename__ = "company"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str | None]
+    website: Mapped[str | None]
+    sector: Mapped[str | None]
+    geo: Mapped[str | None]
+    description: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+
+class FounderCompany(Base):
+    """founder <-> company (co-founders, serial founders). Independent of any single deal."""
+
+    __tablename__ = "founder_company"
+    __table_args__ = (
+        UniqueConstraint("founder_id", "company_id", name="uq_founder_company"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("company.id", ondelete="CASCADE"))
+    role: Mapped[str | None]  # founder|cofounder|cto|...
+
+
+class Opportunity(Base):
+    """The investment opportunity — the diligence/decision unit.
+
+    founder_id and company_id are BOTH nullable: an idea-stage deal is a founder + idea with no
+    company row; an inbound deck may arrive before founder resolution. `idea`/`sector`/`geo` are
+    denormalized so a company-less opportunity is self-contained enough to research a market for.
+    """
+
+    __tablename__ = "opportunity"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('screening', 'diligence', 'decided', 'rejected')",
+            name="ck_opportunity_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    founder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("founder.id", ondelete="SET NULL")
+    )
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("company.id", ondelete="SET NULL")
+    )
+    company_name: Mapped[str | None]  # denormalized label; works for idea-only opportunities
+    idea: Mapped[str | None]  # description / topic being evaluated — the market-research subject
+    sector: Mapped[str | None]
+    geo: Mapped[str | None]
+    source: Mapped[str | None]  # inbound|outbound
+    thesis_match: Mapped[float | None]
+    status: Mapped[str] = mapped_column(server_default=text("'screening'"))
+    decision: Mapped[str | None]
+    first_signal_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    decided_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+    claims: Mapped[list["Claim"]] = relationship(back_populates="opportunity")
+    axes: Mapped[list["ThreeAxis"]] = relationship(back_populates="opportunity")
+
+
+class ThreeAxis(Base):
+    """One row per axis per opportunity — Founder / Market / Idea, scored INDEPENDENTLY, NEVER averaged.
+
+    The disagreement between axes is the signal. `evidence` holds the cited claim_ids/urls the
+    verdict rests on (provenance); one row per (opportunity, axis) so a re-run upserts.
+    """
+
+    __tablename__ = "three_axis"
+    __table_args__ = (
+        UniqueConstraint("opportunity_id", "axis", name="uq_three_axis_opportunity_axis"),
+        CheckConstraint("axis IN ('founder', 'market', 'idea')", name="ck_three_axis_axis"),
+        CheckConstraint("verdict IN ('bull', 'neutral', 'bear')", name="ck_three_axis_verdict"),
+        CheckConstraint(
+            "trend IN ('improving', 'declining', 'stable')", name="ck_three_axis_trend"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("opportunity.id", ondelete="CASCADE")
+    )
+    axis: Mapped[str]  # founder|market|idea
+    score: Mapped[float | None]  # 0..100, thesis-relative
+    verdict: Mapped[str]  # bull|neutral|bear
+    trend: Mapped[str]  # improving|declining|stable
+    rationale: Mapped[str | None]
+    evidence: Mapped[dict | None] = mapped_column(JSONB)  # cited claim_ids + urls (provenance)
+    confidence: Mapped[float | None]
+    gaps: Mapped[list | None] = mapped_column(JSONB)  # explicitly flagged missing data
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    opportunity: Mapped[Opportunity] = relationship(back_populates="axes")
