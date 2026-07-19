@@ -46,6 +46,7 @@ from app.models import (
 )
 from app.outbound.draft import draft_outreach
 from app.screening.assemble import screen_opportunity
+from app.search.founder_search import FounderSearchResponse, SearchRequest, run_founder_search
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
 
@@ -178,6 +179,16 @@ def list_founders(db: Session = Depends(get_db)) -> list[dict]:
             }
         )
     return out
+
+
+@app.post("/founders/search", response_model=FounderSearchResponse)
+def search_founders(body: SearchRequest, db: Session = Depends(get_db)) -> FounderSearchResponse:
+    """NL compound / multi-attribute query — one reasoning pass, not five filters.
+
+    e.g. "technical founder, Berlin, AI infra, no prior VC backing, top-tier accelerator"."""
+    if not body.query.strip():
+        raise HTTPException(status_code=422, detail="query is empty")
+    return run_founder_search(db, body.query.strip())
 
 
 @app.get("/founders/{founder_id}", response_model=FounderDetail)

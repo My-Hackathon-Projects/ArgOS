@@ -1,5 +1,6 @@
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
+import { FounderSearch } from "@/components/founders/founder-search";
 import { FoundersTable } from "@/components/founders/founders-table";
 
 export default function FoundersPage() {
@@ -13,6 +14,7 @@ export default function FoundersPage() {
         aura="constellation"
       />
       <div className="mt-10">
+        <FounderSearch />
         <FoundersTable />
       </div>
     </Container>

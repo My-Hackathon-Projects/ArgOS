@@ -185,6 +185,45 @@
         }
       }
     },
+    "/founders/search": {
+      "post": {
+        "summary": "Search Founders",
+        "description": "NL compound / multi-attribute query \u2014 one reasoning pass, not five filters.\n\ne.g. \"technical founder, Berlin, AI infra, no prior VC backing, top-tier accelerator\".",
+        "operationId": "search_founders",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FounderSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/founders/{founder_id}": {
       "get": {
         "summary": "Get Founder",
@@ -1270,6 +1309,116 @@
         ],
         "title": "FounderListItem"
       },
+      "FounderMatch": {
+        "properties": {
+          "founder_id": {
+            "type": "string",
+            "title": "Founder Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "founder_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Founder Score"
+          },
+          "current_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Company"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "relevance": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Relevance"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "matched": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "founder_id",
+          "display_name",
+          "founder_score",
+          "current_company",
+          "city",
+          "relevance",
+          "reason",
+          "matched"
+        ],
+        "title": "FounderMatch"
+      },
+      "FounderSearchResponse": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "criteria": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Criteria"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/FounderMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "criteria",
+          "matches"
+        ],
+        "title": "FounderSearchResponse"
+      },
       "FounderSignal": {
         "properties": {
           "source": {
@@ -2206,6 +2355,17 @@
             ],
             "title": "Geo"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -2232,6 +2392,41 @@
               }
             ],
             "title": "Decision"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "first_signal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Signal At"
+          },
+          "signal_to_decision_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal To Decision Seconds"
           }
         },
         "type": "object",
@@ -2242,10 +2437,14 @@
           "idea",
           "sector",
           "geo",
+          "source",
           "status",
           "created_at",
           "axes",
-          "decision"
+          "decision",
+          "decided_at",
+          "first_signal_at",
+          "signal_to_decision_seconds"
         ],
         "title": "OpportunityDetail"
       },
@@ -2310,6 +2509,17 @@
             ],
             "title": "Geo"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -2335,6 +2545,7 @@
           "idea",
           "sector",
           "geo",
+          "source",
           "status",
           "created_at",
           "axes"
@@ -2381,6 +2592,19 @@
         ],
         "title": "OutreachDraft",
         "description": "Mocked cold-outreach draft (identify -> ACTIVATE). LLM-drafted, not actually sent."
+      },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest"
       },
       "SignalEnvelope": {
         "properties": {

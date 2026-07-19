@@ -31,6 +31,7 @@ import type {
   DiscoveryRunResponse,
   FounderDetail,
   FounderListItem,
+  FounderSearchResponse,
   HTTPValidationError,
   HealthResponse,
   IngestResponse,
@@ -43,6 +44,7 @@ import type {
   OpportunityListItem,
   OutreachDraft,
   ScreenParams,
+  SearchRequest,
   SignalEnvelope,
   SignalListItem,
   ThesisResponse,
@@ -547,6 +549,73 @@ export function useListFounders<TData = Awaited<ReturnType<typeof listFounders>>
 
 
 /**
+ * NL compound / multi-attribute query — one reasoning pass, not five filters.
+ *
+ * e.g. "technical founder, Berlin, AI infra, no prior VC backing, top-tier accelerator".
+ * @summary Search Founders
+ */
+export const searchFounders = (
+    searchRequest: BodyType<SearchRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<FounderSearchResponse>(
+      {url: `/founders/search`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: searchRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getSearchFoundersMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchFounders>>, TError,{data: BodyType<SearchRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchFounders>>, TError,{data: BodyType<SearchRequest>}, TContext> => {
+
+const mutationKey = ['searchFounders'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchFounders>>, {data: BodyType<SearchRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  searchFounders(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchFoundersMutationResult = NonNullable<Awaited<ReturnType<typeof searchFounders>>>
+    export type SearchFoundersMutationBody = BodyType<SearchRequest>
+    export type SearchFoundersMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Search Founders
+ */
+export const useSearchFounders = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchFounders>>, TError,{data: BodyType<SearchRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof searchFounders>>,
+        TError,
+        {data: BodyType<SearchRequest>},
+        TContext
+      > => {
+      return useMutation(getSearchFoundersMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Get Founder
  */
 export const getFounder = (
