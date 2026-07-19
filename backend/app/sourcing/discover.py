@@ -3,6 +3,8 @@
 Run: uv run python -m app.sourcing.discover
 """
 
+import sys
+
 from sqlalchemy import func, select
 
 from app.db import SessionLocal
@@ -12,6 +14,7 @@ from app.sourcing.service import run_discovery
 
 
 def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows console: allow → and accents
     db = SessionLocal()
     try:
         seed_if_empty(db)
@@ -30,7 +33,8 @@ def main() -> None:
                 select(func.count()).select_from(Signal).where(Signal.founder_id == f.id)
             ).scalar_one()
             print(
-                f"  - {f.display_name} [{f.status}] conf={f.discovery_confidence} company={f.current_company} signals={sc}"
+                f"  - {f.display_name} [{f.status}] conf={f.discovery_confidence} "
+                f"company={f.current_company} signals={sc}"
             )
     finally:
         db.close()

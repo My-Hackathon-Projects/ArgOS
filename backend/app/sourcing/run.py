@@ -39,7 +39,8 @@ def main() -> None:
     print(json.dumps(delivery["run"]["stats"], indent=2))
     for f in delivery["founders"]:
         print(
-            f"  - {f['display_name']} [{f['status']}] conf={f['discovery_confidence']} signals={len(f['signals'])}"
+            f"  - {f['display_name']} [{f['status']}] "
+            f"conf={f['discovery_confidence']} signals={len(f['signals'])}"
         )
     print(f"\nwrote {out}")
     print("LangSmith: https://smith.langchain.com  (project: vc-brain-sourcing)")

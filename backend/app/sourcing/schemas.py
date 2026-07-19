@@ -59,6 +59,7 @@ class ExtractedSignal(BaseModel):
 
 
 class CandidateResearch(BaseModel):
+    resolved_name: str | None = None  # the person's REAL full name if the candidate was a handle
     education: list[Education] = []
     extra_signals: list[ExtractedSignal] = []
     notes: str = ""

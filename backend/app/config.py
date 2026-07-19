@@ -17,15 +17,18 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     tavily_api_key: str | None = None
 
-    # Models — mini-only for now (both tiers point at mini).
+    # Models — mini for high-volume (plan/screen), full 5.4 for per-founder synthesis.
     model_fast: str = "gpt-5.4-mini"
-    model_smart: str = "gpt-5.4-mini"
+    model_smart: str = "gpt-5.4"
 
     # Discovery caps (Q7 — bounded autonomy, all tunable).
-    max_search_queries: int = 4
-    tavily_max_results: int = 4
-    max_candidates: int = 3
-    max_extracts: int = 24
+    queries_per_channel: int = 2
+    max_search_queries: int = 16
+    tavily_max_results: int = 6
+    max_candidates: int = 12
+    max_extracts: int = 60
+    research_rounds: int = 2  # recursive per-founder search rounds
+    max_workers: int = 8  # parallel Tavily / LLM calls
 
 
 settings = Settings()
