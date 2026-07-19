@@ -495,7 +495,62 @@ def research_candidates(state: DiscoveryState) -> dict:
     }
 
 
-# ── ⑤ finalize ───────────────────────────────────────────────────────────────
+# ── ⑤ expand_network (one bounded recursive hop) ─────────────────────────────
+def expand_network(state: DiscoveryState) -> dict:
+    """Mine the researched founders' ORBITS for new people — co-authors, teammates,
+    co-founders named inside their signals — and run the full research pass on them.
+    Promising founders travel in packs; their collaborators are pre-qualified leads."""
+    if not settings.hop_enabled:
+        return {"trace": ["expand_network -> disabled"]}
+    founders = state.get("founders", [])
+    thesis = state["thesis"]
+    known = {_norm(f.get("display_name")) for f in founders} | {
+        _norm(c.get("display_name")) for c in state.get("candidates", [])
+    }
+    corpus = "\n".join(
+        f"FOUNDER {f['display_name']}: "
+        + " | ".join(
+            (s.get("title") or "") + " — " + (s.get("summary") or "")[:200]
+            for s in f["signals"][:8]
+        )
+        for f in founders
+        if f.get("signals")
+    )
+    if not corpus.strip():
+        return {"trace": ["expand_network -> no signal corpus, skipped"]}
+    prompt = f"""You are a VC sourcing analyst doing NETWORK-HOP expansion.
+
+## Researched founders' signals
+{corpus}
+
+## Task
+Extract OTHER distinct people named in these signals as collaborators — co-authors on the
+papers, hackathon teammates, co-founders, lab colleagues. These are new leads discovered
+through the network of people we already found.
+
+## Rules
+1. Only people explicitly NAMED in the text above with a plausible full name or resolvable
+   handle. Never invent. Skip the founders themselves.
+2. why_relevant must say WHO they collaborate with and on WHAT (the hop provenance).
+3. Capture any handles/links visible; current_company null if unknown.
+4. At most {settings.hop_max_candidates} people, strongest signals first."""
+    hop_cands = [
+        c.model_dump()
+        for c in _llm(CandidateList).invoke(prompt).candidates
+        if _norm(c.display_name) not in known and _worth_researching(c.model_dump())
+    ][: settings.hop_max_candidates]
+    with ThreadPoolExecutor(max_workers=settings.max_workers) as ex:
+        hop_founders = list(ex.map(lambda c: _profile_one(c, thesis), hop_cands))
+    return {
+        "founders": founders + hop_founders,
+        "trace": [
+            f"expand_network -> +{len(hop_founders)} founders via network hop "
+            "(co-authors/teammates)"
+        ],
+    }
+
+
+# ── ⑥ finalize ───────────────────────────────────────────────────────────────
 def finalize(state: DiscoveryState) -> dict:
     founders = state.get("founders", [])
     stats = {
@@ -515,11 +570,13 @@ def build_discovery_graph():
     g.add_node("run_searches", run_searches)
     g.add_node("extract_candidates", extract_candidates)
     g.add_node("research_candidates", research_candidates)
+    g.add_node("expand_network", expand_network)
     g.add_node("finalize", finalize)
     g.add_edge(START, "plan_searches")
     g.add_edge("plan_searches", "run_searches")
     g.add_edge("run_searches", "extract_candidates")
     g.add_edge("extract_candidates", "research_candidates")
-    g.add_edge("research_candidates", "finalize")
+    g.add_edge("research_candidates", "expand_network")
+    g.add_edge("expand_network", "finalize")
     g.add_edge("finalize", END)
     return g.compile()

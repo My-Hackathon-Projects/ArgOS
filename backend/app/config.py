@@ -33,16 +33,21 @@ class Settings(BaseSettings):
     model_smart: str = "gpt-5.4"
 
     # Discovery caps (Q7 — bounded autonomy, all tunable).
-    queries_per_channel: int = 2  # 13 channels → ~26 queries/run
-    max_search_queries: int = 26
+    queries_per_channel: int = 3  # 13 channels → ~39 queries/run
+    max_search_queries: int = 40
     tavily_max_results: int = 8
-    native_max_results: int = 8  # per-query cap for native fetchers (github/arxiv/hn)
-    max_candidates: int = 25
-    max_extracts: int = 200
+    native_max_results: int = 10  # per-query cap for native fetchers (github/arxiv/hn)
+    max_candidates: int = 35
+    max_extracts: int = 300
     hit_content_chars: int = 3500  # per-hit content fed to screening (advanced search + raw)
     extract_chunk_size: int = 12  # hits per screening LLM call (chunked + parallel)
     research_rounds: int = 3  # recursive per-founder search rounds
-    max_workers: int = 12  # parallel Tavily / LLM calls
+    max_workers: int = 16  # parallel Tavily / LLM calls
+
+    # Network-hop expansion: mine researched founders' orbits (co-authors, teammates,
+    # co-founders) as NEW candidates — one bounded recursive hop per run.
+    hop_enabled: bool = True
+    hop_max_candidates: int = 10
 
     # Sourcing cron (active by default; modest cadence — env-tunable).
     cron_enabled: bool = True
