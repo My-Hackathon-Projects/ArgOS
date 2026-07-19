@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # .env lives at repo root (shared with docker-compose + frontend).
@@ -59,6 +60,17 @@ class Settings(BaseSettings):
     market_queries_per_goal: int = 2  # 5 sub-goals -> ~10 queries/run
     market_max_results: int = 6  # Tavily results per query
     market_max_hits_per_goal: int = 10  # cap evidence fed to each extractor LLM
+
+    @field_validator("database_url")
+    @classmethod
+    def _psycopg_scheme(cls, v: str) -> str:
+        # Managed Postgres (Neon via Vercel) hands out postgres:// URLs; SQLAlchemy
+        # needs the explicit psycopg3 driver scheme.
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+psycopg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+psycopg://", 1)
+        return v
 
     @property
     def cors_origin_list(self) -> list[str]:
