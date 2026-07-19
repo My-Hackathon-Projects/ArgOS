@@ -216,9 +216,11 @@ class Claim(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # Nullable since 0005: founder-level claims set founder_id; company/market-level claims (from the
-    # market-research agent) set opportunity_id instead. The ck_claim_owner CHECK requires >= 1.
-    founder_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
+    # Nullable since 0005: founder claims set founder_id; company/market claims (market agent)
+    # set opportunity_id instead. The ck_claim_owner CHECK requires >= 1.
+    founder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("founder.id", ondelete="CASCADE")
+    )
     opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("opportunity.id", ondelete="CASCADE")
     )
@@ -290,7 +292,7 @@ class ClaimEvidence(Base):
 
 
 class Company(Base):
-    """The venture — optional. Created only when a real startup exists (not for pre-idea founders)."""
+    """The venture — optional; created only when a real startup exists."""
 
     __tablename__ = "company"
 
@@ -361,7 +363,7 @@ class Opportunity(Base):
 
 
 class ThreeAxis(Base):
-    """One row per axis per opportunity — Founder / Market / Idea, scored INDEPENDENTLY, NEVER averaged.
+    """One row per axis per opportunity — Founder/Market/Idea, scored INDEPENDENTLY, never averaged.
 
     The disagreement between axes is the signal. `evidence` holds the cited claim_ids/urls the
     verdict rests on (provenance); one row per (opportunity, axis) so a re-run upserts.

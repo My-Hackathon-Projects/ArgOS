@@ -86,6 +86,13 @@ Both sides write `claim`:
 - **Inbound / diligence** mints **company-level** claims (traction/revenue) from the deck; those
   carry `opportunity_id` (column lands with the opportunity table).
 
+> **Landed in `0005`** (market-research seam): `claim.opportunity_id` (nullable FK) added and
+> `claim.founder_id` made **nullable**, with CHECK `founder_id IS NOT NULL OR opportunity_id IS NOT
+> NULL`. Company/market-level claims set `opportunity_id` + `founder_id NULL` so they never enter the
+> Founder Score aggregation (which filters `founder_id = x`). Founder-claim writes are unchanged.
+> The market agent (`app/market/`) is the first writer of opportunity-anchored claims. See
+> `docs/market-layer.md`.
+
 It is a shared contract: change the table in the open (edit this doc) and **chain the Alembic
 revision** — `0002` is taken, next is `0003`. Don't both fork the same revision.
 
