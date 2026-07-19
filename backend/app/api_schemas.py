@@ -167,6 +167,19 @@ class MarketAnalysisResponse(BaseModel):
     comparables: list[MarketComparableItem]
 
 
+# ── Inbound intake ───────────────────────────────────────────────────────────
+class ApplyResponse(BaseModel):
+    opportunity_id: str
+    status: str  # screening | rejected
+    prescreen_verdict: str  # pass | reject
+    prescreen_reason: str
+    signals_ingested: int
+    claims_minted: int
+    idea: str | None
+    sector: str | None
+    geo: str | None
+
+
 # ── Opportunities (manual-dispatch entry for screening/memo) ─────────────────
 class OpportunityCreate(BaseModel):
     founder_id: uuid.UUID | None = None
@@ -189,6 +202,9 @@ class OpportunityAxisSummary(BaseModel):
     verdict: str
     trend: str
     confidence: float | None
+    rationale: str | None = None
+    evidence: dict | None = None  # {claim_ids, urls} — provenance for the FE
+    gaps: list[str] = []
 
 
 class OpportunityListItem(BaseModel):

@@ -1,13 +1,14 @@
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api_schemas import (
+    ApplyResponse,
     ChannelItem,
     DiscoveryRunResponse,
     FounderDetail,
@@ -24,9 +25,11 @@ from app.api_schemas import (
 )
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
+from app.inbound.service import run_inbound_application
 from app.ingest import upsert_signal
 from app.market import read as market_read
 from app.models import Founder, InvestmentThesis, Opportunity, Signal, SourcingChannel
+from app.screening.assemble import screen_opportunity
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
 
@@ -95,6 +98,27 @@ def list_signals(limit: int = 50, db: Session = Depends(get_db)) -> list[dict]:
 def ingest(env: SignalEnvelope, db: Session = Depends(get_db)) -> dict:
     signal, created = upsert_signal(db, env)
     return {"id": str(signal.id), "created": created}
+
+
+# ── Inbound intake ───────────────────────────────────────────────────────────
+@app.post("/apply", response_model=ApplyResponse, status_code=201)
+def apply_inbound(
+    deck: UploadFile = File(..., description="Pitch deck PDF"),
+    company_name: str = Form(..., min_length=1),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Inbound application intake: deck PDF + company name -> opportunity + per-page signals +
+    claims + prescreen. Synchronous (~10-20s: one extraction + one prescreen call, fast model).
+    Full 3-axis screening stays manual-dispatch via POST /opportunities/{id}/screen."""
+    if deck.content_type not in ("application/pdf", "application/octet-stream"):
+        raise HTTPException(status_code=415, detail="deck must be a PDF")
+    deck_bytes = deck.file.read()
+    if not deck_bytes:
+        raise HTTPException(status_code=422, detail="deck file is empty")
+    try:
+        return run_inbound_application(db, company_name=company_name, deck_bytes=deck_bytes)
+    except ValueError as e:  # unparseable / text-free deck, blank company name
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 # ── Sourcing / outbound ──────────────────────────────────────────────────────
@@ -233,6 +257,9 @@ def _opportunity_dict(opp: Opportunity) -> dict:
                 "verdict": a.verdict,
                 "trend": a.trend,
                 "confidence": a.confidence,
+                "rationale": a.rationale,
+                "evidence": a.evidence,
+                "gaps": a.gaps or [],
             }
             for a in sorted(opp.axes, key=lambda a: _AXIS_ORDER[a.axis])
         ],
@@ -270,6 +297,22 @@ def get_opportunity(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) ->
     if opp is None:
         raise HTTPException(status_code=404, detail="opportunity not found")
     return _opportunity_dict(opp)
+
+
+@app.post("/opportunities/{opportunity_id}/screen", response_model=OpportunityDetail)
+def screen(
+    opportunity_id: uuid.UUID,
+    refresh_market: bool = False,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Manual-dispatch 3-axis screening: founder (deterministic) + market (consumed) + idea (LLM),
+    persisted as 3 independent rows — never averaged. Reuses market axis unless refresh_market."""
+    opp = db.get(Opportunity, opportunity_id)
+    if opp is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    screen_opportunity(db, opportunity_id, refresh_market=refresh_market)
+    db.expire_all()
+    return _opportunity_dict(db.get(Opportunity, opportunity_id))
 
 
 @app.get("/thesis", response_model=ThesisResponse)
