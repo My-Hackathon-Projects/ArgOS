@@ -6,6 +6,7 @@ import { ArrowLeft, AtSign, Briefcase, Code2, GraduationCap, Globe, MapPin } fro
 import { useGetFounder } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { CountUp } from "@/components/ui/count-up";
 import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials, relativeTime } from "@/lib/format";
@@ -139,18 +140,18 @@ export function FounderDetail({ founderId }: { founderId: string }) {
             {f.founder_score != null && (
               <div>
                 <div
-                  className="text-3xl font-semibold tracking-tight"
+                  className="font-mono text-3xl font-semibold tracking-tight tabular-nums"
                   style={{ color: "var(--axis-founder)" }}
                 >
-                  {Math.round(f.founder_score)}
+                  <CountUp value={f.founder_score} />
                 </div>
                 <div className="text-xs text-subtle">Founder Score</div>
               </div>
             )}
             {f.discovery_confidence != null && (
               <div>
-                <div className="text-3xl font-semibold tracking-tight text-foreground">
-                  {Math.round(f.discovery_confidence * 100)}
+                <div className="font-mono text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+                  <CountUp value={f.discovery_confidence * 100} />
                   <span className="text-lg font-normal text-subtle">%</span>
                 </div>
                 <div className="text-xs text-subtle">discovery confidence</div>

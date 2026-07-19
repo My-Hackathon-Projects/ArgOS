@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import type { FounderClaimItem } from "@/api/generated/model";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -16,17 +17,23 @@ function claimStatusBadge(status: string): { variant: BadgeProps["variant"]; lab
 }
 
 function TrustBar({ value }: { value: number | null }) {
+  const reduceMotion = useReducedMotion();
   if (value == null) return <span className="text-xs text-subtle">—</span>;
   const pct = Math.round(value * 100);
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-        <div
+        {/* Full-width bar scaled by trust — scaleX stays on the GPU, width doesn't. */}
+        <motion.div
           className="h-full rounded-full"
-          style={{ width: `${pct}%`, background: "var(--axis-founder)" }}
+          style={{ background: "var(--axis-founder)", transformOrigin: "left" }}
+          initial={reduceMotion ? false : { scaleX: 0 }}
+          whileInView={{ scaleX: pct / 100 }}
+          viewport={{ once: true, margin: "-20px" }}
+          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
         />
       </div>
-      <span className="text-xs tabular-nums text-muted-foreground">{pct}%</span>
+      <span className="font-mono text-xs tabular-nums text-muted-foreground">{pct}%</span>
     </div>
   );
 }

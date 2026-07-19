@@ -2,10 +2,12 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, FileText, Loader2, RefreshCw } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCreateMemo, useGetMemo } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { relativeTime } from "@/lib/format";
 import { GapsCard } from "@/components/market/gaps-card";
 import { Section } from "@/components/market/section";
@@ -39,6 +41,7 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
   const create = useCreateMemo({
     mutation: { onSuccess: () => qc.invalidateQueries() },
   });
+  const reduceMotion = useReducedMotion();
 
   const generate = () => create.mutate({ opportunityId });
   const m = memo.data;
@@ -46,23 +49,39 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
   if (!m) {
     return (
       <Section title="Investment memo">
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-primary">
-              <FileText className="h-4.5 w-4.5" />
-            </span>
-            <div>
-              <div className="text-sm font-medium text-foreground">No memo yet</div>
-              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                Compose a cited, decision-ready memo from the three-axis screen, founder claims
-                and market evidence.
-              </p>
+        <Card className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-primary">
+                <FileText className="h-4.5 w-4.5" />
+              </span>
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  {create.isPending ? "Drafting memo" : "No memo yet"}
+                </div>
+                <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                  {create.isPending
+                    ? "Reading the three-axis screen, founder claims and market evidence…"
+                    : "Compose a cited, decision-ready memo from the three-axis screen, founder claims and market evidence."}
+                </p>
+              </div>
             </div>
+            <Button size="sm" onClick={generate} disabled={create.isPending}>
+              {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {create.isPending ? "Generating…" : "Generate memo"}
+            </Button>
           </div>
-          <Button size="sm" onClick={generate} disabled={create.isPending}>
-            {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {create.isPending ? "Generating…" : "Generate memo"}
-          </Button>
+          {create.isPending && (
+            <div className="mt-4 space-y-2.5 border-t border-border pt-4" aria-hidden>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-11/12" />
+              <Skeleton className="h-3 w-4/5" />
+              <Skeleton className="mt-4 h-3 w-32" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          )}
         </Card>
       </Section>
     );
@@ -76,7 +95,14 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
 
   return (
     <Section title="Investment memo">
-      <div className="space-y-3">
+      {/* Blur bridges the skeleton -> prose swap so it reads as one surface resolving,
+          not two elements trading places. */}
+      <motion.div
+        className="space-y-3"
+        initial={reduceMotion ? false : { opacity: 0, y: 8, filter: "blur(4px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+      >
         <Card className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -168,7 +194,7 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
 
         {m.gaps.length > 0 && <GapsCard gaps={m.gaps} />}
         <SourceLinks urls={provUrls} />
-      </div>
+      </motion.div>
     </Section>
   );
 }
