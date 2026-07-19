@@ -1,25 +1,70 @@
-# VC Brain — Sourcing
+# VC Brain
 
-Challenge 02 (Maschmeyer Group × Hack-Nation). An AI-native VC operating system that runs the
-funnel **Sourcing → Screening → Diligence → Decision**. This repo currently ships the **sourcing**
-slice end-to-end: discover founders-to-be from their public footprint, resolve them to people, and
-watch the signals stream into a live UI.
+Challenge 02 (Maschmeyer Group x Hack-Nation). An AI-native VC operating system that runs the
+funnel **Sourcing, Screening, Diligence, Decision**: discover founders from their public
+footprint before they appear in any startup database, resolve noisy signals into corroborated
+claims with auditable trust scores, research the market around an opportunity with cited
+figures, and surface all of it in a live product UI.
 
-See `docs/SYSTEM_DESIGN.md` for the architecture and `CLAUDE.md` / `PRINCIPLES.md` for the rules.
+Design docs: `docs/public/Technical Design Document.md` (system design),
+`docs/claims-layer.md` (claims and scoring), `docs/market-layer.md` (market research agent),
+`docs/demo.md` (how to record the demo).
 
 ---
 
-## Architecture at a glance
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph SRC[Sourcing]
+        T[Investment thesis] --> G[LangGraph discovery graph]
+        G --> W[Tavily search across 13 public channels]
+        W --> R[Screening and founder resolution]
+    end
+    R -->|founders, identities, signals| DB[(Postgres + pgvector)]
+
+    subgraph CLM[Screening: claims and scoring]
+        X[Claim extraction from new signals] --> M[Attach or mint: dedup key, embedding kNN, LLM adjudication]
+        M --> S[Trust Score and Founder Score, deterministic formulas]
+    end
+    DB --> X
+    S --> DB
+
+    subgraph MKT[Diligence: market research]
+        O[Opportunity: founder, idea, sector] --> P[Market graph: plan, tagged searches, parallel extraction]
+        P --> Y[Sizing, competition, comparables, KPI benchmarks, Market axis]
+    end
+    DB --> O
+    Y --> DB
+
+    DB --> API[FastAPI on :8000]
+    API -->|openapi.json + orval codegen| UI[Next.js UI on :3000]
+```
+
+How the pieces run in practice:
+
+1. **Sourcing** (`backend/app/sourcing/`): a LangGraph graph takes the investment thesis,
+   searches 13 public channels through Tavily (arXiv, GitHub, Devpost, Product Hunt, patents,
+   accelerators, and more), screens the hits, resolves them to people, and persists founders,
+   identities, and signals. Triggered manually from the UI or `POST /discovery/run`.
+2. **Claims** (`backend/app/claims/`): new signals are collapsed into deduplicated,
+   corroborated claims (exact dedup key hit, then embedding kNN, then LLM adjudication on the
+   few candidates). Trust Score per claim and Founder Score per person are deterministic
+   formulas over the evidence, so every number can be audited.
+3. **Market research** (`backend/app/market/`): given an opportunity, a second LangGraph graph
+   plans searches, extracts sizing, competition, comparables, and KPI benchmarks in parallel,
+   and synthesizes the Market axis. Every figure carries a basis of `reported`,
+   `estimated_bottom_up`, or `gap`; a flagged gap beats an invented number.
+4. **Contract and UI**: Pydantic response models export to `backend/openapi.json`; orval
+   generates the typed TanStack Query client the Next.js app uses. A backend schema change the
+   frontend has not caught up with becomes a TypeScript error.
 
 | Piece | Where | Runs on |
 |---|---|---|
-| **Postgres + pgvector** (+ MinIO) | `docker-compose.yml` | `localhost:5433` (DB), `:9000/:9001` (MinIO) |
-| **Sourcing backend** (FastAPI) — the live API | `backend/` | `localhost:8000` |
-| **Frontend** (Next.js 16 + TS) | `frontend/` | `localhost:3000` |
-| Diligence pipelines + template (WIP) | `BE/` | not wired to the frontend |
-
-The frontend talks **only** to `backend/` (`:8000`). Types are generated from the backend's OpenAPI
-schema, so the FE/BE contract is enforced by the compiler (see [Type-safe contract](#type-safe-febe-contract)).
+| Postgres + pgvector, MinIO | `docker-compose.yml` | `:5433` (DB), `:9000` / `:9001` (MinIO) |
+| Backend (FastAPI) | `backend/` | `localhost:8000` |
+| Frontend (Next.js 16 + TypeScript) | `frontend/` | `localhost:3000` |
+| Inbound deck pipelines (separate template) | `BE/` | not wired to the frontend |
 
 ---
 
@@ -27,42 +72,29 @@ schema, so the FE/BE contract is enforced by the compiler (see [Type-safe contra
 
 - **Docker Desktop** (Postgres + pgvector)
 - **[uv](https://docs.astral.sh/uv/)** (Python 3.12 backend)
-- **Node ≥ 20.19** and npm (frontend) — Node 20.15 works but some deps warn
-- **OpenAI + Tavily API keys** — only needed to *run discovery*; browsing existing/seeded data needs neither
-
----
+- **Node 20.19 or newer** and npm (frontend)
+- **OpenAI + Tavily API keys**, only needed to run discovery and the agents; browsing existing
+  data needs neither
 
 ## Run the full stack
 
 From the repo root, in order:
 
-### 1. Environment
-
 ```bash
-cp .env.example .env          # PowerShell: copy .env.example .env
+cp .env.example .env          # fill OPENAI_API_KEY and TAVILY_API_KEY
+docker compose up -d          # Postgres + pgvector on :5433, MinIO on :9000/:9001
 ```
 
-Fill in `OPENAI_API_KEY` and `TAVILY_API_KEY` (needed for discovery). One `.env` at the root serves
-both backends; the frontend has its own `frontend/.env.local` (already set to `http://localhost:8000`).
-
-### 2. Database
-
-```bash
-docker compose up -d          # Postgres+pgvector on :5433, MinIO on :9000/:9001
-```
-
-### 3. Sourcing backend (`:8000`)
+Backend:
 
 ```bash
 cd backend
 uv sync                                              # create .venv, install deps
 uv run alembic upgrade head                          # apply migrations
-uv run python -m uvicorn app.main:app --reload       # http://localhost:8000
+uv run python -m uvicorn app.main:app --reload       # http://localhost:8000  (/docs for the schema)
 ```
 
-Verify: <http://localhost:8000/health> → `{"status":"ok","signals":N}` · docs: <http://localhost:8000/docs>
-
-### 4. Frontend (`:3000`)
+Frontend:
 
 ```bash
 cd frontend
@@ -70,122 +102,102 @@ npm install
 npm run dev                                           # http://localhost:3000
 ```
 
-Open <http://localhost:3000> — it redirects to **/sourcing**.
+Verify: <http://localhost:8000/health> returns `{"status":"ok","signals":N}` and
+<http://localhost:3000> shows the home page.
 
 ---
 
 ## Using the app
 
-`/` → **/sourcing**. Left sidebar navigates the four views.
+- **Home** (`/`): what VC Brain is, the funnel, and the team. Opens with the
+  signal-convergence animation.
+- **Sourcing**: live signal feed (5 second poll, new signals flash in), type filters,
+  pagination, the channels being monitored, and a Run discovery button. Every card opens its
+  real source.
+- **Founders**: searchable, sortable, filterable table of every resolved person. The detail
+  view shows identity links, education, discovery confidence, and the full signal timeline.
+- **Thesis**: the active investment thesis that drives discovery.
+- **Market Research**: pick an analysed opportunity, see the Market axis score, TAM/SAM/SOM
+  and KPI figures with reported versus estimated basis chips, comparables, competitors, and
+  honestly flagged research gaps.
 
-- **Sourcing** — a live **signal feed** (heartbeat header, new signals flash in on a 5s poll) plus
-  the **"Monitoring"** panel of channels being watched, and a **Run discovery** button.
-- **Founders** — table of everyone resolved from the feed → click a row for the **detail** view
-  (identity links + signal timeline).
-- **Thesis** — the active investment thesis (read-only for now).
-- **Market Research** — aspirational preview, not yet wired to a backend.
+Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs API keys), or
+`curl -X POST http://localhost:8000/discovery/run`. Then generate claims with
+`uv run python -m app.claims.run` and market analyses with `uv run python -m app.market.run`
+(both from `backend/`). Continuous scheduling exists in `backend/app/scheduler.py` but is off
+by default; manual triggers are the supported path.
 
-### Populating the feed (sourcing)
+## API surface
 
-Signals arrive via **discovery**: thesis → web search (Tavily) → founder resolution → persist.
-
-- **From the UI:** click **Run discovery** on `/sourcing` (~30–60s; needs OpenAI + Tavily keys).
-  New founders + signals are persisted and the feed animates them in.
-- **From the CLI:**
-  ```bash
-  curl -X POST http://localhost:8000/discovery/run
-  ```
-- **Continuous polling** (APScheduler, `backend/app/scheduler.py`) is defined but **OFF by default**
-  (not wired into `main.py`, jobs registered paused). Manual discovery is the supported path today.
-
-Ingest a single signal directly (bypasses discovery):
-
-```bash
-curl -X POST http://localhost:8000/signals/ingest -H "Content-Type: application/json" \
-  -d '{"source":"synthetic","signal_type":"post","external_id":"demo-1","title":"hello","summary":"a test signal"}'
-```
-
-### API surface (what the frontend wires)
-
-| Method | Path | View |
+| Method | Path | Purpose |
 |---|---|---|
-| GET | `/health` | live heartbeat / signal count |
-| GET | `/signals?limit=` | sourcing feed |
-| POST | `/signals/ingest` | (manual ingest) |
-| POST | `/discovery/run` | Run discovery button |
-| GET | `/founders` | founders table |
-| GET | `/founders/{id}` | founder detail |
-| GET | `/sourcing-channels` | "Monitoring" panel |
-| GET | `/thesis` | thesis view |
+| GET | `/health` | heartbeat and signal count |
+| GET | `/signals?limit=` | signal feed |
+| POST | `/signals/ingest` | ingest one signal directly |
+| POST | `/discovery/run` | run the discovery graph |
+| GET | `/founders`, `/founders/{id}` | founders list and detail |
+| GET | `/sourcing-channels` | monitored channels |
+| GET | `/thesis` | active thesis |
+| GET | `/market/opportunities`, `/market/opportunities/{id}` | market analyses |
+| POST/GET | `/opportunities`, `/opportunities/{id}` | opportunities for the screening loop |
 
----
+Full schema at <http://localhost:8000/docs>.
 
 ## Type-safe FE/BE contract
 
-Pydantic `response_model`s are the source of truth. The flow:
+Pydantic response models are the source of truth:
 
 ```
-backend Pydantic models → app.export_openapi → backend/openapi.json → orval → frontend TS types + TanStack Query hooks
+backend Pydantic models -> app.export_openapi -> backend/openapi.json -> orval -> frontend typed client + hooks
 ```
 
-Regenerate after any backend response-model change:
+After any backend response-model change:
 
 ```bash
-cd backend  && uv run python -m app.export_openapi   # refresh backend/openapi.json
-cd frontend && npm run api:gen                        # regenerate typed client
-npm run typecheck                                     # fails if the FE drifted from the API
+cd backend  && uv run python -m app.export_openapi
+cd frontend && npm run api:gen && npm run typecheck   # typecheck is the drift gate
 ```
 
-`npm run typecheck` is the drift gate: a backend schema change that the frontend hasn't caught up
-to becomes a TypeScript error.
-
----
-
-## Test
-
-**Backend**
+## Tests and checks
 
 ```bash
 cd backend
-uv run pytest -q          # unit / contract tests
-uv run ruff check .       # lint
-uv run ruff format .      # format
-```
+uv run pytest -q          # most tests use the real dev DB in transactions that roll back
+uv run ruff check .
+uv run pyright
 
-**Frontend**
-
-```bash
 cd frontend
-npm run typecheck         # tsc --noEmit — FE/BE type-sync gate
-npm run lint              # eslint
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-**End-to-end smoke** (both servers up): load `/sourcing` (feed + channels render), open `/founders`,
-click a founder (detail + timeline). Optionally hit **Run discovery** and watch new cards flash in.
-
----
+Postgres must be up and migrated for `pytest`; only `test_contract.py` is DB-free.
 
 ## Troubleshooting
 
-- **`WinError 10013` on `:8000`** — port taken by a leftover uvicorn. Use `--port 8001`, or find it:
-  `Get-NetTCPConnection -LocalPort 8000`.
-- **Port 3000 busy / kill the dev server** — `Get-NetTCPConnection -LocalPort 3000` then
-  `Stop-Process -Id <pid> -Force`.
-- **DB errors about `vector`** — you must use the `pgvector/pgvector` image (see `docker-compose.yml`);
-  plain `postgres` fails the migrations.
-- **Discovery returns nothing / errors** — check `OPENAI_API_KEY` and `TAVILY_API_KEY` in `.env`.
-- **Disk full** — the Next `.next/` cache and Turbopack artifacts are regenerable; deleting
-  `frontend/.next` frees space and rebuilds on next `npm run dev`.
-
----
+- **Errors about `vector`**: use the `pgvector/pgvector` image from `docker-compose.yml`;
+  plain Postgres fails the migrations.
+- **Port 8000 or 3000 taken**: a leftover server. macOS/Linux: `lsof -i :8000`;
+  Windows: `Get-NetTCPConnection -LocalPort 8000`.
+- **Discovery returns nothing**: check `OPENAI_API_KEY` and `TAVILY_API_KEY` in `.env`.
+- **Disk pressure**: `frontend/.next/` is a regenerable cache and safe to delete.
 
 ## Repo layout
 
 ```
-backend/     sourcing API (FastAPI) — the live backend on :8000
-frontend/    Next.js app on :3000 (see frontend/README.md)
-BE/          FastAPI template + diligence/validation LangGraph pipelines (not wired to FE yet)
-docs/        SYSTEM_DESIGN.md, claims-layer.md, challenge brief
-docker-compose.yml   Postgres+pgvector (:5433) + MinIO
-.env.example         copy to .env (root) — serves both backends
+backend/     FastAPI app: sourcing, claims, market research, opportunities
+frontend/    Next.js app: home, sourcing, founders, thesis, market research
+BE/          FastAPI template with inbound deck pipelines (separate uv project)
+docs/        design docs, demo guide, challenge brief
+docker-compose.yml   pgvector Postgres (:5433) + MinIO
+.env.example         copy to .env at the root; serves both backends
 ```
+
+## Authors
+
+| Name | Email | LinkedIn |
+|---|---|---|
+| Rishabh Tiwari | <rishtiwari98@gmail.com> | [icon1c](https://www.linkedin.com/in/icon1c/) |
+| Alexandre Boving | <alexandre.boving@gmail.com> | [alexandre-boving](https://www.linkedin.com/in/alexandre-boving-04422a1b6/) |
+| Florian Sprick | <floriansprick@hotmail.com> | [florian-sprick](https://www.linkedin.com/in/florian-sprick/) |
