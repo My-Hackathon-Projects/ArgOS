@@ -10,6 +10,8 @@ import pytest
 from app.db import SessionLocal
 from app.eval.subjects import FOUNDER_SUBJECTS, OPPORTUNITY_SUBJECTS, Subject, validate_subjects
 
+pytestmark = pytest.mark.dev_bed
+
 
 @pytest.fixture()
 def db():

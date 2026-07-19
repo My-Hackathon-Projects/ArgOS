@@ -52,4 +52,6 @@ jobs:
         run: uv run alembic upgrade head
 
       - name: Tests
-        run: uv run pytest -q
+        # dev_bed tests validate the live-sourced eval bed in the shared dev DB;
+        # they cannot pass against CI's fresh database.
+        run: uv run pytest -q -m "not dev_bed"

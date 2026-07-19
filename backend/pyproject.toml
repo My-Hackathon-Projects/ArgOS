@@ -79,3 +79,6 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "dev_bed: needs the shared dev DB with live-sourced eval-bed rows; deselected in CI (-m 'not dev_bed')",
+]
