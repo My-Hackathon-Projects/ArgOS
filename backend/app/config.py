@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     cron_enabled: bool = True
     discovery_interval_min: int = 60  # discovery: hourly
     refresh_interval_min: int = 360  # refresh: every 6h (stalest founders first)
+    claims_interval_min: int = 15  # claims/scoring: every 15min (cheap when nothing changed)
 
     # Market-research agent caps (bounded, tunable).
     market_queries_per_goal: int = 2  # 5 sub-goals -> ~10 queries/run
