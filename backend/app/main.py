@@ -14,12 +14,15 @@ from app.api_schemas import (
     FounderListItem,
     HealthResponse,
     IngestResponse,
+    MarketAnalysisResponse,
+    MarketOpportunityListItem,
     SignalListItem,
     ThesisResponse,
 )
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.ingest import upsert_signal
+from app.market import read as market_read
 from app.models import Founder, InvestmentThesis, Signal, SourcingChannel
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
@@ -187,6 +190,22 @@ def list_channels(db: Session = Depends(get_db)) -> list[dict]:
         }
         for c in rows
     ]
+
+
+# ── Market research ──────────────────────────────────────────────────────────
+@app.get("/market/opportunities", response_model=list[MarketOpportunityListItem])
+def list_market_opportunities(db: Session = Depends(get_db)) -> list[dict]:
+    """Opportunities with a persisted market axis — the research tab's list."""
+    return market_read.list_opportunities(db)
+
+
+@app.get("/market/opportunities/{opportunity_id}", response_model=MarketAnalysisResponse)
+def get_market_analysis(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """Full market analysis: sizing / competition / comparables / KPI + the market axis."""
+    r = market_read.get_analysis(db, opportunity_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="market analysis not found")
+    return r
 
 
 @app.get("/thesis", response_model=ThesisResponse)

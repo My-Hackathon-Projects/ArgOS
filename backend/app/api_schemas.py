@@ -101,3 +101,66 @@ class DiscoveryRunResponse(BaseModel):
     job_run_id: str
     stats: dict
     trace: list
+
+
+# ── Market research ──────────────────────────────────────────────────────────
+class MarketFigureItem(BaseModel):
+    metric: str | None
+    value: str | None
+    basis: str | None  # reported | estimated_bottom_up | gap
+    confidence: float | None
+    trust_score: float | None
+    status: str | None
+    url: str | None  # provenance — the source this figure was extracted from
+
+
+class MarketCompetitorItem(BaseModel):
+    name: str
+    cluster: str | None
+    positioning: str | None
+    is_emerging_threat: bool
+    trust_score: float | None
+    url: str | None
+
+
+class MarketComparableItem(BaseModel):
+    name: str
+    stage: str | None
+    round_size: str | None
+    valuation: str | None
+    date: str | None
+    similarity_rationale: str | None
+    trust_score: float | None
+    url: str | None
+
+
+class MarketAxisView(BaseModel):
+    verdict: str
+    score: float | None
+    trend: str
+    rationale: str | None
+    confidence: float | None
+    gaps: list[str]
+
+
+class MarketOpportunityListItem(BaseModel):
+    id: str
+    company_name: str | None
+    sector: str | None
+    geo: str | None
+    verdict: str | None
+    score: float | None
+    trend: str | None
+
+
+class MarketAnalysisResponse(BaseModel):
+    id: str
+    company_name: str | None
+    idea: str | None
+    sector: str | None
+    geo: str | None
+    axis: MarketAxisView | None
+    sizing: list[MarketFigureItem]
+    kpi: list[MarketFigureItem]
+    competitors: list[MarketCompetitorItem]
+    comparables: list[MarketComparableItem]

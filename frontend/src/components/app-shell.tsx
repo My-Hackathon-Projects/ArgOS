@@ -16,7 +16,7 @@ const NAV = [
   { href: "/sourcing", label: "Sourcing", icon: Radar },
   { href: "/founders", label: "Founders", icon: Users },
   { href: "/settings", label: "Thesis", icon: SlidersHorizontal },
-  { href: "/research", label: "Market Research", icon: LineChart, preview: true },
+  { href: "/research", label: "Market Research", icon: LineChart },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.map(({ href, label, icon: Icon, preview }) => {
+          {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
@@ -48,11 +48,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Icon className="h-[18px] w-[18px]" />
                 <span>{label}</span>
-                {preview && (
-                  <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-subtle">
-                    preview
-                  </span>
-                )}
               </Link>
             );
           })}

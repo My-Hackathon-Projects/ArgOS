@@ -32,6 +32,8 @@ import type {
   HealthResponse,
   IngestResponse,
   ListSignalsParams,
+  MarketAnalysisResponse,
+  MarketOpportunityListItem,
   SignalEnvelope,
   SignalListItem,
   ThesisResponse
@@ -637,6 +639,192 @@ export function useListChannels<TData = Awaited<ReturnType<typeof listChannels>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListChannelsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * Opportunities with a persisted market axis — the research tab's list.
+ * @summary List Market Opportunities
+ */
+export const listMarketOpportunities = (
+
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<MarketOpportunityListItem[]>(
+      {url: `/market/opportunities`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getListMarketOpportunitiesQueryKey = () => {
+    return [
+    `/market/opportunities`
+    ] as const;
+    }
+
+
+export const getListMarketOpportunitiesQueryOptions = <TData = Awaited<ReturnType<typeof listMarketOpportunities>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMarketOpportunities>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMarketOpportunitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarketOpportunities>>> = ({ signal }) => listMarketOpportunities(requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMarketOpportunities>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMarketOpportunitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listMarketOpportunities>>>
+export type ListMarketOpportunitiesQueryError = ErrorType<unknown>
+
+
+export function useListMarketOpportunities<TData = Awaited<ReturnType<typeof listMarketOpportunities>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMarketOpportunities>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMarketOpportunities>>,
+          TError,
+          Awaited<ReturnType<typeof listMarketOpportunities>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMarketOpportunities<TData = Awaited<ReturnType<typeof listMarketOpportunities>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMarketOpportunities>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMarketOpportunities>>,
+          TError,
+          Awaited<ReturnType<typeof listMarketOpportunities>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMarketOpportunities<TData = Awaited<ReturnType<typeof listMarketOpportunities>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMarketOpportunities>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List Market Opportunities
+ */
+
+export function useListMarketOpportunities<TData = Awaited<ReturnType<typeof listMarketOpportunities>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMarketOpportunities>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMarketOpportunitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * Full market analysis: sizing / competition / comparables / KPI + the market axis.
+ * @summary Get Market Analysis
+ */
+export const getMarketAnalysis = (
+    opportunityId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<MarketAnalysisResponse>(
+      {url: `/market/opportunities/${opportunityId}`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetMarketAnalysisQueryKey = (opportunityId: string,) => {
+    return [
+    `/market/opportunities/${opportunityId}`
+    ] as const;
+    }
+
+
+export const getGetMarketAnalysisQueryOptions = <TData = Awaited<ReturnType<typeof getMarketAnalysis>>, TError = ErrorType<HTTPValidationError>>(opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketAnalysis>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketAnalysisQueryKey(opportunityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketAnalysis>>> = ({ signal }) => getMarketAnalysis(opportunityId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: opportunityId !== null && opportunityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketAnalysis>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMarketAnalysisQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketAnalysis>>>
+export type GetMarketAnalysisQueryError = ErrorType<HTTPValidationError>
+
+
+export function useGetMarketAnalysis<TData = Awaited<ReturnType<typeof getMarketAnalysis>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketAnalysis>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMarketAnalysis>>,
+          TError,
+          Awaited<ReturnType<typeof getMarketAnalysis>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMarketAnalysis<TData = Awaited<ReturnType<typeof getMarketAnalysis>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketAnalysis>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMarketAnalysis>>,
+          TError,
+          Awaited<ReturnType<typeof getMarketAnalysis>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMarketAnalysis<TData = Awaited<ReturnType<typeof getMarketAnalysis>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketAnalysis>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Market Analysis
+ */
+
+export function useGetMarketAnalysis<TData = Awaited<ReturnType<typeof getMarketAnalysis>>, TError = ErrorType<HTTPValidationError>>(
+ opportunityId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketAnalysis>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMarketAnalysisQueryOptions(opportunityId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
