@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────────────────────────
+   The whole theme lives here. Swap these values to reskin; components read the
+   tokens via Tailwind utilities (bg-surface, text-muted-foreground, ...). */
+:root {
+  --background: #f7f7f8;
+  --surface: #ffffff;
+  --surface-muted: #fafafa;
+  --foreground: #0a0a0b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --subtle: #a1a1aa;
+  --border: #ececef;
+  --border-strong: #e0e0e4;
+  --primary: #2f5cff;
+  --primary-foreground: #ffffff;
+  --accent-soft: #eef2ff;
+  --success: #16a34a;
+  --danger: #e11d48;
+  --ring: #c7d2fe;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-fraunces);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Elegant serif display headings — set on elements via `font-serif`. */
+.font-serif {
+  font-family: var(--font-serif), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.01em;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--muted) 25%, #eeeef1 37%, var(--muted) 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Live-feed / heartbeat monitor motion ──────────────────────────────── */
+@keyframes ekg-scroll {
+  to {
+    transform: translateX(-64px);
+  }
+}
+.animate-ekg {
+  animation: ekg-scroll 1.5s linear infinite;
+}
+
+@keyframes flash-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--primary) 0%, transparent);
+  }
+}
+.signal-flash {
+  animation: flash-ring 2.4s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep,
+  .animate-scan,
+  .signal-flash {
+    animation: none;
+  }
+}
