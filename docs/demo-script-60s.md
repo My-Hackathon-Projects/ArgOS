@@ -13,11 +13,11 @@ Backup deal: Ticky Tech (cold-start story, bear market axis).
 
 | # | Time | Screen | Action | Voiceover |
 |---|---|---|---|---|
-| 1 | 0-7s | Home `/` | Reload page, convergence animation runs, headline fades in. No cursor movement. | "Great founders are invisible until they know the right person. Their story is scattered across GitHub, papers, launches. ArgOS watches for the trail." |
-| 2 | 7-12s | Settings | Drive-by: thesis chips visible (sectors/geo/stage/check), add ONE chip, Save flash. Fast. | "You set the thesis once — everything downstream is filtered through it." |
+| 1 | 0-7s | Home `/` | Reload page, convergence animation runs, headline fades in. No cursor movement. | "Great founders are invisible until they know the right person. Their story is scattered across hackathon participations, research papers, launches. ArgOS watches for the trail." |
+| 2 | 7-12s | Settings | Drive-by: thesis chips visible (sectors/geo/stage/check), add ONE chip, Save flash. Fast. | "You set the investment thesis once — everything downstream is filtered through it." |
 | 3 | 12-21s | Sourcing | Feed live, pre-queued discovery run flashes new cards in. Click a card -> raw source opens, cut back fast. | "Thirteen public channels, scanned continuously. Every signal resolves to a real person and links to its raw source." |
 | 4 | 21-33s | Founders -> Christiam Ipanaque | Click Ipanaque. Scroll claims: trust bars, supporting counts — pause on the **contradicted claim** (red refuting count + Contradicted badge). | "Every person gets a persistent Founder Score. Per-claim trust, backed by evidence — and when sources conflict, it's flagged before it reaches you." |
-| 5 | 33-45s | Opportunity: Ipanaque Labs | Three axis cards — bull founder / neutral idea / improving market — beat on the disagreement. TAM/SAM/SOM reported-vs-estimated chips, scroll into memo: cited hypotheses, evidenced Traction KPIs. | "Three independent verdicts — never averaged. The disagreement IS the signal. And every number in the memo cites its evidence." |
+| 5 | 33-45s | Opportunity: Ipanaque Labs | Three axis cards — bull founder / neutral idea / improving market — beat on the disagreement. TAM/SAM/SOM reported-vs-estimated chips, scroll into memo: cited hypotheses, evidenced Traction KPIs. | "Three independent verdicts. The disagreement IS the signal. And every number in the memo cites its evidence." |
 | 6 | 45-53s | Opportunity: Ticky Tech memo | Cut to the contrast memo: cold-start founder, "No traction metric survives the evidence check", gaps list ("No revenue evidence"), "Not available at this stage" block. | "And when the evidence isn't there, ArgOS says so. No invented traction — flagged gaps, and still a recommendation you can act on." |
 | 7 | 53-60s | Ipanaque decision bar -> Home | (Edit cut back to Ipanaque Labs.) Click **Track** — latency stamp appears. End on home funnel cards + tagline. | "From first public signal to decision, in one sitting. ArgOS." |
 
@@ -78,13 +78,13 @@ Backup deal: Ticky Tech (cold-start story, bear market axis).
 ## Voiceover-only (for practicing)
 
 1. Great founders are invisible until they know the right person. Their story is
-   scattered across GitHub, papers, launches. ArgOS watches for the trail.
-2. You set the thesis once — everything downstream is filtered through it.
+   scattered across hackathon participations, research papers, launches. ArgOS watches for the trail.
+2. You set the investment thesis once — everything downstream is filtered through it.
 3. Thirteen public channels, scanned continuously. Every signal resolves to a real
    person and links to its raw source.
 4. Every person gets a persistent Founder Score. Per-claim trust, backed by
    evidence — and when sources conflict, it's flagged before it reaches you.
-5. Three independent verdicts — never averaged. The disagreement IS the signal.
+5. Three independent verdicts. The disagreement IS the signal.
    And every number in the memo cites its evidence.
 6. And when the evidence isn't there, ArgOS says so. No invented traction —
    flagged gaps, and still a recommendation you can act on.
