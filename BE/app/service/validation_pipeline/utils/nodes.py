@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal, cast
 
 from app.service.models import (
     AxisScore,
@@ -131,7 +131,7 @@ def _contradictions_block(state: ProcessingState) -> str:
 # --------------------------------- Nodes ----------------------------------- #
 
 
-def hydrate(state: ProcessingState) -> dict:
+def hydrate(state: ProcessingState) -> dict[str, Any]:
     """
     Load founder history, signals, and claims by the ticket's ids from
     Memory and stamp ``processing_started``. The repository stub currently
@@ -139,13 +139,14 @@ def hydrate(state: ProcessingState) -> dict:
     Postgres run. No LLM.
     """
     started = _now()
+    founder = state.get("founder")
     context = tools.load_ticket_context(
         {
             "opportunity_id": state.get("opportunity_id"),
-            "founder_id": (state.get("founder").id if state.get("founder") else None),
+            "founder_id": founder.id if founder else None,
         }
     )
-    update: dict = {
+    update: dict[str, Any] = {
         "validation_round": state.get("validation_round", 0),
         "contradictions": state.get("contradictions", []),
         "stage_timestamps": {"processing_started": _now()},
@@ -176,7 +177,7 @@ def _score_axis(
     axis: str,
     system_prompt: str,
     extra_context: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Shared body of the three PARALLEL axis agents: strong LLM,
     ``with_structured_output(AxisScore)``. Each returns
@@ -192,10 +193,11 @@ def _score_axis(
         f"{extra_context}"
         f"{_contradictions_block(state)}"
     )
-    score: AxisScore = (
+    score = cast(
+        AxisScore,
         get_strong_llm()
         .with_structured_output(AxisScore)
-        .invoke([("system", system_prompt), ("human", prompt_input)])
+        .invoke([("system", system_prompt), ("human", prompt_input)]),
     )
     # The schema allows any axis literal — pin it to this node's axis.
     score = score.model_copy(update={"axis": axis})
@@ -219,7 +221,7 @@ def _score_axis(
     }
 
 
-def founder_axis(state: ProcessingState) -> dict:
+def founder_axis(state: ProcessingState) -> dict[str, Any]:
     """
     Score WHO the person is. The persistent Founder Score history is ONE
     input, not a substitute. Mandatory cold-start path: no track record =>
@@ -235,7 +237,7 @@ def founder_axis(state: ProcessingState) -> dict:
     return _score_axis(state, "founder", FOUNDER_AXIS_PROMPT, extra)
 
 
-def market_axis(state: ProcessingState) -> dict:
+def market_axis(state: ProcessingState) -> dict[str, Any]:
     """Score the MARKET: sizing sanity, competitor clusters, SWOT — all
     through the fund thesis lens."""
     company = state.get("company")
@@ -243,7 +245,7 @@ def market_axis(state: ProcessingState) -> dict:
     return _score_axis(state, "market", MARKET_AXIS_PROMPT, extra)
 
 
-def idea_vs_market_axis(state: ProcessingState) -> dict:
+def idea_vs_market_axis(state: ProcessingState) -> dict[str, Any]:
     """Score the FIT: does the idea as-is survive scrutiny — and if not, is
     this team strong enough to pivot? Never reads the other axes' outputs."""
     company = state.get("company")
@@ -256,7 +258,7 @@ def idea_vs_market_axis(state: ProcessingState) -> dict:
     return _score_axis(state, "idea_vs_market", IDEA_VS_MARKET_AXIS_PROMPT, extra)
 
 
-def validator(state: ProcessingState) -> dict:
+def validator(state: ProcessingState) -> dict[str, Any]:
     """
     Per-claim fact-check (fan-in point — waits for all three axes). For each
     claim: pick + run the external check via ``verify_claim_external``, then
@@ -279,7 +281,8 @@ def validator(state: ProcessingState) -> dict:
             f"conflicting={result['conflicting_signal_ids']} notes={result['notes']}"
         )
 
-    output: ValidatorOutput = (
+    output = cast(
+        ValidatorOutput,
         get_strong_llm()
         .with_structured_output(ValidatorOutput)
         .invoke(
@@ -291,7 +294,7 @@ def validator(state: ProcessingState) -> dict:
                     + ("\n".join(verification_lines) or "(no claims to verify)"),
                 ),
             ]
-        )
+        ),
     )
 
     verdicts = {v.claim_id: v for v in output.verdicts}
@@ -357,7 +360,7 @@ def validator(state: ProcessingState) -> dict:
     }
 
 
-def memo_writer(state: ProcessingState) -> dict:
+def memo_writer(state: ProcessingState) -> dict[str, Any]:
     """
     Generate the 5 required memo sections (strong LLM), then POST-VALIDATE
     IN CODE: (a) all required sections present, (b) every bracketed citation
@@ -374,7 +377,8 @@ def memo_writer(state: ProcessingState) -> dict:
     )
     thesis = state.get("thesis")
 
-    draft: MemoDraft = (
+    draft = cast(
+        MemoDraft,
         get_strong_llm()
         .with_structured_output(MemoDraft)
         .invoke(
@@ -389,7 +393,7 @@ def memo_writer(state: ProcessingState) -> dict:
                     f"{_evidence_block(state)}",
                 ),
             ]
-        )
+        ),
     )
 
     # Code post-validation (a): the 5 required sections.
@@ -457,7 +461,7 @@ def memo_writer(state: ProcessingState) -> dict:
     }
 
 
-def decision_gate(state: ProcessingState) -> dict:
+def decision_gate(state: ProcessingState) -> dict[str, Any]:
     """
     THE one human in the loop. The graph is compiled with
     ``interrupt_before=["decision_gate"]`` so execution halts before this
@@ -491,7 +495,7 @@ def decision_gate(state: ProcessingState) -> dict:
     }
 
 
-def memory_writeback(state: ProcessingState) -> dict:
+def memory_writeback(state: ProcessingState) -> dict[str, Any]:
     """
     The ONLY node persisting conclusions: one transaction writes the human
     decision, the three independent axis scores, and the appended Founder

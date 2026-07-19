@@ -15,8 +15,9 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal, cast
 
+from app.core.storage import upload_blob
 from app.service.inboud_pipeline.utils import tools
 from app.service.inboud_pipeline.utils.models import (
     ClaimExtraction,
@@ -94,16 +95,24 @@ def _deck_pages(state: InboundState) -> str:
 # --------------------------------- Nodes ----------------------------------- #
 
 
-def ingest_deck(state: InboundState) -> dict:
+def ingest_deck(state: InboundState) -> dict[str, Any]:
     """
     Parse the uploaded deck into per-page Signals (+ one application-form
-    Signal) and persist them append-only. Deterministic content-hash ids
-    make re-uploads idempotent. Minimum inbound application = company name
-    + deck PDF — nothing more is required (hard rule #9).
+    Signal) and persist them append-only. The raw PDF itself goes to blob
+    storage under ``decks/{opportunity_id}.pdf`` (key stored on the
+    opportunity row). Deterministic content-hash ids make re-uploads
+    idempotent. Minimum inbound application = company name + deck PDF —
+    nothing more is required (hard rule #9).
     """
     started = _now()
     raw_deck = state.get("raw_deck")
     company_name = state.get("company_name", "Unknown")
+
+    blob_key: str | None = None
+    if raw_deck:
+        blob_key = f"decks/{state.get('opportunity_id', 'unknown')}.pdf"
+        upload_blob(blob_key, raw_deck, content_type="application/pdf")
+        tools.set_deck_blob_key(state.get("opportunity_id", ""), blob_key)
 
     signals = tools.parse_deck_pdf(raw_deck, company_name) if raw_deck else []
     tools.save_signals(
@@ -135,7 +144,7 @@ def ingest_deck(state: InboundState) -> dict:
     }
 
 
-def resolve_entities(state: InboundState) -> dict:
+def resolve_entities(state: InboundState) -> dict[str, Any]:
     """
     Entity resolution + dedup: exact handle match -> fuzzy name -> pgvector
     similarity via the repository. On a match, MERGE into the canonical
@@ -191,18 +200,27 @@ def resolve_entities(state: InboundState) -> dict:
     }
 
 
-def extract_claims(state: InboundState) -> dict:
+def extract_claims(state: InboundState) -> dict[str, Any]:
     """
-    Structured extraction of checkable Claims from the deck pages (fast LLM,
-    ``with_structured_output(ClaimExtraction)``). Claims are born with
-    ``trust=None`` — the validation pipeline assigns TrustScores. Ids are
-    deterministic content hashes (idempotent re-runs).
+    TERMINAL node. Structured extraction of checkable Claims from the deck
+    pages (fast LLM, ``with_structured_output(ClaimExtraction)``). Claims
+    are born with ``trust=None`` — the validation pipeline assigns
+    TrustScores. Ids are deterministic content hashes (idempotent re-runs).
+
+    Inserting the claim batch is the final act of this graph: right after
+    ``save_claims`` the node builds the §5 ``ProcessingTicket``, upserts the
+    Opportunity row (stage="queued"), and hands off via
+    ``enqueue_processing`` — every claim batch inserted from the inbound
+    pipeline triggers the validation pipeline. An empty batch still hands
+    off (validation judges from signals; stranding the opportunity would
+    be worse than an empty claim set).
     """
     started = _now()
     company = state.get("company")
     company_id = company.id if company else "company-unknown"
 
-    extraction: ClaimExtraction = (
+    extraction = cast(
+        ClaimExtraction,
         get_fast_llm()
         .with_structured_output(ClaimExtraction)
         .invoke(
@@ -210,7 +228,7 @@ def extract_claims(state: InboundState) -> dict:
                 ("system", EXTRACT_CLAIMS_PROMPT),
                 ("human", f"Deck pages:\n\n{_deck_pages(state)}"),
             ]
-        )
+        ),
     )
 
     claims = [
@@ -238,23 +256,55 @@ def extract_claims(state: InboundState) -> dict:
         ]
     )
 
+    # Claims are inserted — hand off to the validation pipeline (§5 ticket).
+    founder = state.get("founder")
+    thesis = state.get("thesis")
+    ticket = ProcessingTicket(
+        opportunity_id=state["opportunity_id"],
+        track="inbound",
+        thesis=thesis if thesis is not None else Thesis(),
+        founder_id=founder.id if founder else "",
+        company_id=company.id if company else "",
+        signal_ids=[s.id for s in state.get("signals", [])],
+        claim_ids=[c.id for c in claims],
+        handoff_at=_now(),
+    )
+    tools.save_opportunity(
+        OpportunityRecord(
+            opportunity_id=ticket.opportunity_id,
+            track="inbound",
+            company_id=ticket.company_id,
+            founder_id=ticket.founder_id,
+            stage="queued",
+            thesis_json=ticket.thesis.model_dump(),
+            created_at=state.get("stage_timestamps", {}).get("ingested", started),
+            updated_at=_now(),
+        )
+    )
+    tools.enqueue_processing(ticket)
+
     trace = _trace(
         state,
         "extract_claims",
         started,
-        rationale=extraction.rationale,
-        summary=f"{len(claims)} claim(s) extracted, all born with trust=None",
+        rationale=(
+            f"{extraction.rationale} Claim batch inserted; handed "
+            f"{len(ticket.signal_ids)} signal(s) / {len(ticket.claim_ids)} claim(s) "
+            "to the validation pipeline on thread_id=opportunity_id."
+        ),
+        summary=f"{len(claims)} claim(s) inserted, trust=None; ticket emitted",
         model=FAST_MODEL_NAME,
         evidence_ids=[c.id for c in claims],
     )
     return {
         "claims": claims,
-        "stage_timestamps": {"claims_extracted": _now()},
+        "ticket": ticket,
+        "stage_timestamps": {"claims_extracted": _now(), "ticket_emitted": _now()},
         "trace": [trace],
     }
 
 
-def pre_screen(state: InboundState) -> dict:
+def pre_screen(state: InboundState) -> dict[str, Any]:
     """
     Cheap kill-filter, two stages:
       (a) deterministic thesis hard filters (sector/geo/stage) in CODE —
@@ -286,7 +336,8 @@ def pre_screen(state: InboundState) -> dict:
     if result is None:
         stage_used = "fast-LLM viability check"
         thesis_json = thesis.model_dump() if thesis else {}
-        result = (
+        result = cast(
+            PreScreenResult,
             get_fast_llm()
             .with_structured_output(PreScreenResult)
             .invoke(
@@ -297,7 +348,7 @@ def pre_screen(state: InboundState) -> dict:
                         f"Thesis: {thesis_json}\n\nApplication content:\n\n{_deck_pages(state)}",
                     ),
                 ]
-            )
+            ),
         )
 
     if result.verdict == "reject":
@@ -308,6 +359,8 @@ def pre_screen(state: InboundState) -> dict:
                 rejected_at=_now(),
             )
         )
+        # The funnel row must reflect the outcome — reject ends the graph.
+        tools.update_opportunity_stage(state.get("opportunity_id", ""), "rejected")
 
     trace = _trace(
         state,
@@ -324,65 +377,10 @@ def pre_screen(state: InboundState) -> dict:
     }
 
 
-def emit_ticket(state: InboundState) -> dict:
-    """
-    Build the §5 ``ProcessingTicket`` (the ONLY interface to the validation
-    graph), persist the Opportunity row (stage="queued"), and hand off via
-    ``enqueue_processing`` — kept behind one helper so it can become a real
-    queue later.
-    """
-    started = _now()
-    founder = state.get("founder")
-    company = state.get("company")
-    thesis = state.get("thesis")
-
-    ticket = ProcessingTicket(
-        opportunity_id=state["opportunity_id"],
-        track="inbound",
-        thesis=thesis if thesis is not None else Thesis(),
-        founder_id=founder.id if founder else "",
-        company_id=company.id if company else "",
-        signal_ids=[s.id for s in state.get("signals", [])],
-        claim_ids=[c.id for c in state.get("claims", [])],
-        handoff_at=_now(),
-    )
-    tools.save_opportunity(
-        OpportunityRecord(
-            opportunity_id=ticket.opportunity_id,
-            track="inbound",
-            company_id=ticket.company_id,
-            founder_id=ticket.founder_id,
-            stage="queued",
-            thesis_json=ticket.thesis.model_dump(),
-            created_at=state.get("stage_timestamps", {}).get("ingested", started),
-            updated_at=_now(),
-        )
-    )
-    tools.enqueue_processing(ticket)
-
-    trace = _trace(
-        state,
-        "emit_ticket",
-        started,
-        rationale=(
-            "Pre-screen passed; frozen the thesis copy into the ticket and handed "
-            f"{len(ticket.signal_ids)} signal(s) / {len(ticket.claim_ids)} claim(s) "
-            "to the validation pipeline on thread_id=opportunity_id."
-        ),
-        summary=f"ProcessingTicket emitted for {ticket.opportunity_id}",
-        evidence_ids=[*ticket.signal_ids, *ticket.claim_ids],
-    )
-    return {
-        "ticket": ticket,
-        "stage_timestamps": {"ticket_emitted": _now()},
-        "trace": [trace],
-    }
-
-
 # ------------------- Routers (pure, no side effects) ----------------------- #
 
 
 def route_prescreen(state: InboundState) -> Literal["pass", "reject"]:
-    """pass -> emit_ticket; reject -> END (rejection already logged by the node)."""
+    """pass -> extract_claims; reject -> END (rejection already logged by the node)."""
     prescreen = state.get("prescreen")
     return prescreen.verdict if prescreen else "pass"

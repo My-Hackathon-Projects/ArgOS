@@ -12,6 +12,10 @@ and local dev without a database.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from langgraph.checkpoint.base import BaseCheckpointSaver
 
 
 def _postgres_dsn() -> str:
@@ -23,7 +27,7 @@ def _postgres_dsn() -> str:
     )
 
 
-def get_checkpointer():
+def get_checkpointer() -> BaseCheckpointSaver[str]:
     """
     Return the process-wide saver: PostgresSaver when
     ``SERVICE_CHECKPOINTER=postgres``, InMemorySaver otherwise. Checkpoints
