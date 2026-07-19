@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.claims import extract, score
 from app.claims import trust as trust_mod
 from app.claims.schemas import CATEGORIES
+from app.db import SessionLocal
 from app.models import Claim, ClaimEvidence, Founder, JobRun, Signal
 
 _RELEVANCE = 0.85  # v1: fixed per-evidence relevance (the LLM asserted the link); refine later.
@@ -247,18 +248,54 @@ def run_claims_for_founder(db: Session, founder_id) -> dict:
     }
 
 
-def run_claims(db: Session) -> dict:
-    """Batch: process every founder with signals; warm-skip leaves unchanged founders untouched."""
-    job = JobRun(source="claims")
-    db.add(job)
-    db.flush()
-    founder_ids = (
-        db.execute(select(Signal.founder_id).where(Signal.founder_id.isnot(None)).distinct())
+def pending_founder_ids(db: Session) -> list:
+    """Founders with a signal newer than their last_claimed_at (or never claimed).
+
+    Set-based: one indexed query returns exactly the founders that need (re)claiming, so a run is
+    O(founders-with-new-signals), never O(all-founders). This is the scalability guard — untouched
+    founders are never loaded, extracted, or even iterated.
+    """
+    return (
+        db.execute(
+            select(Signal.founder_id)
+            .join(Founder, Founder.id == Signal.founder_id)
+            .where(
+                Signal.founder_id.isnot(None),
+                (Founder.last_claimed_at.is_(None))
+                | (Signal.ingested_at > Founder.last_claimed_at),
+            )
+            .distinct()
+        )
         .scalars()
         .all()
     )
+
+
+def run_claims(db: Session, founder_ids: list | None = None) -> dict:
+    """Generate claims for founders with NEW signals only.
+
+    founder_ids: explicit set (e.g. the founders a discovery run just touched). If None, resolve it
+    via pending_founder_ids() — so nothing runs for founders whose signals didn't change.
+    """
+    job = JobRun(source="claims")
+    db.add(job)
+    db.flush()
+    if founder_ids is None:
+        founder_ids = pending_founder_ids(db)
     results = [run_claims_for_founder(db, fid) for fid in founder_ids]
     job.finished_at = datetime.now(UTC)
     job.new_signals = sum(r.get("claims_minted", 0) for r in results)
     db.commit()
     return {"founders_processed": len(founder_ids), "results": results, "job_run_id": str(job.id)}
+
+
+def claims_job() -> dict:
+    """Cron callable: claim generation for founders with new signals (opens its own session).
+
+    Scheduled decoupled from sourcing (see app.scheduler): sourcing absorbs signals, this picks up
+    exactly the founders those signals touched. Cheap when nothing is new (one empty query)."""
+    db = SessionLocal()
+    try:
+        return run_claims(db)
+    finally:
+        db.close()
