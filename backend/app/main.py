@@ -24,6 +24,7 @@ from app.api_schemas import (
     SignalListItem,
     ThesisResponse,
 )
+from app.config import settings
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.inbound.service import run_inbound_application
@@ -46,7 +47,18 @@ async def lifespan(app: FastAPI):
         sync_reference_data(db)  # sourcing channels + default thesis, synced from code
     finally:
         db.close()
+    scheduler = None
+    if settings.cron_enabled:
+        from app.scheduler import start_scheduler
+
+        scheduler = start_scheduler()
+        print(
+            f"[cron] active — discovery every {settings.discovery_interval_min}min, "
+            f"refresh every {settings.refresh_interval_min}min (claims registered, paused)"
+        )
     yield
+    if scheduler is not None:
+        scheduler.shutdown(wait=False)
 
 
 def _operation_id(route: APIRoute) -> str:

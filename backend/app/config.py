@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     research_rounds: int = 3  # recursive per-founder search rounds
     max_workers: int = 12  # parallel Tavily / LLM calls
 
+    # Sourcing cron (active by default; modest cadence — env-tunable).
+    cron_enabled: bool = True
+    discovery_interval_min: int = 60  # discovery: hourly
+    refresh_interval_min: int = 360  # refresh: every 6h (stalest founders first)
+
     # Market-research agent caps (bounded, tunable).
     market_queries_per_goal: int = 2  # 5 sub-goals -> ~10 queries/run
     market_max_results: int = 6  # Tavily results per query
