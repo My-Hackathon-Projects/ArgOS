@@ -208,6 +208,70 @@
         }
       }
     },
+    "/market/opportunities": {
+      "get": {
+        "summary": "List Market Opportunities",
+        "description": "Opportunities with a persisted market axis \u2014 the research tab's list.",
+        "operationId": "list_market_opportunities",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MarketOpportunityListItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Market Opportunities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market/opportunities/{opportunity_id}": {
+      "get": {
+        "summary": "Get Market Analysis",
+        "description": "Full market analysis: sizing / competition / comparables / KPI + the market axis.",
+        "operationId": "get_market_analysis",
+        "parameters": [
+          {
+            "name": "opportunity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Opportunity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/thesis": {
       "get": {
         "summary": "Get Thesis",
@@ -738,6 +802,512 @@
           "created"
         ],
         "title": "IngestResponse"
+      },
+      "MarketAnalysisResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "idea": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idea"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "geo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geo"
+          },
+          "axis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketAxisView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sizing": {
+            "items": {
+              "$ref": "#/components/schemas/MarketFigureItem"
+            },
+            "type": "array",
+            "title": "Sizing"
+          },
+          "kpi": {
+            "items": {
+              "$ref": "#/components/schemas/MarketFigureItem"
+            },
+            "type": "array",
+            "title": "Kpi"
+          },
+          "competitors": {
+            "items": {
+              "$ref": "#/components/schemas/MarketCompetitorItem"
+            },
+            "type": "array",
+            "title": "Competitors"
+          },
+          "comparables": {
+            "items": {
+              "$ref": "#/components/schemas/MarketComparableItem"
+            },
+            "type": "array",
+            "title": "Comparables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "company_name",
+          "idea",
+          "sector",
+          "geo",
+          "axis",
+          "sizing",
+          "kpi",
+          "competitors",
+          "comparables"
+        ],
+        "title": "MarketAnalysisResponse"
+      },
+      "MarketAxisView": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "trend": {
+            "type": "string",
+            "title": "Trend"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "score",
+          "trend",
+          "rationale",
+          "confidence",
+          "gaps"
+        ],
+        "title": "MarketAxisView"
+      },
+      "MarketComparableItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "round_size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Size"
+          },
+          "valuation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuation"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "similarity_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Rationale"
+          },
+          "trust_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Score"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "stage",
+          "round_size",
+          "valuation",
+          "date",
+          "similarity_rationale",
+          "trust_score",
+          "url"
+        ],
+        "title": "MarketComparableItem"
+      },
+      "MarketCompetitorItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster"
+          },
+          "positioning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positioning"
+          },
+          "is_emerging_threat": {
+            "type": "boolean",
+            "title": "Is Emerging Threat"
+          },
+          "trust_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Score"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cluster",
+          "positioning",
+          "is_emerging_threat",
+          "trust_score",
+          "url"
+        ],
+        "title": "MarketCompetitorItem"
+      },
+      "MarketFigureItem": {
+        "properties": {
+          "metric": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "trust_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Score"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "value",
+          "basis",
+          "confidence",
+          "trust_score",
+          "status",
+          "url"
+        ],
+        "title": "MarketFigureItem"
+      },
+      "MarketOpportunityListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "geo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geo"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "trend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trend"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "company_name",
+          "sector",
+          "geo",
+          "verdict",
+          "score",
+          "trend"
+        ],
+        "title": "MarketOpportunityListItem"
       },
       "SignalEnvelope": {
         "properties": {
