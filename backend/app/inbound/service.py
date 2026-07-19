@@ -13,6 +13,8 @@ reason lands in a trace_step row (provenance). Full 3-axis screening stays manua
 (POST /opportunities/{id}/screen), same as the outbound track.
 """
 
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -101,7 +103,13 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
     if not name:
         raise ValueError("company_name is empty")
 
-    opp = Opportunity(company_name=name, source="inbound", status="screening")
+    # The application itself is the first signal — latency clock starts now.
+    opp = Opportunity(
+        company_name=name,
+        source="inbound",
+        status="screening",
+        first_signal_at=datetime.now(UTC),
+    )
     db.add(opp)
     db.flush()
 

@@ -25,7 +25,7 @@ flowchart TD
     R -->|founders, identities, signals| DB[(Postgres + pgvector)]
 
     subgraph CLM[Screening: claims and scoring]
-        X[Claim extraction from new signals] --> M[Attach or mint: dedup key, embedding kNN, LLM adjudication]
+        X[Claim extraction from new signals] --> M[Attach or mint: dedup key, then LLM adjudication]
         M --> S[Trust Score and Founder Score, deterministic formulas]
     end
     DB --> X
@@ -49,8 +49,8 @@ How the pieces run in practice:
    accelerators, and more), screens the hits, resolves them to people, and persists founders,
    identities, and signals. Triggered manually from the UI or `POST /discovery/run`.
 2. **Claims** (`backend/app/claims/`): new signals are collapsed into deduplicated,
-   corroborated claims (exact dedup key hit, then embedding kNN, then LLM adjudication on the
-   few candidates). Trust Score per claim and Founder Score per person are deterministic
+   corroborated claims (exact dedup key hit, then LLM adjudication over the founder's
+   same-category claims). Trust Score per claim and Founder Score per person are deterministic
    formulas over the evidence, so every number can be audited.
 3. **Market research** (`backend/app/market/`): given an opportunity, a second LangGraph graph
    plans searches, extracts sizing, competition, comparables, and KPI benchmarks in parallel,

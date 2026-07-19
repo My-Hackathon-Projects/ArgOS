@@ -48,7 +48,8 @@ import type {
   SignalEnvelope,
   SignalListItem,
   ThesisResponse,
-  ThesisUpdate
+  ThesisUpdate,
+  TraceStepItem
 } from '../model';
 
 import { customInstance } from '../../axios-instance';
@@ -696,6 +697,99 @@ export function useGetFounder<TData = Awaited<ReturnType<typeof getFounder>>, TE
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetFounderQueryOptions(founderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence.
+ * @summary Get Founder Trace
+ */
+export const getFounderTrace = (
+    founderId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<TraceStepItem[]>(
+      {url: `/founders/${founderId}/trace`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetFounderTraceQueryKey = (founderId: string,) => {
+    return [
+    `/founders/${founderId}/trace`
+    ] as const;
+    }
+
+
+export const getGetFounderTraceQueryOptions = <TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFounderTraceQueryKey(founderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFounderTrace>>> = ({ signal }) => getFounderTrace(founderId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: founderId !== null && founderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFounderTraceQueryResult = NonNullable<Awaited<ReturnType<typeof getFounderTrace>>>
+export type GetFounderTraceQueryError = ErrorType<HTTPValidationError>
+
+
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFounderTrace>>,
+          TError,
+          Awaited<ReturnType<typeof getFounderTrace>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFounderTrace>>,
+          TError,
+          Awaited<ReturnType<typeof getFounderTrace>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Founder Trace
+ */
+
+export function useGetFounderTrace<TData = Awaited<ReturnType<typeof getFounderTrace>>, TError = ErrorType<HTTPValidationError>>(
+ founderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFounderTrace>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFounderTraceQueryOptions(founderId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.claims import trust as trust_mod
+from app.ingest import earliest_signal_at
 from app.market.graph import extractor_hits
 from app.models import (
     Claim,
@@ -31,6 +32,7 @@ from app.models import (
     Signal,
     ThreeAxis,
 )
+from app.screening.trend import trend_vs_prev
 from app.sourcing.graph import SOURCE_RELIABILITY, _canonicalize, _infer_source
 
 _SIGNAL_TYPE = {
@@ -77,6 +79,9 @@ def _upsert_opportunity(db: Session, opp: dict, opportunity_id) -> Opportunity:
         geo=opp.get("geo"),
         source="outbound",
         status="diligence",
+        # Sourced deal: latency clock starts at the founder's earliest signal.
+        first_signal_at=(earliest_signal_at(db, founder_id) if founder_id else None)
+        or datetime.now(UTC),
     )
     db.add(row)
     db.flush()
@@ -310,9 +315,11 @@ def _upsert_axis(
     if row is None:
         row = ThreeAxis(opportunity_id=opp_id, axis="market")
         db.add(row)
+    # Trend is derived from persisted history (previous row's score), never asserted by the LLM.
+    prev_score = row.score
     row.score = axis.get("score")
     row.verdict = axis.get("verdict") or "neutral"
-    row.trend = axis.get("trend") or "stable"
+    row.trend = trend_vs_prev(prev_score, axis.get("score"))
     row.rationale = axis.get("rationale")
     row.confidence = axis.get("confidence")
     row.evidence = {"claim_ids": [str(c) for c in claim_ids], "urls": cited_urls}

@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.claims.service import run_claims
 from app.models import InvestmentThesis
 from app.sourcing.graph import build_discovery_graph
 from app.sourcing.persist import persist_delivery
@@ -31,6 +32,10 @@ def run_discovery(db: Session) -> dict:
     graph = build_discovery_graph()
     state = graph.invoke({"thesis": thesis, "trace": []})
     summary = persist_delivery(db, state.get("founders", []))
+    # Tail-call the claims layer for the founders this run touched (pending set) so fresh
+    # founders get a Founder Score in the same pass — not on the next cron tick.
+    claims = run_claims(db)
     summary["stats"] = state.get("stats", {})
+    summary["stats"]["claims_founders_processed"] = claims["founders_processed"]
     summary["trace"] = state.get("trace", [])
     return summary

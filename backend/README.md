@@ -37,13 +37,14 @@ Discovery is thesis → web search (Tavily) → founder resolution → persist. 
 curl -X POST http://localhost:8000/discovery/run     # ~30-60s; persists founders + signals
 ```
 
-APScheduler jobs are wired into the FastAPI lifespan and run when `CRON_ENABLED=true`
-(the default). Discovery runs hourly and refresh runs every 6 hours; the claims job is
-registered but paused. Set `CRON_ENABLED=false` for local demos where manual discovery is enough.
+APScheduler cron is **ON by default** (`app/scheduler.py`, wired into the app lifespan;
+disable via `CRON_ENABLED=false` for local demos): discovery every 60min, signal refresh every
+360min, and claims/scoring every 15min. A discovery run also tail-calls the claims layer
+directly, so freshly discovered founders get a Founder Score in the same pass.
 
 Endpoints: `/health` · `/signals` · `/signals/ingest` · `/discovery/run` · `/founders` ·
-`/founders/{id}` · `/sourcing-channels` · `/apply` · `/opportunities` · `/thesis`.
-Full schema at `/docs`.
+`/founders/search` · `/founders/{id}` · `/sourcing-channels` · `/thesis` · `/opportunities`
+(+ `/screen`, `/memo`, `/decision`) · `/apply`. Full schema at `/docs`.
 
 ## OpenAPI export (frontend contract)
 
@@ -99,7 +100,7 @@ app/
   sourcing/            discovery graph, thesis, persistence, seed reference data
   api_schemas.py       Pydantic response_models  (the FE/BE wire contract)
   export_openapi.py    dump backend/openapi.json for frontend codegen
-  scheduler.py         APScheduler jobs (enabled by CRON_ENABLED)
+  scheduler.py         APScheduler cron (ON by default; CRON_ENABLED=false to disable)
   main.py              FastAPI app (+ env-driven CORS)
 alembic/               migrations
 tests/                 pure-unit contract tests (no DB)

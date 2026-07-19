@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Scale, User } from "lucide-react";
+import { ArrowLeft, Loader2, Scale, Timer, User } from "lucide-react";
 import { useDecide, useGetOpportunity, useScreen } from "@/api/generated/default/default";
+import type { OpportunityDetail as OpportunityDetailType } from "@/api/generated/model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { relativeTime } from "@/lib/format";
+import { duration, relativeTime } from "@/lib/format";
 import { AXIS_ORDER, AxisScoreCard } from "@/components/opportunities/axis";
 import { MarketAnalysis } from "@/components/market/market-analysis";
 import { MemoSection } from "@/components/opportunities/memo-section";
@@ -19,16 +20,25 @@ const DECISIONS = [
   { key: "pass", label: "Pass" },
 ] as const;
 
-function DecisionBar({ opportunityId, decision }: { opportunityId: string; decision: string | null }) {
+function DecisionBar({ o }: { o: OpportunityDetailType }) {
   const qc = useQueryClient();
   const decide = useDecide({ mutation: { onSuccess: () => qc.invalidateQueries() } });
+  const { id: opportunityId, decision } = o;
   return (
     <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
       <div>
         <h2 className="text-sm font-semibold text-foreground">Decision</h2>
         <p className="mt-0.5 text-xs text-subtle">
-          Record the call — completes the funnel and stamps signal→decision latency.
+          {decision
+            ? `Decided ${relativeTime(o.decided_at)} — you can revise it.`
+            : "Record the call — completes the funnel and stamps signal→decision latency."}
         </p>
+        {decision && o.signal_to_decision_seconds != null && (
+          <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-subtle">
+            <Timer className="h-3.5 w-3.5" />
+            first signal → decision in {duration(o.signal_to_decision_seconds)}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {DECISIONS.map((d) => (
@@ -146,7 +156,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
       <MemoSection opportunityId={o.id} />
 
       {/* Decision — completes the funnel */}
-      <DecisionBar opportunityId={o.id} decision={o.decision} />
+      <DecisionBar o={o} />
     </div>
   );
 }

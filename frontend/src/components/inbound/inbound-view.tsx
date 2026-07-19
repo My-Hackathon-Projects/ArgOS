@@ -55,10 +55,13 @@ function InboxRow({ o, founderName }: { o: OpportunityListItem; founderName: str
         </p>
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
           <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle">
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              <Paperclip className="h-3 w-3" />
-              deck.pdf
-            </span>
+            {o.source === "inbound" && (
+              // Only genuine applications carry a deck (POST /apply requires the PDF).
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <Paperclip className="h-3 w-3" />
+                deck.pdf
+              </span>
+            )}
             {o.sector && <span>{o.sector}</span>}
             {o.geo && <span>{o.geo}</span>}
           </span>

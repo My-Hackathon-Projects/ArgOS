@@ -27,12 +27,13 @@ from app.api_schemas import (
     SignalListItem,
     ThesisResponse,
     ThesisUpdate,
+    TraceStepItem,
 )
 from app.config import settings
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.inbound.service import run_inbound_application
-from app.ingest import upsert_signal
+from app.ingest import earliest_signal_at, upsert_signal
 from app.market import read as market_read
 from app.memo.generate import generate_memo
 from app.models import (
@@ -41,8 +42,10 @@ from app.models import (
     InvestmentThesis,
     Memo,
     Opportunity,
+    ScoreHistory,
     Signal,
     SourcingChannel,
+    TraceStep,
 )
 from app.outbound.draft import draft_outreach
 from app.screening.assemble import screen_opportunity
@@ -65,7 +68,8 @@ async def lifespan(app: FastAPI):
         scheduler = start_scheduler()
         print(
             f"[cron] active — discovery every {settings.discovery_interval_min}min, "
-            f"refresh every {settings.refresh_interval_min}min (claims registered, paused)"
+            f"refresh every {settings.refresh_interval_min}min, "
+            f"claims every {settings.claims_interval_min}min"
         )
     yield
     if scheduler is not None:
@@ -260,7 +264,38 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
             }
             for c in claims
         ],
+        "score_history": [
+            {"ts": h.created_at, "score": h.score}
+            for h in db.execute(
+                select(ScoreHistory)
+                .where(ScoreHistory.founder_id == f.id)
+                .order_by(ScoreHistory.created_at.asc())
+            ).scalars()
+        ],
     }
+
+
+@app.get("/founders/{founder_id}/trace", response_model=list[TraceStepItem])
+def get_founder_trace(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> list[dict]:
+    """Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence."""
+    if db.get(Founder, founder_id) is None:
+        raise HTTPException(status_code=404, detail="founder not found")
+    steps = db.execute(
+        select(TraceStep)
+        .where(TraceStep.founder_id == founder_id)
+        .order_by(TraceStep.created_at.asc())
+    ).scalars()
+    return [
+        {
+            "stage": t.stage,
+            "agent": t.agent,
+            "input": t.input,
+            "output": t.output,
+            "evidence_ids": t.evidence_ids,
+            "created_at": t.created_at,
+        }
+        for t in steps
+    ]
 
 
 @app.post("/founders/{founder_id}/outreach", response_model=OutreachDraft)
@@ -315,9 +350,17 @@ def _opportunity_dict(opp: Opportunity) -> dict:
         "idea": opp.idea,
         "sector": opp.sector,
         "geo": opp.geo,
+        "source": opp.source,
         "status": opp.status,
         "created_at": opp.created_at,
         "decision": opp.decision,
+        "decided_at": opp.decided_at,
+        "first_signal_at": opp.first_signal_at,
+        "signal_to_decision_seconds": (
+            (opp.decided_at - opp.first_signal_at).total_seconds()
+            if opp.decided_at and opp.first_signal_at
+            else None
+        ),
         "axes": [
             {
                 "axis": a.axis,
@@ -338,12 +381,15 @@ def _opportunity_dict(opp: Opportunity) -> dict:
 def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -> dict:
     if body.founder_id is not None and db.get(Founder, body.founder_id) is None:
         raise HTTPException(status_code=404, detail="founder not found")
+    # Latency clock: earliest signal we ever saw for this founder; manual deal → creation.
+    first_signal_at = earliest_signal_at(db, body.founder_id) if body.founder_id else None
     opp = Opportunity(
         founder_id=body.founder_id,
         company_name=body.company_name,
         idea=(body.idea or "").strip() or None,
         sector=(body.sector or "").strip() or None,
         geo=body.geo,
+        first_signal_at=first_signal_at or datetime.now(UTC),
     )
     db.add(opp)
     db.commit()
@@ -419,9 +465,7 @@ _DECISION_STATUS = {"pursue": "decided", "track": "diligence", "pass": "rejected
 
 
 @app.post("/opportunities/{opportunity_id}/decision", response_model=OpportunityDetail)
-def decide(
-    opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depends(get_db)
-) -> dict:
+def decide(opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depends(get_db)) -> dict:
     """Record the investor's decision (pursue|track|pass) — the funnel's Decision step. Stamps
     decided_at (signal->decision latency) and moves the opportunity's status."""
     opp = db.get(Opportunity, opportunity_id)

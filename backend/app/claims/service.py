@@ -18,7 +18,7 @@ from app.claims import extract, score
 from app.claims import trust as trust_mod
 from app.claims.schemas import CATEGORIES
 from app.db import SessionLocal
-from app.models import Claim, ClaimEvidence, Founder, JobRun, Signal
+from app.models import Claim, ClaimEvidence, Founder, JobRun, ScoreHistory, Signal, TraceStep
 
 _RELEVANCE = 0.85  # v1: fixed per-evidence relevance (the LLM asserted the link); refine later.
 
@@ -236,6 +236,32 @@ def run_claims_for_founder(db: Session, founder_id) -> dict:
     before = founder.founder_score
     _recompute_founder_score(db, founder)
     founder.last_claimed_at = datetime.now(UTC)
+    if founder.founder_score is not None and founder.founder_score != before:
+        # Score moved → append the time-series point the trend arrow reads (see ScoreHistory).
+        db.add(
+            ScoreHistory(
+                founder_id=founder.id,
+                score=founder.founder_score,
+                components=founder.components,
+                trigger_claim_id=next(iter(touched), None),
+            )
+        )
+    if minted or attached:
+        # Agentic traceability (stretch #1): record what the claims pass did for this founder.
+        db.add(
+            TraceStep(
+                founder_id=founder.id,
+                stage="claims",
+                agent="claims_engine",
+                input={"mode": "cold" if not existing else "warm"},
+                output={
+                    "claims_minted": minted,
+                    "evidence_attached": attached,
+                    "founder_score": {"before": before, "after": founder.founder_score},
+                },
+                evidence_ids=[str(c) for c in touched],
+            )
+        )
     db.commit()
     return {
         "founder_id": str(founder_id),

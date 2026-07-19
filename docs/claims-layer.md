@@ -37,7 +37,8 @@ On each new signal, decide **attach to an existing claim** (bump corroboration) 
 claim**. This is entity-resolution-for-claims, done **incrementally** so cost stays bounded:
 
 1. `dedup_key` exact hit → attach, no LLM.
-2. else `embedding` kNN within `(founder_id, category)` → a few candidate claims.
+2. else the founder's existing claims in the same `category` → candidate claims.
+   (The `embedding` column exists for a future kNN narrowing step — not implemented.)
 3. LLM adjudicates attach-vs-mint on just those candidates, and sets `stance`.
 
 Never re-extract all of a founder's claims per signal — cost explodes as signals accumulate.

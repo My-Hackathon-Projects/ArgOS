@@ -264,6 +264,51 @@
         }
       }
     },
+    "/founders/{founder_id}/trace": {
+      "get": {
+        "summary": "Get Founder Trace",
+        "description": "Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence.",
+        "operationId": "get_founder_trace",
+        "parameters": [
+          {
+            "name": "founder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Founder Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraceStepItem"
+                  },
+                  "title": "Response Get Founder Trace"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/founders/{founder_id}/outreach": {
       "post": {
         "summary": "Outreach",
@@ -1137,6 +1182,13 @@
             },
             "type": "array",
             "title": "Claims"
+          },
+          "score_history": {
+            "items": {
+              "$ref": "#/components/schemas/ScorePoint"
+            },
+            "type": "array",
+            "title": "Score History"
           }
         },
         "type": "object",
@@ -1154,7 +1206,8 @@
           "last_checked_at",
           "identity",
           "signals",
-          "claims"
+          "claims",
+          "score_history"
         ],
         "title": "FounderDetail"
       },
@@ -2593,6 +2646,32 @@
         "title": "OutreachDraft",
         "description": "Mocked cold-outreach draft (identify -> ACTIVATE). LLM-drafted, not actually sent."
       },
+      "ScorePoint": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ts",
+          "score"
+        ],
+        "title": "ScorePoint"
+      },
       "SearchRequest": {
         "properties": {
           "query": {
@@ -3032,6 +3111,76 @@
         "type": "object",
         "title": "ThesisUpdate",
         "description": "Editable investment thesis \u2014 the investor's customizable lens (PUT /thesis)."
+      },
+      "TraceStepItem": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "evidence_ids": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Ids"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "agent",
+          "input",
+          "output",
+          "evidence_ids",
+          "created_at"
+        ],
+        "title": "TraceStepItem"
       },
       "ValidationError": {
         "properties": {

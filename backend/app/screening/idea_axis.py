@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Claim, ClaimEvidence, Opportunity, Signal, ThreeAxis
 from app.screening.llm import structured_llm
+from app.screening.trend import trend_vs_prev
 
 # survives_as_is -> the idea holds -> bull; pivot_needed -> neutral; fails -> bear.
 _VERDICT_MAP: dict[str, Literal["bull", "neutral", "bear"]] = {
@@ -129,7 +130,7 @@ def finalize_idea(
     return IdeaAxisResult(
         verdict=_VERDICT_MAP[out.verdict],
         score=out.score,
-        trend="stable",  # no idea-axis history yet; first pass reads stable
+        trend="stable",  # placeholder — the real trend is derived at upsert from the prior score
         confidence=round(confidence, 2),
         rationale=out.rationale,
         evidence={"claim_ids": resolved, "urls": []},
@@ -215,9 +216,11 @@ def upsert_idea_axis(db: Session, opportunity_id: uuid.UUID) -> ThreeAxis:
     if row is None:
         row = ThreeAxis(opportunity_id=opp.id, axis="idea")
         db.add(row)
+    # Trend is derived from persisted history (previous row's score), never asserted by the LLM.
+    prev_score = row.score
     row.score = result.score
     row.verdict = result.verdict
-    row.trend = result.trend
+    row.trend = trend_vs_prev(prev_score, result.score)
     row.confidence = result.confidence
     row.rationale = result.rationale
     row.evidence = result.evidence
