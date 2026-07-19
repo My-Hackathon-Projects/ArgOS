@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 
 from app.db import SessionLocal
 from app.models import Founder, JobRun, Signal
-from app.sourcing.seed_data import seed_if_empty
+from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
 
 
@@ -17,7 +17,7 @@ def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")  # Windows console: allow → and accents
     db = SessionLocal()
     try:
-        seed_if_empty(db)
+        sync_reference_data(db)
         summary = run_discovery(db)
         print("\n=== discovery summary ===")
         print(summary)

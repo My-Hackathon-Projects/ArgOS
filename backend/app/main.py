@@ -9,7 +9,7 @@ from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.ingest import upsert_signal
 from app.models import Founder, InvestmentThesis, Signal, SourcingChannel
-from app.sourcing.seed_data import seed_if_empty
+from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
 
 
@@ -17,7 +17,7 @@ from app.sourcing.service import run_discovery
 async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
-        seed_if_empty(db)  # sourcing channels + default thesis
+        sync_reference_data(db)  # sourcing channels + default thesis, synced from code
     finally:
         db.close()
     yield
