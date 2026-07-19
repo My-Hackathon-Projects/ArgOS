@@ -10,6 +10,7 @@ import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials, relativeTime } from "@/lib/format";
 import { ClaimsList } from "@/components/founders/claims-list";
+import { PromoteButton } from "@/components/founders/promote-dialog";
 import { statusBadge } from "@/components/founders/status";
 import { TimelineItem } from "@/components/founders/timeline-item";
 
@@ -77,6 +78,7 @@ export function FounderDetail({ founderId }: { founderId: string }) {
                 {f.display_name ?? "Unknown"}
               </h1>
               <Badge variant={s.variant}>{s.label}</Badge>
+              <PromoteButton founder={f} />
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               {f.occupation && <span>{f.occupation}</span>}
