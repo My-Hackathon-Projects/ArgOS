@@ -47,3 +47,66 @@ export function splitChannelName(name: string): { title: string; subtitle: strin
   }
   return { title: name, subtitle: "" };
 }
+
+type ChannelLogoInput = {
+  name: string;
+  type: string | null;
+  domain: string | null;
+};
+
+type ChannelLogo = {
+  src: string | null;
+  label: string;
+  fallback: string;
+};
+
+const CHANNEL_LOGOS: Array<{ match: string[]; domain: string; label: string }> = [
+  { match: ["github"], domain: "github.com", label: "GitHub" },
+  { match: ["arxiv"], domain: "arxiv.org", label: "arXiv" },
+  {
+    match: ["google patents", "patents.google.com"],
+    domain: "patents.google.com",
+    label: "Google Patents",
+  },
+  { match: ["product hunt", "producthunt"], domain: "producthunt.com", label: "Product Hunt" },
+  {
+    match: ["hacker news", "news.ycombinator"],
+    domain: "news.ycombinator.com",
+    label: "Hacker News",
+  },
+  { match: ["devpost"], domain: "devpost.com", label: "Devpost" },
+  { match: ["major league hacking", "mlh"], domain: "mlh.io", label: "Major League Hacking" },
+  { match: ["crunchbase"], domain: "crunchbase.com", label: "Crunchbase" },
+  { match: ["linkedin"], domain: "linkedin.com", label: "LinkedIn" },
+  { match: ["x / twitter", "twitter"], domain: "x.com", label: "X" },
+  {
+    match: ["accelerator", "incubator"],
+    domain: "ycombinator.com",
+    label: "Accelerator cohorts",
+  },
+  {
+    match: ["student clubs", "university labs"],
+    domain: "tum-ai.com",
+    label: "AI student clubs",
+  },
+];
+
+function faviconUrl(domain: string): string {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+}
+
+export function channelLogo(channel: ChannelLogoInput): ChannelLogo {
+  const { title } = splitChannelName(channel.name);
+  const haystack = `${channel.name} ${channel.type ?? ""} ${channel.domain ?? ""}`.toLowerCase();
+  const mapped = CHANNEL_LOGOS.find((logo) =>
+    logo.match.some((candidate) => haystack.includes(candidate)),
+  );
+  const domain = channel.domain ?? mapped?.domain ?? null;
+  const label = mapped?.label ?? title;
+
+  return {
+    src: domain ? faviconUrl(domain) : null,
+    label,
+    fallback: label.trim().charAt(0).toUpperCase() || "?",
+  };
+}

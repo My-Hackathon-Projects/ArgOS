@@ -2,7 +2,7 @@
 
 import { useListChannels } from "@/api/generated/default/default";
 import { Skeleton } from "@/components/ui/skeleton";
-import { sourceGradient, splitChannelName } from "@/lib/source-style";
+import { channelLogo, splitChannelName } from "@/lib/source-style";
 
 export function ChannelList() {
   const { data, isLoading } = useListChannels();
@@ -35,16 +35,29 @@ export function ChannelList() {
       <ul className="space-y-0.5">
         {channels.map((c) => {
           const { title, subtitle } = splitChannelName(c.name);
+          const logo = channelLogo(c);
           return (
             <li
               key={c.name}
               className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-muted"
             >
-              <span
-                className="h-7 w-7 shrink-0 rounded-full ring-1 ring-black/5"
-                style={{ background: sourceGradient(c.type) }}
-                aria-hidden
-              />
+              <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[11px] font-semibold text-subtle ring-1 ring-black/10">
+                <span aria-hidden>{logo.fallback}</span>
+                {logo.src && (
+                  // Dynamic third-party favicons are tiny and do not need Next image optimization.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logo.src}
+                    alt={`${logo.label} logo`}
+                    className="absolute inset-0 h-full w-full bg-white object-contain p-1"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-medium text-foreground">{title}</div>
                 {subtitle && (
