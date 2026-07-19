@@ -124,7 +124,7 @@ Verify: <http://localhost:8000/health> returns `{"status":"ok","signals":N}` and
   market) with a Run screening button per deal. The detail embeds the market analysis
   (TAM/SAM/SOM and KPI figures with reported versus estimated basis chips, comparables,
   competitors, flagged gaps) and the investment memo, generated on demand.
-- **Thesis**: the active investment thesis that drives discovery.
+- **Settings** (`/settings`): the active investment thesis that drives discovery.
 
 Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs API keys), or
 `curl -X POST http://localhost:8000/discovery/run`. Then generate claims with
@@ -198,7 +198,7 @@ Postgres must be up and migrated for `pytest`; only `test_contract.py` is DB-fre
 
 ```
 backend/     FastAPI app: sourcing, inbound intake (/apply), claims, market research, opportunities
-frontend/    Next.js app: home, sourcing, founders, thesis, market research
+frontend/    Next.js app: home, sourcing, inbound, founders, opportunities, settings (thesis)
 docs/        design docs, demo guide, challenge brief
 docker-compose.yml   pgvector Postgres (:5433)
 .env.example         copy to .env at the root
