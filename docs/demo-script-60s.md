@@ -13,20 +13,26 @@ Backup deal: Ticky Tech (cold-start story, bear market axis).
 
 | # | Time | Screen | Action | Voiceover |
 |---|---|---|---|---|
-| 1 | 0-8s | Home `/` | Reload page, convergence animation runs, headline fades in. No cursor movement. | "Great founders are invisible until they know the right person. Their story is scattered across GitHub, papers, launches — and by the time a fund sees them, it's late. ArgOS watches for the trail." |
-| 2 | 8-15s | Settings | Thesis form already filled. Add one chip (e.g. a sector), click Save, "Saved" flashes. | "You define the thesis once. Every signal, every score, every memo is filtered through it." |
-| 3 | 15-25s | Sourcing | Feed live, pre-queued discovery run flashes new cards in. Filter one type, click a card -> raw source opens in new tab, cut back fast. | "Thirteen public channels, scanned continuously. Every signal resolves to a real person — and links back to its raw source." |
-| 4 | 25-38s | Founders -> Christiam Ipanaque | Open founders table, click Ipanaque. Slow scroll through claims: trust bars, supporting counts — pause on the **contradicted claim** ("Full Stack AI Engineer", red refuting count + Contradicted badge). | "Every person gets a persistent Founder Score. Per-claim trust, backed by evidence — and when sources conflict, it's flagged before it ever reaches you." |
-| 5 | 38-52s | Opportunity: Ipanaque Labs | Open the deal: three axis cards — bull founder / neutral idea / improving market — pause a beat on the disagreement. TAM/SAM/SOM with reported-vs-estimated chips, scroll into memo: cited hypotheses, gaps list. | "Three independent verdicts — founder, market, idea — never averaged. The disagreement IS the signal. The memo cites every number, and flags what it doesn't know instead of inventing it." |
-| 6 | 52-60s | Decision bar -> Home | Click **Track** (matches the memo's recommendation). Latency stamp appears: "first signal -> decision in ...". Cut to home funnel cards + tagline. | "From first public signal to investment decision, in one sitting. ArgOS." |
+| 1 | 0-7s | Home `/` | Reload page, convergence animation runs, headline fades in. No cursor movement. | "Great founders are invisible until they know the right person. Their story is scattered across GitHub, papers, launches. ArgOS watches for the trail." |
+| 2 | 7-12s | Settings | Drive-by: thesis chips visible (sectors/geo/stage/check), add ONE chip, Save flash. Fast. | "You set the thesis once — everything downstream is filtered through it." |
+| 3 | 12-21s | Sourcing | Feed live, pre-queued discovery run flashes new cards in. Click a card -> raw source opens, cut back fast. | "Thirteen public channels, scanned continuously. Every signal resolves to a real person and links to its raw source." |
+| 4 | 21-33s | Founders -> Christiam Ipanaque | Click Ipanaque. Scroll claims: trust bars, supporting counts — pause on the **contradicted claim** (red refuting count + Contradicted badge). | "Every person gets a persistent Founder Score. Per-claim trust, backed by evidence — and when sources conflict, it's flagged before it reaches you." |
+| 5 | 33-45s | Opportunity: Ipanaque Labs | Three axis cards — bull founder / neutral idea / improving market — beat on the disagreement. TAM/SAM/SOM reported-vs-estimated chips, scroll into memo: cited hypotheses, evidenced Traction KPIs. | "Three independent verdicts — never averaged. The disagreement IS the signal. And every number in the memo cites its evidence." |
+| 6 | 45-53s | Opportunity: Ticky Tech memo | Cut to the contrast memo: cold-start founder, "No traction metric survives the evidence check", gaps list ("No revenue evidence"), "Not available at this stage" block. | "And when the evidence isn't there, ArgOS says so. No invented traction — flagged gaps, and still a recommendation you can act on." |
+| 7 | 53-60s | Ipanaque decision bar -> Home | (Edit cut back to Ipanaque Labs.) Click **Track** — latency stamp appears. End on home funnel cards + tagline. | "From first public signal to decision, in one sitting. ArgOS." |
 
 ## Timing notes
 
-- 6 beats in 60s is tight. If a beat runs long, cut beat 2 (thesis) to a 2s drive-by:
-  show the chips, no edit, line becomes "Filtered through your thesis."
-- Beat 6 needs the deal fully screened + memo'd BEFORE recording, decision not yet
-  made — the live Pursue click + latency stamp appearing is the money shot.
-- Never show a spinner longer than a beat; pre-generate the memo off camera if slow.
+- 7 beats in 60s is very tight — record each beat as its own clip, assemble in edit.
+  If it doesn't fit: drop beat 2 (thesis) entirely before touching beats 5/6 —
+  the memo contrast pair is the money shot, protect it.
+- Beat 5 -> 6 is the brief's "a memo that marks its own gaps is more trustworthy"
+  moment: evidenced traction (Ipanaque) vs honest empty state (Ticky Tech). Both
+  memos exist and render clean, all citations resolved (conf 0.79 / 0.81).
+- Beat 7 needs Ipanaque Labs screened + memo'd BEFORE recording, decision NOT yet
+  made — the live Track click + latency stamp appearing closes the funnel.
+- Never show a spinner longer than a beat; memos are pre-generated, don't regenerate
+  on camera.
 
 ## Why Ipanaque -> Ipanaque Labs
 
@@ -52,6 +58,10 @@ Backup deal: Ticky Tech (cold-start story, bear market axis).
   the fold; Andreas Geiger (76.5) tops the table for the wide shot — fine.
 - Opportunities list: duplicate NeuroForge (one rejected, one pursued) + Nimbus Edge
   (no founder linked) — go straight to Ipanaque Labs, don't dwell on the list.
+- Ticky Tech (beat 6): show the MEMO section only. Its decision is already recorded
+  (track, ~376-day backdated latency) and status/decision may mismatch — keep the
+  header/decision bar out of frame. Founder occupation is a pasted GitHub bio blob —
+  don't show the founder header either.
 - Sourcing channel sidebar: all channels show 0 yield — avoid close-up.
 
 ## Prep delta vs demo.md checklist
@@ -68,17 +78,17 @@ Backup deal: Ticky Tech (cold-start story, bear market axis).
 ## Voiceover-only (for practicing)
 
 1. Great founders are invisible until they know the right person. Their story is
-   scattered across GitHub, papers, launches — and by the time a fund sees them,
-   it's late. ArgOS watches for the trail.
-2. You define the thesis once. Every signal, every score, every memo is filtered
-   through it.
+   scattered across GitHub, papers, launches. ArgOS watches for the trail.
+2. You set the thesis once — everything downstream is filtered through it.
 3. Thirteen public channels, scanned continuously. Every signal resolves to a real
-   person — and links back to its raw source.
+   person and links to its raw source.
 4. Every person gets a persistent Founder Score. Per-claim trust, backed by
-   evidence — and when sources conflict, it's flagged before it ever reaches you.
-5. Three independent verdicts — founder, market, idea — never averaged. The
-   disagreement IS the signal. The memo cites every number, and flags what it
-   doesn't know instead of inventing it.
-6. From first public signal to investment decision, in one sitting. ArgOS.
+   evidence — and when sources conflict, it's flagged before it reaches you.
+5. Three independent verdicts — never averaged. The disagreement IS the signal.
+   And every number in the memo cites its evidence.
+6. And when the evidence isn't there, ArgOS says so. No invented traction —
+   flagged gaps, and still a recommendation you can act on.
+7. From first public signal to decision, in one sitting. ArgOS.
 
-~120 words total at voiceover pace ~= 55s. Fits, barely — practice with a timer.
+~125 words at voiceover pace ~= 55-58s. Very tight — practice with a timer;
+if over, cut line 2 first.
