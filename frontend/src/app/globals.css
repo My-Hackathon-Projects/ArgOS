@@ -1,24 +1,28 @@
 @import "tailwindcss";
 
 /* ── Design tokens ─────────────────────────────────────────────────────────
-   The whole theme lives here. Swap these values to reskin; components read the
+   Apple-inspired light theme. The whole theme lives here; components read the
    tokens via Tailwind utilities (bg-surface, text-muted-foreground, ...). */
 :root {
-  --background: #f7f7f8;
+  --background: #f5f5f7;
   --surface: #ffffff;
-  --surface-muted: #fafafa;
-  --foreground: #0a0a0b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --subtle: #a1a1aa;
-  --border: #ececef;
-  --border-strong: #e0e0e4;
-  --primary: #2f5cff;
+  --surface-muted: #fafafc;
+  --foreground: #1d1d1f;
+  --muted: #f0f0f2;
+  --muted-foreground: #6e6e73;
+  --subtle: #86868b;
+  --border: #e8e8ed;
+  --border-strong: #d2d2d7;
+  --primary: #0071e3;
+  --primary-hover: #0077ed;
   --primary-foreground: #ffffff;
-  --accent-soft: #eef2ff;
-  --success: #16a34a;
-  --danger: #e11d48;
-  --ring: #c7d2fe;
+  --accent-soft: #eaf3ff;
+  --success: #059669;
+  --danger: #de3131;
+  --ring: #9cc3f0;
+  --nav-height: 3rem;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.05), 0 14px 34px rgba(0, 0, 0, 0.09);
 }
 
 @theme inline {
@@ -32,31 +36,48 @@
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-ring: var(--ring);
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-fraunces);
-  --font-mono: var(--font-geist-mono);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 * {
   border-color: var(--border);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Elegant serif display headings — set on elements via `font-serif`. */
-.font-serif {
-  font-family: var(--font-serif), Georgia, "Times New Roman", serif;
-  letter-spacing: -0.01em;
+/* Translucent, blurred chrome (nav bar, mobile menu). */
+.glass {
+  background: color-mix(in srgb, #fbfbfd 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Elevated white card resting on the gray page background. */
+.card-shadow {
+  box-shadow: var(--shadow-card);
+}
+.card-shadow-hover:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 @keyframes shimmer {
@@ -69,7 +90,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--muted) 25%, #eeeef1 37%, var(--muted) 63%);
+  background: linear-gradient(90deg, var(--muted) 25%, #e9e9ec 37%, var(--muted) 63%);
   background-size: 800px 100%;
   animation: shimmer 1.4s ease-in-out infinite;
 }
@@ -97,9 +118,12 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .radar-sweep,
-  .animate-scan,
-  .signal-flash {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-ekg,
+  .signal-flash,
+  .skeleton {
     animation: none;
   }
 }

@@ -12,8 +12,8 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
   return (
     <div
       className={cn(
-        "flex gap-3.5 rounded-2xl border bg-surface p-4 transition-shadow hover:shadow-[0_2px_16px_rgba(0,0,0,0.05)]",
-        flash ? "signal-flash border-primary/40" : "border-border",
+        "card-shadow card-shadow-hover flex gap-3.5 rounded-[1.125rem] border bg-surface p-4 transition-shadow duration-300",
+        flash ? "signal-flash border-primary/40" : "border-black/[0.04]",
       )}
     >
       <span className="relative mt-0.5 h-9 w-9 shrink-0" aria-hidden>
@@ -53,7 +53,7 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
             {signal.summary}
           </p>
         )}
-        <div className="mt-2.5 flex items-center gap-2 text-xs text-subtle">
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-subtle">
           <Badge variant="outline">{humanize(signal.signal_type)}</Badge>
           <span className="font-medium text-muted-foreground">{signal.source}</span>
           {time && (

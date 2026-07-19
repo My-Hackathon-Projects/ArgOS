@@ -67,19 +67,25 @@ import { useListSignals, useGetFounder } from "@/api/generated/default/default";
 ```
 src/
   app/
-    layout.tsx              root layout: fonts, Providers, AppShell
+    layout.tsx              root layout: Providers, NavBar (system font stack, no webfonts)
+    template.tsx            page-entry transition (remounts per navigation)
     providers.tsx           TanStack QueryClientProvider
-    globals.css             design tokens + animations (heartbeat/flash)
+    globals.css             design tokens (Apple-style light theme) + animations
     sourcing/               live signal feed + channels + discovery
     founders/               table + [id] detail
     settings/               thesis (read-only)
-    research/               market-research preview (not wired)
+    research/               market research (wired: opportunity picker + analysis)
   components/
-    app-shell.tsx           sidebar nav
+    shell/                  nav-bar (sticky blurred top nav + mobile menu), heartbeat-badge
     sourcing/               live-header, signal-feed, signal-card, channel-list, discovery-button
-    founders/               founders-table, founder-detail
+    founders/               founders-table, founder-detail, timeline-item, status
+    market/                 market-view + axis-card, figure-card, entity-cards,
+                            gaps-card, opportunity-picker, section, meta
     settings/               thesis-view
-    ui/                      button, card, badge, skeleton, page-header
+    ui/                      button, card, badge, skeleton, page-header, container
   lib/                      utils (cn), format (time/initials), source-style (gradients)
   api/                      axios instance + generated client
 ```
+
+All pages are responsive: the nav collapses to a hamburger sheet below `md`, the founders
+table becomes stacked cards, and figure grids go 4 → 2 → 1 columns.

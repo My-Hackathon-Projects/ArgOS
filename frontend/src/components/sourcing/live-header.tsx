@@ -44,7 +44,7 @@ export function LiveHeader({
   newestIso?: string | null;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-surface px-4 py-2.5">
+    <div className="card-shadow mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[1.125rem] border border-black/[0.04] bg-surface px-4 py-2.5">
       <div className="flex items-center gap-3">
         <span className="relative flex h-2.5 w-2.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />

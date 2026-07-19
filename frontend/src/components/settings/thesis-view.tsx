@@ -21,7 +21,7 @@ function Chips({ items }: { items?: string[] | null }) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-start gap-4 border-b border-border px-6 py-4 last:border-0">
+    <div className="grid grid-cols-1 items-start gap-1.5 border-b border-border px-5 py-4 last:border-0 sm:grid-cols-[140px_1fr] sm:gap-4 sm:px-6">
       <div className="pt-0.5 text-sm font-medium text-muted-foreground">{label}</div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
@@ -47,9 +47,9 @@ export function ThesisView() {
   return (
     <>
       <Card>
-        <div className="border-b border-border px-6 py-4">
+        <div className="border-b border-border px-5 py-4 sm:px-6">
           <div className="text-xs uppercase tracking-wider text-subtle">Active thesis</div>
-          <div className="mt-0.5 font-serif text-xl text-foreground">
+          <div className="mt-0.5 text-xl font-semibold tracking-tight text-foreground">
             {data.name ?? "Default thesis"}
           </div>
         </div>

@@ -47,7 +47,7 @@ export function SignalFeed() {
     return (
       <div className="space-y-2.5">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex gap-3.5 rounded-2xl border border-border bg-surface p-4">
+          <div key={i} className="card-shadow flex gap-3.5 rounded-[1.125rem] border border-black/[0.04] bg-surface p-4">
             <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-3.5 w-1/2" />
@@ -62,7 +62,7 @@ export function SignalFeed() {
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-border bg-surface p-6 text-sm text-muted-foreground">
+      <div className="card-shadow rounded-[1.125rem] border border-black/[0.04] bg-surface p-6 text-sm text-muted-foreground">
         Could not reach the sourcing backend. Is it running on{" "}
         <code className="text-foreground">localhost:8000</code>?
       </div>
@@ -71,7 +71,7 @@ export function SignalFeed() {
 
   if (!data?.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-border-strong bg-surface p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-[1.125rem] border border-dashed border-border-strong bg-surface p-8 text-center text-sm text-muted-foreground">
         No signals yet. Run discovery to start populating the feed.
       </div>
     );

@@ -1,3 +1,4 @@
+import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SignalFeed } from "@/components/sourcing/signal-feed";
@@ -6,7 +7,7 @@ import { DiscoveryButton } from "@/components/sourcing/discovery-button";
 
 export default function SourcingPage() {
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <Container>
       <PageHeader
         eyebrow="Sourcing"
         title="Detect founders before they show up"
@@ -14,16 +15,16 @@ export default function SourcingPage() {
         actions={<DiscoveryButton />}
       />
 
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <section aria-label="Signal feed">
           <SignalFeed />
         </section>
-        <aside className="lg:sticky lg:top-8 lg:self-start">
+        <aside className="lg:sticky lg:top-[4.5rem] lg:self-start">
           <Card className="p-3">
             <ChannelList />
           </Card>
         </aside>
       </div>
-    </div>
+    </Container>
   );
 }
