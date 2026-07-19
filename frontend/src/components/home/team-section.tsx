@@ -17,7 +17,7 @@ const TEAM = [
     role: "Co-Founder",
     email: "alexandre.boving@gmail.com",
     linkedin: "https://www.linkedin.com/in/alexandre-boving-04422a1b6/",
-    photo: null,
+    photo: "/images/alexandre-boving.png",
     bio: "Co-founding engineer building ArgOS's autonomous funnel, from raw public signals through to the investment decision.",
     chips: [],
   },
