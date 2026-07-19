@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BrainCircuit, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ArgosLogo } from "@/components/shell/logo";
 
 const NAV = [
   { href: "/sourcing", label: "Sourcing" },
@@ -33,9 +34,7 @@ export function NavBar() {
           aria-label="ArgOS home"
           onClick={() => setOpen(false)}
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-primary-foreground">
-            <BrainCircuit className="h-4 w-4" />
-          </span>
+          <ArgosLogo className="h-7 w-7" />
           <span className="text-base font-semibold tracking-tight">ArgOS</span>
         </Link>
 

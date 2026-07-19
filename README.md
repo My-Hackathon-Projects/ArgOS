@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/argos-logo.svg" width="96" alt="ArgOS logo" />
+</p>
+
 # ArgOS
 
 ArgOS is an AI-native VC operating system, built for Challenge 02 (The VC Brain, Maschmeyer

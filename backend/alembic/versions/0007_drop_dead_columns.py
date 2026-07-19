@@ -7,9 +7,10 @@ Re-add an embedding tier only when a real kNN path ships with it.
 """
 
 import sqlalchemy as sa
-from alembic import op
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision: str = "0007"
 down_revision: str | None = "0006"

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrainCircuit } from "lucide-react";
+import { ArgosLogo } from "@/components/shell/logo";
 
 const PRODUCT_LINKS = [
   { href: "/sourcing", label: "Sourcing" },
@@ -66,9 +66,7 @@ export function Footer() {
         <div className="flex flex-col justify-between gap-10 md:flex-row">
           <div className="max-w-sm">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-primary-foreground">
-                <BrainCircuit className="h-4 w-4" />
-              </span>
+              <ArgosLogo className="h-7 w-7" />
               <span className="font-display text-base font-semibold tracking-tight">ArgOS</span>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
