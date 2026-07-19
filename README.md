@@ -123,9 +123,11 @@ Verify: <http://localhost:8000/health> returns `{"status":"ok","signals":N}` and
 
 Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs API keys), or
 `curl -X POST http://localhost:8000/discovery/run`. Then generate claims with
-`uv run python -m app.claims.run` and market analyses with `uv run python -m app.market.run`
-(both from `backend/`). Continuous scheduling exists in `backend/app/scheduler.py` but is off
-by default; manual triggers are the supported path.
+`uv run python -m app.claims.run` from `backend/`. For market research,
+`uv run python -m app.market.run` is a no-DB smoke run that writes
+`backend/examples/market_live_output.json`; persist analyses for the UI by calling
+`app.market.service.run_market_analysis(...)` against an opportunity. Continuous scheduling exists in
+`backend/app/scheduler.py` but is off by default; manual triggers are the supported path.
 
 ## API surface
 

@@ -1,7 +1,8 @@
 # VC Brain — Frontend
 
-Next.js 16 (App Router) + TypeScript + Tailwind v4. The UI for the sourcing slice, wired to the
-FastAPI backend at `backend/` (`http://localhost:8000`).
+Next.js 16 (App Router) + TypeScript + Tailwind v4. The UI for VC Brain's home, sourcing,
+founders, thesis, and market research flows, wired to the FastAPI backend at `backend/`
+(`http://localhost:8000`).
 
 For full-stack setup (DB + backend + this app), see the root [`README.md`](../README.md). This file
 covers the frontend only.
@@ -18,7 +19,7 @@ covers the frontend only.
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000  (redirects to /sourcing)
+npm run dev        # http://localhost:3000  (home page)
 ```
 
 Requires the backend running on `:8000`. The API base URL is read from `frontend/.env.local`:
