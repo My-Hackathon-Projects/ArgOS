@@ -22,13 +22,19 @@ class Settings(BaseSettings):
     model_smart: str = "gpt-5.4"
 
     # Discovery caps (Q7 — bounded autonomy, all tunable).
-    queries_per_channel: int = 2
-    max_search_queries: int = 16
-    tavily_max_results: int = 6
-    max_candidates: int = 12
-    max_extracts: int = 60
-    research_rounds: int = 2  # recursive per-founder search rounds
-    max_workers: int = 8  # parallel Tavily / LLM calls
+    queries_per_channel: int = 2  # 13 channels → ~26 queries/run
+    max_search_queries: int = 26
+    tavily_max_results: int = 8
+    max_candidates: int = 18
+    max_extracts: int = 100
+    extract_chunk_size: int = 12  # hits per screening LLM call (chunked + parallel)
+    research_rounds: int = 3  # recursive per-founder search rounds
+    max_workers: int = 12  # parallel Tavily / LLM calls
+
+    # Market-research agent caps (bounded, tunable).
+    market_queries_per_goal: int = 2  # 5 sub-goals -> ~10 queries/run
+    market_max_results: int = 6  # Tavily results per query
+    market_max_hits_per_goal: int = 10  # cap evidence fed to each extractor LLM
 
 
 settings = Settings()

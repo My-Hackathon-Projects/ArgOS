@@ -14,6 +14,7 @@ Future: add OpenAI's native web-search tool as a SECOND source in run_searches (
 import hashlib
 import operator
 import re
+import unicodedata
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
@@ -147,6 +148,11 @@ def _split_name(full: str | None) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _norm(s: str | None) -> str:
+    d = unicodedata.normalize("NFKD", (s or "").lower().strip())
+    return " ".join("".join(c for c in d if not unicodedata.combining(c)).split())
+
+
 # ── ① plan_searches (fast model, structured prompt) ──────────────────────────
 def plan_searches(state: DiscoveryState) -> dict:
     t = state["thesis"]
@@ -240,15 +246,12 @@ def run_searches(state: DiscoveryState) -> dict:
     }
 
 
-# ── ③ extract_candidates (fast model, structured screen) ─────────────────────
-def extract_candidates(state: DiscoveryState) -> dict:
-    hits = state["hits"]
+# ── ③ extract_candidates (fast model, chunked + parallel screen) ─────────────
+def _screen_prompt(hits: list[dict], t: dict, geo: str) -> str:
     joined = "\n\n".join(
         f"[{i}] {h['title']}\n{h['url']}\n{h['content']}" for i, h in enumerate(hits)
     )
-    t = state["thesis"]
-    geo = ", ".join(t.get("geo") or []) or "any"
-    prompt = f"""You are a VC sourcing analyst screening raw search results for founder candidates.
+    return f"""You are a VC sourcing analyst screening raw search results for founder candidates.
 
 ## Investment Thesis
 - Industries: {t["industries"]}
@@ -275,9 +278,32 @@ something aligned with the thesis. Return as many well-supported people as the r
 
 ## Search Results
 {joined}"""
-    cl = _llm(CandidateList).invoke(prompt)
-    cands = [c.model_dump() for c in cl.candidates][: settings.max_candidates]
-    return {"candidates": cands, "trace": [f"extract_candidates -> {len(cands)} candidates"]}
+
+
+def _extract_chunk(hits: list[dict], t: dict, geo: str) -> list:
+    return _llm(CandidateList).invoke(_screen_prompt(hits, t, geo)).candidates
+
+
+def extract_candidates(state: DiscoveryState) -> dict:
+    hits = state["hits"]
+    t = state["thesis"]
+    geo = ", ".join(t.get("geo") or []) or "any"
+    size = settings.extract_chunk_size
+    chunks = [hits[i : i + size] for i in range(0, len(hits), size)] or [[]]
+    with ThreadPoolExecutor(max_workers=settings.max_workers) as ex:
+        results = list(ex.map(lambda c: _extract_chunk(c, t, geo), chunks))
+    # Merge across chunks, dedup by normalized name (same person can surface in two chunks).
+    merged: dict[str, dict] = {}
+    for cand_list in results:
+        for c in cand_list:
+            key = _norm(c.display_name)
+            if key and key not in merged:
+                merged[key] = c.model_dump()
+    cands = list(merged.values())[: settings.max_candidates]
+    return {
+        "candidates": cands,
+        "trace": [f"extract_candidates -> {len(cands)} candidates from {len(chunks)} chunks"],
+    }
 
 
 # ── ④ research_candidates (parallel · recursive · smart-model synthesis) ──────
