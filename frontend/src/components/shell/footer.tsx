@@ -31,10 +31,7 @@ export function Footer() {
             ))}
           </nav>
         </div>
-        <p className="text-xs text-subtle">
-          © {new Date().getFullYear()} VC Brain. Built by Rishabh Tiwari, Alexandre Boving and
-          Florian Sprick. All rights reserved.
-        </p>
+        <p className="text-xs text-subtle">© VC Brain. All rights reserved.</p>
       </div>
     </footer>
   );

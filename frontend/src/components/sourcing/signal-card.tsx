@@ -9,13 +9,8 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
   const time = relativeTime(signal.occurred_at ?? signal.ingested_at);
   const gradient = sourceGradient(signal.source);
 
-  return (
-    <div
-      className={cn(
-        "card-shadow card-shadow-hover flex gap-3.5 rounded-[1.125rem] border bg-surface p-4 transition-shadow duration-300",
-        flash ? "signal-flash border-primary/40" : "border-black/[0.04]",
-      )}
-    >
+  const body = (
+    <>
       <span className="relative mt-0.5 h-9 w-9 shrink-0" aria-hidden>
         {flash && (
           <span
@@ -36,15 +31,7 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
           <div className="flex shrink-0 items-center gap-2">
             {flash && <Badge variant="primary">New</Badge>}
             {signal.url && (
-              <a
-                href={signal.url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-0.5 text-subtle transition-colors hover:text-primary"
-                aria-label="Open source"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              <ExternalLink className="mt-0.5 h-3.5 w-3.5 text-subtle" aria-hidden />
             )}
           </div>
         </div>
@@ -72,6 +59,28 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
           )}
         </div>
       </div>
-    </div>
+    </>
   );
+
+  const cardCls = cn(
+    "card-shadow flex gap-3.5 rounded-[1.125rem] border bg-surface p-4 transition-all duration-300",
+    flash ? "signal-flash border-primary/40" : "border-black/[0.04]",
+  );
+
+  // The whole card opens the source when a URL exists; the arrow is a visual cue.
+  if (signal.url) {
+    return (
+      <a
+        href={signal.url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Open source: ${signal.title ?? humanize(signal.signal_type)}`}
+        className={cn(cardCls, "card-shadow-hover cursor-pointer active:scale-[0.99]")}
+      >
+        {body}
+      </a>
+    );
+  }
+
+  return <div className={cardCls}>{body}</div>;
 }

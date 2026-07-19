@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useListSignals, useListChannels } from "@/api/generated/default/default";
 import { SignalCard } from "./signal-card";
 import { LiveHeader } from "./live-header";
+import { TypeFilter } from "./type-filter";
+import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function SignalFeed() {
   const { data, isLoading, isError } = useListSignals(
-    { limit: 40 },
+    { limit: 100 },
     { query: { refetchInterval: 5000 } },
   );
   const { data: channels } = useListChannels();
+  const [type, setType] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   // Track which signal ids we've already shown so freshly-arrived ones can flash in.
   const seen = useRef<Set<string>>(new Set());
@@ -42,6 +46,18 @@ export function SignalFeed() {
       return () => clearTimeout(timer);
     }
   }, [data]);
+
+  const types = useMemo(
+    () => [...new Set((data ?? []).map((s) => s.signal_type))].sort(),
+    [data],
+  );
+  const filtered = useMemo(
+    () => (type ? (data ?? []).filter((s) => s.signal_type === type) : (data ?? [])),
+    [data, type],
+  );
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   if (isLoading) {
     return (
@@ -81,16 +97,24 @@ export function SignalFeed() {
 
   return (
     <div>
-      <LiveHeader count={data.length} channels={activeChannels} newestIso={data[0]?.ingested_at} />
+      <LiveHeader count={filtered.length} channels={activeChannels} newestIso={data[0]?.ingested_at} />
+      <TypeFilter
+        types={types}
+        selected={type}
+        onSelect={(t) => {
+          setType(t);
+          setPage(1);
+        }}
+      />
       <div className="space-y-2.5">
-        <AnimatePresence initial={false}>
-          {data.map((signal, i) => (
+        <AnimatePresence initial={false} mode="popLayout">
+          {visible.map((signal, i) => (
             <motion.div
               key={signal.id}
               layout
               initial={{ opacity: 0, y: -14, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, height: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.35, delay: Math.min(i * 0.025, 0.3) }}
             >
               <SignalCard signal={signal} flash={flashing.has(signal.id)} />
@@ -98,6 +122,7 @@ export function SignalFeed() {
           ))}
         </AnimatePresence>
       </div>
+      <Pagination page={safePage} pageCount={pageCount} onPageChange={setPage} />
     </div>
   );
 }

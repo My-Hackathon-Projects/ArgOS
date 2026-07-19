@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, AtSign, Briefcase, Code2, GraduationCap, Globe, MapPin } from "lucide-react";
 import { useGetFounder } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials, relativeTime } from "@/lib/format";
 import { statusBadge } from "@/components/founders/status";
@@ -32,6 +34,7 @@ function educationLine(e: EducationEntry): string {
 
 export function FounderDetail({ founderId }: { founderId: string }) {
   const { data: f, isLoading, isError } = useGetFounder(founderId);
+  const [page, setPage] = useState(1);
 
   if (isError) {
     return <Card className="p-6 text-sm text-muted-foreground">Founder not found.</Card>;
@@ -158,9 +161,16 @@ export function FounderDetail({ founderId }: { founderId: string }) {
           <Card className="p-6 text-sm text-muted-foreground">No signals resolved yet.</Card>
         ) : (
           <div>
-            {f.signals.map((sig, i) => (
-              <TimelineItem key={i} s={sig} />
-            ))}
+            {f.signals
+              .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+              .map((sig, i) => (
+                <TimelineItem key={i} s={sig} />
+              ))}
+            <Pagination
+              page={page}
+              pageCount={Math.max(1, Math.ceil(f.signals.length / PAGE_SIZE))}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>

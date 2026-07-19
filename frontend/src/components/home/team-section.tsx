@@ -1,12 +1,47 @@
-import { Mail } from "lucide-react";
+import Image from "next/image";
+import { Mail, User } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { initials } from "@/lib/format";
 
 const TEAM = [
-  { name: "Rishabh Tiwari", email: "rishtiwari98@gmail.com" },
-  { name: "Alexandre Boving", email: "alexandre.boving@gmail.com" },
-  { name: "Florian Sprick", email: "floriansprick@hotmail.com" },
+  {
+    name: "Rishabh Tiwari",
+    email: "rishtiwari98@gmail.com",
+    linkedin: "https://www.linkedin.com/in/icon1c/",
+    photo: "/images/rishabh-tiwari.jpeg",
+  },
+  {
+    name: "Alexandre Boving",
+    email: "alexandre.boving@gmail.com",
+    linkedin: "https://www.linkedin.com/in/alexandre-boving-04422a1b6/",
+    photo: null,
+  },
+  {
+    name: "Florian Sprick",
+    email: "floriansprick@hotmail.com",
+    linkedin: "https://www.linkedin.com/in/florian-sprick/",
+    photo: null,
+  },
 ];
+
+function Avatar({ photo, name }: { photo: string | null; name: string }) {
+  if (photo) {
+    return (
+      <Image
+        src={photo}
+        alt={name}
+        width={128}
+        height={128}
+        className="mx-auto h-16 w-16 rounded-full object-cover ring-1 ring-black/5"
+      />
+    );
+  }
+  // Photo placeholder until the teammate drops their picture into public/images.
+  return (
+    <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted ring-1 ring-black/5">
+      <User className="h-7 w-7 text-subtle" aria-hidden />
+    </span>
+  );
+}
 
 /** About Us: who built VC Brain. Anchored so the footer and hero can link to it. */
 export function TeamSection() {
@@ -16,16 +51,30 @@ export function TeamSection() {
         About us
       </h2>
       <p className="mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-muted-foreground">
-        We are the team behind VC Brain, built for Challenge 02 of the Maschmeyer Group and
-        Hack-Nation hackathon.
+        Three founding engineers from diverse backgrounds, building the brain a modern venture
+        fund runs on.
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {TEAM.map(({ name, email }) => (
-          <Card key={email} className="card-shadow-hover p-5 text-center transition-shadow duration-300">
-            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-              {initials(name)}
-            </span>
-            <div className="mt-3 text-sm font-semibold text-foreground">{name}</div>
+        {TEAM.map(({ name, email, linkedin, photo }) => (
+          <Card
+            key={email}
+            className="card-shadow-hover p-5 text-center transition-shadow duration-300"
+          >
+            <Avatar photo={photo} name={name} />
+            <div className="mt-3 flex items-center justify-center gap-1.5">
+              <span className="text-sm font-semibold text-foreground">{name}</span>
+              <a
+                href={linkedin}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`${name} on LinkedIn`}
+                className="transition-opacity hover:opacity-80"
+              >
+                <span className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-[#0a66c2] text-[9px] font-bold leading-none text-white">
+                  in
+                </span>
+              </a>
+            </div>
             <a
               href={`mailto:${email}`}
               className="mt-1 inline-flex items-center gap-1.5 break-all text-xs text-muted-foreground transition-colors hover:text-primary"
