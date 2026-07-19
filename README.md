@@ -120,7 +120,7 @@ Verify: <http://localhost:8000/health> returns `{"status":"ok","signals":N}` and
 - **Founders**: searchable, sortable, filterable table of every resolved person with their
   Founder Score. The detail view shows identity links, education, corroborated claims with
   per-claim Trust Scores, and the full signal timeline.
-- **Opportunities**: every deal scored on the three-axis screen (founder, market, idea versus
+- **Decisions** (`/opportunities`): every deal scored on the three-axis screen (founder, market, idea versus
   market) with a Run screening button per deal. The detail embeds the market analysis
   (TAM/SAM/SOM and KPI figures with reported versus estimated basis chips, comparables,
   competitors, flagged gaps) and the investment memo, generated on demand.
@@ -148,9 +148,9 @@ Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs A
 | GET | `/sourcing-channels` | monitored channels |
 | GET | `/thesis` | active thesis |
 | GET | `/market/opportunities`, `/market/opportunities/{id}` | market analyses |
-| POST/GET | `/opportunities`, `/opportunities/{id}` | opportunities for the screening loop |
+| POST/GET | `/opportunities`, `/opportunities/{id}` | decision-loop opportunity records |
 | POST | `/opportunities/{id}/screen` | run the three-axis screening |
-| POST/GET | `/opportunities/{id}/memo` | generate / read the investment memo |
+| POST/GET | `/opportunities/{id}/memo` | generate / read the investment memo; GET returns `null` until generated |
 
 Full schema at <http://localhost:8000/docs>.
 
@@ -198,7 +198,7 @@ Postgres must be up and migrated for `pytest`; only `test_contract.py` is DB-fre
 
 ```
 backend/     FastAPI app: sourcing, inbound intake (/apply), claims, market research, opportunities
-frontend/    Next.js app: home, sourcing, founders, thesis, market research
+frontend/    Next.js app: home, sourcing, inbound, founders, thesis, decisions
 docs/        design docs, demo guide, challenge brief
 docker-compose.yml   pgvector Postgres (:5433)
 .env.example         copy to .env at the root

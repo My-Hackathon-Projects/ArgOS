@@ -29,7 +29,7 @@ function Row({ o }: { o: OpportunityListItem }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-foreground">
-                {o.company_name ?? "Unnamed opportunity"}
+                {o.company_name ?? "Unnamed deal"}
               </span>
               <Badge variant="muted">{o.status}</Badge>
             </div>
@@ -74,7 +74,7 @@ export function OpportunitiesList() {
   if (isError) {
     return (
       <Card className="p-6 text-sm text-muted-foreground">
-        Could not load opportunities. Is the backend running on{" "}
+        Could not load decisions. Is the backend running on{" "}
         <code className="text-foreground">localhost:8000</code>?
       </Card>
     );
@@ -99,7 +99,7 @@ export function OpportunitiesList() {
           setPage(1);
         }}
         placeholder="Search company, idea, sector or geo"
-        label="Search opportunities"
+        label="Search decisions"
         className="mb-4"
       />
       <div className="space-y-3">
@@ -109,8 +109,8 @@ export function OpportunitiesList() {
         {rows.length === 0 && (
           <Card className="p-8 text-center text-sm text-muted-foreground">
             {data?.length
-              ? "No opportunities match your search."
-              : "No opportunities yet. Log one on the Inbound page to start the screening loop."}
+              ? "No decisions match your search."
+              : "No decisions yet. Log one on the Inbound page to start the screening loop."}
           </Card>
         )}
       </div>

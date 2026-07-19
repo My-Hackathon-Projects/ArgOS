@@ -13,6 +13,7 @@ export default function SourcingPage() {
         title="Detect founders before they show up"
         subtitle="A live footprint of founders to be: papers, launches, repos and profiles surfacing across the open web, resolved to people."
         actions={<DiscoveryButton />}
+        accent="#0071e3"
       />
 
       <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">

@@ -4,13 +4,14 @@ The ACTIVATE step of the brief's identify -> activate -> converge. LLM-drafts a 
 the founder's corroborated claims + the fund thesis; it is NOT actually sent (mocked). Fast model.
 """
 
-from langchain_openai import ChatOpenAI
+from typing import cast
+
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.models import Claim, Founder
+from app.screening.llm import structured_llm
 from app.sourcing.service import load_thesis
 
 
@@ -63,11 +64,7 @@ Draft a cold email: a specific subject line, a 120-160 word body that references
 and why the fund is a fit, signed off by the fund, plus a one-line rationale (the hook).
 Do NOT invent facts beyond what is given. Keep it human, not salesy.
 </task>"""
-    out = (
-        ChatOpenAI(model=settings.model_fast, api_key=settings.openai_api_key)
-        .with_structured_output(_Draft, method="function_calling")
-        .invoke(prompt)
-    )
+    out = cast(_Draft, structured_llm(_Draft, smart=False).invoke(prompt))
     return {
         "founder_id": str(f.id),
         "to_name": f.display_name,

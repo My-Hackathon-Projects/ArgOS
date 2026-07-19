@@ -11,6 +11,7 @@ export default function InboundPage() {
         title="Applications"
         subtitle="Deals that come to you by email: founders send their pitch deck and company name, the intake agent extracts the details, and every application lands here in the screening loop."
         actions={<ApplyButton />}
+        accent="#d97706"
       />
       <div className="mt-10">
         <InboundView />

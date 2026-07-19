@@ -562,7 +562,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MemoView"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MemoView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Memo"
                 }
               }
             }

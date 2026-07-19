@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from app.config import parse_cors_origins
 from app.connectors.base import Connector, SignalEnvelope
 
 
@@ -37,3 +38,10 @@ def test_connector_poll_maps_fetch_through_normalize():
     envelopes = list(FakeConnector().poll())
     assert [e.external_id for e in envelopes] == ["1", "2"]
     assert all(isinstance(e, SignalEnvelope) for e in envelopes)
+
+
+def test_parse_cors_origins_trims_and_normalizes():
+    assert parse_cors_origins(" http://localhost:3000/ , https://argos.app ,, ") == [
+        "http://localhost:3000",
+        "https://argos.app",
+    ]

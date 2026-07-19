@@ -1365,7 +1365,7 @@ export const getMemo = (
 ) => {
 
 
-      return customInstance<MemoView>(
+      return customInstance<MemoView | null>(
       {url: `/opportunities/${opportunityId}/memo`, method: 'GET', signal
     },
       options);

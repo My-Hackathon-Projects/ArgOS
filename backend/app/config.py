@@ -9,6 +9,12 @@ ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(ROOT_ENV)
 
 
+def parse_cors_origins(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_ENV, extra="ignore")
 
@@ -16,6 +22,9 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     tavily_api_key: str | None = None
+
+    # Comma-separated browser origins allowed to call the API.
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # Models — mini for high-volume (plan/screen), full 5.4 for per-founder synthesis.
     model_fast: str = "gpt-5.4-mini"
@@ -42,6 +51,10 @@ class Settings(BaseSettings):
     market_queries_per_goal: int = 2  # 5 sub-goals -> ~10 queries/run
     market_max_results: int = 6  # Tavily results per query
     market_max_hits_per_goal: int = 10  # cap evidence fed to each extractor LLM
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return parse_cors_origins(self.cors_origins)
 
 
 settings = Settings()

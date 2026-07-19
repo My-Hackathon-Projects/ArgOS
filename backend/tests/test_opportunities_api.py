@@ -125,6 +125,16 @@ def test_get_includes_axes_summary(client):
     assert axes[0]["trend"] == "stable"
 
 
+def test_get_missing_memo_for_existing_opportunity_returns_null(client):
+    c, _ = client
+    r = c.post("/opportunities", json={"idea": "TEST memo pending"})
+    opp_id = r.json()["id"]
+
+    r = c.get(f"/opportunities/{opp_id}/memo")
+    assert r.status_code == 200
+    assert r.json() is None
+
+
 def test_get_unknown_opportunity_404(client):
     c, _ = client
     r = c.get(f"/opportunities/{uuid.uuid4()}")

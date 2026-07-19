@@ -7,8 +7,9 @@ export default function OpportunitiesPage() {
     <Container className="max-w-4xl">
       <PageHeader
         eyebrow="Screening"
-        title="Opportunities"
-        subtitle="Every deal in the screening loop, scored on three axes: founder, market, and idea versus market. Open one for the full diligence detail and memo."
+        title="Decisions"
+        subtitle="Every deal in the decision loop, scored on three axes: founder, market, and idea versus market. Open one for the full diligence detail and memo."
+        accent="#059669"
       />
       <div className="mt-10">
         <OpportunitiesList />

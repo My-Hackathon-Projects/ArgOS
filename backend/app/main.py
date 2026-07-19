@@ -49,9 +49,6 @@ from app.screening.assemble import screen_opportunity
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
 
-# Next.js dev server. Kept explicit (not "*") so credentialed requests stay allowed.
-CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -87,7 +84,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -396,11 +393,13 @@ def create_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dic
     return _memo_dict(generate_memo(db, opportunity_id))
 
 
-@app.get("/opportunities/{opportunity_id}/memo", response_model=MemoView)
-def get_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+@app.get("/opportunities/{opportunity_id}/memo", response_model=MemoView | None)
+def get_memo(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict | None:
+    if db.get(Opportunity, opportunity_id) is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
     row = db.execute(select(Memo).where(Memo.opportunity_id == opportunity_id)).scalars().first()
     if row is None:
-        raise HTTPException(status_code=404, detail="memo not generated yet")
+        return None
     return _memo_dict(row)
 
 

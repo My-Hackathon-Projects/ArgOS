@@ -9,7 +9,7 @@ import type { FounderDetail } from "@/api/generated/model";
 import { Button } from "@/components/ui/button";
 import { Dialog, fieldClass } from "@/components/ui/dialog";
 
-/** The hand-trigger that turns a sourced founder into a pipeline opportunity.
+/** The hand-trigger that turns a sourced founder into a pipeline deal.
  *  Sourcing/claims/scoring run automatically; entering screening is an investor
  *  decision, so this stays a deliberate click. */
 export function PromoteButton({ founder }: { founder: FounderDetail }) {
@@ -32,19 +32,20 @@ export function PromoteButton({ founder }: { founder: FounderDetail }) {
   });
 
   // Mirrors the backend validator: an opportunity needs an idea or a sector to screen against.
-  const canSubmit = (idea.trim() || sector.trim()) && !isPending;
+  const hasScreeningSubject = Boolean(idea.trim() || sector.trim());
+  const canSubmit = hasScreeningSubject && !isPending;
   const errorDetail = (error?.response?.data as { detail?: unknown } | undefined)?.detail;
 
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <ArrowUpRight className="h-3.5 w-3.5" />
-        Promote to opportunity
+        Send to decisions
       </Button>
-      <Dialog open={open} onClose={() => setOpen(false)} title="Promote to opportunity">
+      <Dialog open={open} onClose={() => setOpen(false)} title="Add to decisions">
         <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
-          Moves {founder.display_name ?? "this founder"} into the screening pipeline. The
-          three-axis screen and investment memo stay hand-triggered from the opportunity page.
+          Moves {founder.display_name ?? "this founder"} into the decision loop. The
+          three-axis screen and investment memo stay hand-triggered from the detail page.
         </p>
         <form
           onSubmit={(e) => {
@@ -107,12 +108,12 @@ export function PromoteButton({ founder }: { founder: FounderDetail }) {
             />
           </label>
 
-          {!canSubmit && !isPending && (idea || sector) === "" && (
+          {!hasScreeningSubject && !isPending && (
             <p className="text-xs text-subtle">An idea or a sector is needed to screen against.</p>
           )}
           {error != null && (
             <p className="text-[13px] text-danger">
-              Could not create the opportunity
+              Could not create the decision record
               {typeof errorDetail === "string" ? `: ${errorDetail}` : ""}.
             </p>
           )}

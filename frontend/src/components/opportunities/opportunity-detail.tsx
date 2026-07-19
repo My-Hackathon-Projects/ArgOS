@@ -55,7 +55,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
   });
 
   if (isError) {
-    return <Card className="p-6 text-sm text-muted-foreground">Opportunity not found.</Card>;
+    return <Card className="p-6 text-sm text-muted-foreground">Decision record not found.</Card>;
   }
 
   if (isLoading || !o) {
@@ -80,7 +80,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Opportunities
+        Decisions
       </Link>
 
       {/* Header */}
@@ -89,7 +89,7 @@ export function OpportunityDetail({ opportunityId }: { opportunityId: string }) 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                {o.company_name ?? "Unnamed opportunity"}
+                {o.company_name ?? "Unnamed deal"}
               </h1>
               <Badge variant="muted">{o.status}</Badge>
               {o.decision && <Badge variant="primary">{o.decision}</Badge>}
