@@ -15,6 +15,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      # Mirrors docker-compose.yml: tests run against a real Postgres + pgvector
+      # on host port 5433 (the app's default database_url).
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: vcbrain
+          POSTGRES_PASSWORD: vcbrain
+          POSTGRES_DB: vcbrain
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U vcbrain -d vcbrain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +47,9 @@ jobs:
 
       - name: Format check (ruff)
         run: uv run ruff format --check .
+
+      - name: Migrate DB
+        run: uv run alembic upgrade head
 
       - name: Tests
         run: uv run pytest -q

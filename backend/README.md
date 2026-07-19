@@ -19,6 +19,8 @@ uv run python -m uvicorn app.main:app --reload   # http://localhost:8000
 
 Verify: <http://localhost:8000/health> → `{"status":"ok","signals":0}`
 
+CI (`.github/workflows/backend.yml`, on backend changes): ruff lint + format check, then alembic migrations + pytest against a pgvector service container on :5433 — same setup as local, so `uv run pytest -q` locally predicts CI.
+
 Ingest a test signal:
 
 ```bash
