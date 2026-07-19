@@ -5,9 +5,10 @@ frontend generates its TS types from (openapi.json -> orval). Keep them 1:1 with
 `main.py` returns. Changing a field here changes the FE client -> regenerate.
 """
 
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class HealthResponse(BaseModel):
@@ -164,3 +165,43 @@ class MarketAnalysisResponse(BaseModel):
     kpi: list[MarketFigureItem]
     competitors: list[MarketCompetitorItem]
     comparables: list[MarketComparableItem]
+
+
+# ── Opportunities (manual-dispatch entry for screening/memo) ─────────────────
+class OpportunityCreate(BaseModel):
+    founder_id: uuid.UUID | None = None
+    company_name: str | None = None
+    idea: str | None = None
+    sector: str | None = None
+    geo: str | None = None
+
+    @model_validator(mode="after")
+    def require_screening_subject(self) -> "OpportunityCreate":
+        # An opportunity without an idea or a sector has nothing to screen against.
+        if not ((self.idea or "").strip() or (self.sector or "").strip()):
+            raise ValueError("opportunity needs an idea or a sector")
+        return self
+
+
+class OpportunityAxisSummary(BaseModel):
+    axis: str  # founder|market|idea — independent rows, NEVER averaged
+    score: float | None
+    verdict: str
+    trend: str
+    confidence: float | None
+
+
+class OpportunityListItem(BaseModel):
+    id: str
+    founder_id: str | None
+    company_name: str | None
+    idea: str | None
+    sector: str | None
+    geo: str | None
+    status: str
+    created_at: datetime
+
+
+class OpportunityDetail(OpportunityListItem):
+    decision: str | None
+    axes: list[OpportunityAxisSummary]

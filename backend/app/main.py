@@ -16,6 +16,9 @@ from app.api_schemas import (
     IngestResponse,
     MarketAnalysisResponse,
     MarketOpportunityListItem,
+    OpportunityCreate,
+    OpportunityDetail,
+    OpportunityListItem,
     SignalListItem,
     ThesisResponse,
 )
@@ -23,7 +26,7 @@ from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
 from app.ingest import upsert_signal
 from app.market import read as market_read
-from app.models import Founder, InvestmentThesis, Signal, SourcingChannel
+from app.models import Founder, InvestmentThesis, Opportunity, Signal, SourcingChannel
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
 
@@ -206,6 +209,67 @@ def get_market_analysis(opportunity_id: uuid.UUID, db: Session = Depends(get_db)
     if r is None:
         raise HTTPException(status_code=404, detail="market analysis not found")
     return r
+
+
+# ── Opportunities (manual-dispatch entry for screening/memo) ─────────────────
+_AXIS_ORDER = {"founder": 0, "market": 1, "idea": 2}
+
+
+def _opportunity_dict(opp: Opportunity) -> dict:
+    return {
+        "id": str(opp.id),
+        "founder_id": str(opp.founder_id) if opp.founder_id else None,
+        "company_name": opp.company_name,
+        "idea": opp.idea,
+        "sector": opp.sector,
+        "geo": opp.geo,
+        "status": opp.status,
+        "created_at": opp.created_at,
+        "decision": opp.decision,
+        "axes": [
+            {
+                "axis": a.axis,
+                "score": a.score,
+                "verdict": a.verdict,
+                "trend": a.trend,
+                "confidence": a.confidence,
+            }
+            for a in sorted(opp.axes, key=lambda a: _AXIS_ORDER[a.axis])
+        ],
+    }
+
+
+@app.post("/opportunities", response_model=OpportunityDetail, status_code=201)
+def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -> dict:
+    if body.founder_id is not None and db.get(Founder, body.founder_id) is None:
+        raise HTTPException(status_code=404, detail="founder not found")
+    opp = Opportunity(
+        founder_id=body.founder_id,
+        company_name=body.company_name,
+        idea=(body.idea or "").strip() or None,
+        sector=(body.sector or "").strip() or None,
+        geo=body.geo,
+    )
+    db.add(opp)
+    db.commit()
+    db.refresh(opp)
+    return _opportunity_dict(opp)
+
+
+@app.get("/opportunities", response_model=list[OpportunityListItem])
+def list_opportunities(db: Session = Depends(get_db)) -> list[dict]:
+    rows = (
+        db.execute(select(Opportunity).order_by(Opportunity.created_at.desc())).scalars().all()
+    )
+    return [_opportunity_dict(o) for o in rows]
+
+
+@app.get("/opportunities/{opportunity_id}", response_model=OpportunityDetail)
+def get_opportunity(opportunity_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    opp = db.get(Opportunity, opportunity_id)
+    if opp is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return _opportunity_dict(opp)
 
 
 @app.get("/thesis", response_model=ThesisResponse)
