@@ -1,0 +1,156 @@
+{
+  "run": {
+    "job": "discovery",
+    "run_id": "92b1c35d-992b-431a-9ae6-cbae8b0a01eb",
+    "triggered_by": "manual",
+    "thesis_snapshot": {
+      "industries": [
+        "AI infrastructure",
+        "robotics"
+      ],
+      "geo": [
+        "Europe",
+        "Berlin"
+      ],
+      "stage": [
+        "pre-seed",
+        "seed"
+      ],
+      "keywords": [
+        "LLM infra",
+        "autonomy",
+        "simulation",
+        "edge ML"
+      ],
+      "founder_preferences": {
+        "schools": [
+          "MIT",
+          "ETH Zurich",
+          "TUM"
+        ],
+        "traits": [
+          "technical",
+          "ships open source",
+          "no prior VC backing"
+        ]
+      }
+    },
+    "started_at": "2026-07-19T00:33:00.055708+00:00",
+    "finished_at": "2026-07-19T00:33:27.239686+00:00",
+    "stats": {
+      "queries_run": 4,
+      "raw_hits": 13,
+      "candidates_extracted": 1,
+      "new_founders": 1,
+      "new_signals": 5,
+      "needs_review": 0
+    },
+    "trace": [
+      "plan_searches → 4 queries over 7 seed channels",
+      "run_searches → 13 unique hits",
+      "extract_candidates → 1 candidates",
+      "research_candidates → 1 founders profiled",
+      "finalize → {'queries_run': 4, 'raw_hits': 13, 'candidates_extracted': 1, 'new_founders': 1, 'new_signals': 5, 'needs_review': 0}"
+    ]
+  },
+  "founders": [
+    {
+      "id": "dcbab7a8-3646-44c8-aca1-907458699f56",
+      "status": "candidate",
+      "display_name": "Rogerio Chaves",
+      "first_name": "Rogerio",
+      "last_name": "Chaves",
+      "city": null,
+      "occupation": "Founder",
+      "current_company": "LangWatch",
+      "education": [],
+      "identity": {
+        "github": null,
+        "twitter": null,
+        "linkedin": null,
+        "website": null,
+        "orcid": null
+      },
+      "discovery_confidence": 0.9,
+      "first_discovered_at": "2026-07-19T00:33:27.236982+00:00",
+      "why_relevant": "Founder of LangWatch, and in the cited post he discusses Scenario, an open-source testing library for AI agents that simulates real conversations. That maps directly to the user's keywords around simulation and LLM infrastructure for AI applications.",
+      "signals": [
+        {
+          "source": "news.ycombinator.com",
+          "signal_type": "founder/commentary",
+          "external_id": "https://news.ycombinator.com/item?id=44367750",
+          "canonical_url": "https://news.ycombinator.com/item?id=44367750",
+          "title": "Hacker News discussion mentioning Scenario for AI agent testing",
+          "summary": "Rogério Chaves discusses Scenario, an open-source testing library for AI agents that simulates real conversations, indicating hands-on interest in simulation and LLM/agent infrastructure.",
+          "occurred_at": null,
+          "source_reliability": 0.4,
+          "resolution_confidence": 0.7,
+          "resolution_method": "fuzzy",
+          "sources_seen": [
+            "news.ycombinator.com"
+          ]
+        },
+        {
+          "source": "LinkedIn",
+          "signal_type": "founder/quote",
+          "external_id": "https://www.linkedin.com/posts/wearebrain_building-ai-agents-is-now-going-to-be-as-activity-7472558641372561408-Yn6S",
+          "canonical_url": "https://www.linkedin.com/posts/wearebrain_building-ai-agents-is-now-going-to-be-as-activity-7472558641372561408-Yn6S",
+          "title": "\"Building AI agents is now going to be as easy as using Excel and PowerPoint.\"",
+          "summary": "LinkedIn post quoting Rogério Chaves, co-founder of LangWatch, framing AI agent creation as becoming more accessible and productized.",
+          "occurred_at": null,
+          "source_reliability": 0.4,
+          "resolution_confidence": 0.7,
+          "resolution_method": "fuzzy",
+          "sources_seen": [
+            "LinkedIn"
+          ]
+        },
+        {
+          "source": "LangWatch",
+          "signal_type": "company/about",
+          "external_id": "https://langwatch.webflow.io/about-us",
+          "canonical_url": "https://langwatch.webflow.io/about-us",
+          "title": "About us",
+          "summary": "LangWatch describes itself as a monitoring and analytics platform designed to improve generative AI and LLM solutions; the page lists Rogerio Chaves as part of the team behind the company.",
+          "occurred_at": null,
+          "source_reliability": 0.4,
+          "resolution_confidence": 0.7,
+          "resolution_method": "fuzzy",
+          "sources_seen": [
+            "LangWatch"
+          ]
+        },
+        {
+          "source": "LinkedIn",
+          "signal_type": "open-source/announcement",
+          "external_id": "https://www.linkedin.com/posts/rgrchvs_opensource-agenttesting-llmops-activity-7467470320724000768-coBl",
+          "canonical_url": "https://www.linkedin.com/posts/rgrchvs_opensource-agenttesting-llmops-activity-7467470320724000768-coBl",
+          "title": "#opensource #agenttesting #llmops #aiengineering",
+          "summary": "Rogério Chaves announces LangWatch is fully open source under Apache 2.0 and states that while observability was the first chapter of AI quality, agent testing is the next one.",
+          "occurred_at": null,
+          "source_reliability": 0.4,
+          "resolution_confidence": 0.7,
+          "resolution_method": "fuzzy",
+          "sources_seen": [
+            "LinkedIn"
+          ]
+        },
+        {
+          "source": "YouTube",
+          "signal_type": "talk/technical-demo",
+          "external_id": "https://www.youtube.com/watch?v=6mIRAosg61s",
+          "canonical_url": "https://www.youtube.com/watch?v=6mIRAosg61s",
+          "title": "LLM Frameworks Compared - Rogério Chaves @ AI Tinkerers",
+          "summary": "Rogério Chaves presents a hands-on comparison of AI agent frameworks by coding identical agents across DSPy, LangGraph, Google ADK, and PydanticAI, showing practical expertise in the agent ecosystem.",
+          "occurred_at": null,
+          "source_reliability": 0.4,
+          "resolution_confidence": 0.7,
+          "resolution_method": "fuzzy",
+          "sources_seen": [
+            "YouTube"
+          ]
+        }
+      ]
+    }
+  ]
+}

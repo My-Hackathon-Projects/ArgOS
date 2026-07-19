@@ -1,0 +1,254 @@
+{
+  "_comment": "Example output of ONE discovery run. This is the in-memory delivery object the graph produces at node 7 (persist) — shown here as JSON instead of being written to the DB, so we can eyeball the contract. Data is fictional. Reflects locked decisions Q1-Q10.",
+
+  "run": {
+    "job": "discovery",
+    "run_id": "9f1c2a44-0b3e-4d21-9a77-2b6e5c8f01aa",
+    "triggered_by": "manual",
+    "thesis_id": "11111111-1111-1111-1111-111111111111",
+    "thesis_snapshot": {
+      "industries": ["AI infrastructure", "robotics"],
+      "geo": ["Europe", "Berlin"],
+      "stage": ["pre-seed", "seed"],
+      "keywords": ["LLM infra", "autonomy", "simulation", "edge ML"],
+      "founder_preferences": {
+        "schools": ["MIT", "ETH Zurich", "TUM"],
+        "traits": ["technical", "ships open source", "no prior VC backing"]
+      }
+    },
+    "caps": { "max_candidates": 10, "max_searches": 40, "max_extracts": 50, "max_depth_per_candidate": 3 },
+    "started_at": "2026-07-19T09:12:04Z",
+    "finished_at": "2026-07-19T09:16:38Z",
+    "stats": {
+      "queries_run": 18,
+      "tavily_calls": 22,
+      "api_calls": { "github": 6, "arxiv": 3 },
+      "raw_hits": 74,
+      "frontier_skipped": 19,
+      "candidates_extracted": 5,
+      "new_founders": 2,
+      "enriched_founders": 0,
+      "needs_review": 1,
+      "new_signals": 9,
+      "duplicates_skipped": 6,
+      "tokens": { "fast_model": 41800, "smart_model": 3100 }
+    }
+  },
+
+  "founders": [
+    {
+      "id": "a1a1a1a1-0000-0000-0000-000000000001",
+      "status": "candidate",
+      "display_name": "Lena Vogt",
+      "first_name": "Lena",
+      "last_name": "Vogt",
+      "dob": null,
+      "city": "Zurich",
+      "occupation": "Robotics / ML engineer",
+      "education": [{ "school": "ETH Zurich", "degree": "MSc", "field": "Robotics", "year": 2023 }],
+      "current_company": "AxonSim (early project, no funding disclosed)",
+      "identity": {
+        "github": "lvogt",
+        "twitter": "lena_builds",
+        "linkedin": "https://www.linkedin.com/in/lena-vogt-robotics",
+        "website": "lenavogt.dev",
+        "orcid": "0000-0002-1825-0097",
+        "email": null,
+        "other_socials": {}
+      },
+      "discovery_confidence": 0.86,
+      "first_discovered_at": "2026-07-19T09:13:20Z",
+      "resolution_trace": [
+        "strong-id github:lvogt → no existing founder → continue",
+        "extract_candidates linked github+arxiv+showhn under one persona (LLM, conf 0.88)",
+        "name-block 'Lena Vogt' → no existing founder → NEW founder",
+        "attached 4 signals; corroboration across 3 sources → discovery_confidence 0.86"
+      ],
+      "signals": [
+        {
+          "source": "github",
+          "signal_type": "repo",
+          "external_id": "github:lvogt/axon-sim",
+          "canonical_url": "https://github.com/lvogt/axon-sim",
+          "content_hash": "sha256:3f9a1c...e21",
+          "title": "axon-sim — GPU sim environment for legged robots",
+          "summary": "OSS simulation stack for RL on legged robots; 1.2k stars, active last week.",
+          "occurred_at": "2026-07-10T00:00:00Z",
+          "source_reliability": 0.85,
+          "resolution_confidence": 1.0,
+          "resolution_method": "exact_key",
+          "sources_seen": ["github"],
+          "raw": { "stars": 1204, "language": "Python", "pushed_at": "2026-07-14", "note": "full payload truncated" }
+        },
+        {
+          "source": "arxiv",
+          "signal_type": "paper",
+          "external_id": "arxiv:2506.14233",
+          "canonical_url": "https://arxiv.org/abs/2506.14233",
+          "content_hash": "sha256:8b22d0...a90",
+          "title": "Sample-Efficient Sim-to-Real for Legged Locomotion",
+          "summary": "First-author paper; matches ORCID on file. Technical-depth signal.",
+          "occurred_at": "2026-06-18T00:00:00Z",
+          "source_reliability": 0.9,
+          "resolution_confidence": 1.0,
+          "resolution_method": "exact_key",
+          "sources_seen": ["arxiv"],
+          "raw": { "authors": ["L. Vogt", "M. Keller"], "primary_category": "cs.RO", "note": "truncated" }
+        },
+        {
+          "source": "hn",
+          "signal_type": "launch",
+          "external_id": "https://news.ycombinator.com/item?id=41577120",
+          "canonical_url": "https://news.ycombinator.com/item?id=41577120",
+          "content_hash": "sha256:1c77aa...5de",
+          "title": "Show HN: AxonSim – train legged-robot policies on your laptop",
+          "summary": "Launch post, 210 points. Author handle 'lena_builds' matches twitter identity.",
+          "occurred_at": "2026-07-11T00:00:00Z",
+          "source_reliability": 0.5,
+          "resolution_confidence": 0.9,
+          "resolution_method": "fuzzy",
+          "sources_seen": ["hn", "web"],
+          "raw": { "points": 210, "author": "lena_builds", "note": "found via HN + a Tavily web hit → deduped, both channels recorded" }
+        },
+        {
+          "source": "web",
+          "signal_type": "post",
+          "external_id": "https://www.linkedin.com/posts/lena-vogt-robotics_axonsim-activity-7211",
+          "canonical_url": "https://www.linkedin.com/posts/lena-vogt-robotics_axonsim-activity-7211",
+          "content_hash": "sha256:9de034...b12",
+          "title": "LinkedIn post: reflections on the AxonSim paper + launch",
+          "summary": "Public LinkedIn post ABOUT the paper — distinct artifact, counts as separate corroboration (NOT a dup of the paper).",
+          "occurred_at": "2026-07-12T00:00:00Z",
+          "source_reliability": 0.55,
+          "resolution_confidence": 0.95,
+          "resolution_method": "exact_key",
+          "sources_seen": ["web"],
+          "raw": { "via": "tavily", "linkedin_public": true, "note": "truncated" }
+        }
+      ]
+    },
+
+    {
+      "id": "b2b2b2b2-0000-0000-0000-000000000002",
+      "status": "candidate",
+      "display_name": "Dmitri Sokolov",
+      "first_name": "Dmitri",
+      "last_name": "Sokolov",
+      "dob": null,
+      "city": "Berlin",
+      "occupation": "Founder (pre-company)",
+      "education": [{ "school": "TUM", "degree": "BSc", "field": "Aerospace", "year": 2024 }],
+      "current_company": null,
+      "identity": {
+        "github": null,
+        "twitter": "dsok_builds",
+        "linkedin": "https://www.linkedin.com/in/dmitri-sokolov-berlin",
+        "website": "dmitrisokolov.xyz",
+        "orcid": null,
+        "email": null,
+        "other_socials": {}
+      },
+      "discovery_confidence": 0.58,
+      "first_discovered_at": "2026-07-19T09:14:47Z",
+      "resolution_trace": [
+        "strong-id: no github/orcid; has linkedin + website",
+        "name-block 'Dmitri Sokolov' sim 0.93 → no existing founder → NEW founder",
+        "COLD-START: thin footprint (3 signals, no code/paper) → discovery_confidence 0.58 (limited evidence, NOT negative)"
+      ],
+      "cold_start": true,
+      "signals": [
+        {
+          "source": "web",
+          "signal_type": "profile",
+          "external_id": "https://www.linkedin.com/in/dmitri-sokolov-berlin",
+          "canonical_url": "https://www.linkedin.com/in/dmitri-sokolov-berlin",
+          "content_hash": "sha256:aa10f2...77c",
+          "title": "LinkedIn (public): Dmitri Sokolov — building autonomous drone nav",
+          "summary": "Public profile via search index. TUM aerospace; 'working on something new in autonomy'.",
+          "occurred_at": "2026-07-01T00:00:00Z",
+          "source_reliability": 0.55,
+          "resolution_confidence": 1.0,
+          "resolution_method": "exact_key",
+          "sources_seen": ["web"],
+          "raw": { "via": "tavily", "linkedin_public": true, "note": "truncated" }
+        },
+        {
+          "source": "web",
+          "signal_type": "profile",
+          "external_id": "https://dmitrisokolov.xyz",
+          "canonical_url": "https://dmitrisokolov.xyz",
+          "content_hash": "sha256:04bb91...e33",
+          "title": "Personal site — 'Autonomy for cheap drones'",
+          "summary": "One-pager describing an early idea; no product yet. Strong website-domain identity key.",
+          "occurred_at": "2026-06-28T00:00:00Z",
+          "source_reliability": 0.6,
+          "resolution_confidence": 1.0,
+          "resolution_method": "exact_key",
+          "sources_seen": ["web"],
+          "raw": { "via": "tavily", "note": "truncated" }
+        },
+        {
+          "source": "web",
+          "signal_type": "post",
+          "external_id": "https://x.com/dsok_builds/status/1809",
+          "canonical_url": "https://x.com/dsok_builds/status/1809",
+          "content_hash": "sha256:7719ce...b40",
+          "title": "Tweet: 'quit my job, going full-time on drone autonomy'",
+          "summary": "Intent signal; matches twitter handle on personal site.",
+          "occurred_at": "2026-07-05T00:00:00Z",
+          "source_reliability": 0.5,
+          "resolution_confidence": 0.9,
+          "resolution_method": "fuzzy",
+          "sources_seen": ["web"],
+          "raw": { "via": "tavily", "note": "truncated" }
+        }
+      ]
+    },
+
+    {
+      "id": "c3c3c3c3-0000-0000-0000-000000000003",
+      "status": "needs_review",
+      "display_name": "Alex Chen",
+      "first_name": "Alex",
+      "last_name": "Chen",
+      "dob": null,
+      "city": null,
+      "occupation": "ML researcher (unconfirmed)",
+      "education": [],
+      "current_company": null,
+      "identity": {
+        "github": null,
+        "twitter": null,
+        "linkedin": null,
+        "website": null,
+        "orcid": null,
+        "email": null,
+        "other_socials": {}
+      },
+      "discovery_confidence": 0.34,
+      "first_discovered_at": "2026-07-19T09:15:51Z",
+      "resolution_trace": [
+        "extract_candidates surfaced 'A. Chen' from an arXiv edge-ML paper",
+        "name-block 'Alex Chen' → 2 plausible people, NO strong corroborator (no github/linkedin/site found)",
+        "LLM adjudication: cannot disambiguate with confidence → needs_review (do NOT auto-merge)"
+      ],
+      "signals": [
+        {
+          "source": "arxiv",
+          "signal_type": "paper",
+          "external_id": "arxiv:2504.09981",
+          "canonical_url": "https://arxiv.org/abs/2504.09981",
+          "content_hash": "sha256:5521ad...c08",
+          "title": "Quantized Edge Inference for Micro-Robots",
+          "summary": "On-thesis (edge ML + robotics) but authorship ambiguous — common name, no linking identity found.",
+          "occurred_at": "2026-04-13T00:00:00Z",
+          "source_reliability": 0.9,
+          "resolution_confidence": 0.35,
+          "resolution_method": "llm",
+          "sources_seen": ["arxiv"],
+          "raw": { "authors": ["A. Chen", "R. Gupta"], "primary_category": "cs.RO", "note": "held for human review" }
+        }
+      ]
+    }
+  ]
+}
