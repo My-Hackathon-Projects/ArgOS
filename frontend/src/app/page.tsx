@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, LineChart, Radar, Scale, ShieldCheck } from "lucide-react";
+import { LineChart, Radar, Scale, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
+import { ConvergenceHero } from "@/components/home/convergence-hero";
 import { TeamSection } from "@/components/home/team-section";
 
 const PIPELINE = [
@@ -34,34 +35,8 @@ const PIPELINE = [
 export default function HomePage() {
   return (
     <Container>
-      {/* Hero */}
-      <div className="mx-auto flex max-w-2xl flex-col items-center pt-6 text-center sm:pt-12">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-          VC Brain
-        </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          An operating system for venture sourcing
-        </h1>
-        <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted-foreground sm:text-base">
-          VC Brain watches the open web for founders before they appear in any startup database,
-          then turns noisy signals into scored, evidence backed investment decisions.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/sourcing"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary-hover active:scale-[0.97]"
-          >
-            Open the app
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <a
-            href="#about"
-            className="inline-flex h-11 items-center rounded-full bg-black/[0.05] px-6 text-sm font-medium text-foreground transition-all duration-200 hover:bg-black/[0.08] active:scale-[0.97]"
-          >
-            Meet the team
-          </a>
-        </div>
-      </div>
+      {/* Hero with the signal-convergence intro animation */}
+      <ConvergenceHero />
 
       {/* What we do */}
       <section aria-label="What we do" className="mt-14 sm:mt-20">

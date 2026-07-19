@@ -25,6 +25,13 @@ export function sourceGradient(key: string | null | undefined): string {
   return GRADIENTS[key.toLowerCase()] ?? GRADIENTS.default;
 }
 
+// Flat endpoint colors of the gradients above, for canvas drawing (home hero particles).
+export const SOURCE_COLORS = [
+  "#8b5cf6", "#ec4899", "#f59e0b", "#f97316", "#fb7185", "#38bdf8", "#6366f1",
+  "#0ea5e9", "#2563eb", "#22d3ee", "#3b82f6", "#34d399", "#10b981", "#f472b6",
+  "#a855f7", "#fbbf24", "#fb923c", "#a3e635", "#22c55e",
+];
+
 // Humanize a signal_type like "research_profile" -> "Research profile".
 export function humanize(s: string | null | undefined): string {
   if (!s) return "";
