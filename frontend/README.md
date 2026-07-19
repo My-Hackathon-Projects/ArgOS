@@ -67,25 +67,34 @@ import { useListSignals, useGetFounder } from "@/api/generated/default/default";
 ```
 src/
   app/
-    layout.tsx              root layout: Providers, NavBar (system font stack, no webfonts)
+    layout.tsx              root layout: Providers, NavBar, Footer (system font stack, no webfonts)
     template.tsx            page-entry transition (remounts per navigation)
     providers.tsx           TanStack QueryClientProvider
     globals.css             design tokens (Apple-style light theme) + animations
-    sourcing/               live signal feed + channels + discovery
-    founders/               table + [id] detail
+    page.tsx                home: hero, funnel cards, About Us team section
+    sourcing/               live signal feed + type filters + channels + discovery
+    founders/               searchable/sortable table + [id] detail
     settings/               thesis (read-only)
     research/               market research (wired: opportunity picker + analysis)
   components/
-    shell/                  nav-bar (sticky blurred top nav + mobile menu), heartbeat-badge
-    sourcing/               live-header, signal-feed, signal-card, channel-list, discovery-button
-    founders/               founders-table, founder-detail, timeline-item, status
+    shell/                  nav-bar (sticky blurred top nav + mobile menu), footer, heartbeat-badge
+    home/                   team-section (photos from public/images, LinkedIn links)
+    sourcing/               live-header, signal-feed, signal-card, type-filter, channel-list,
+                            discovery-button
+    founders/               founders-table, founder-toolbar (search + filters), sort,
+                            founder-detail, timeline-item, status
     market/                 market-view + axis-card, figure-card, entity-cards,
                             gaps-card, opportunity-picker, section, meta
     settings/               thesis-view
-    ui/                      button, card, badge, skeleton, page-header, container
+    ui/                      button, card, badge, skeleton, page-header, container,
+                            pagination (PAGE_SIZE = 10), filter-pills
   lib/                      utils (cn), format (time/initials), source-style (gradients)
   api/                      axios instance + generated client
+public/images/              team profile photos (wired in home/team-section.tsx)
 ```
 
 All pages are responsive: the nav collapses to a hamburger sheet below `md`, the founders
-table becomes stacked cards, and figure grids go 4 → 2 → 1 columns.
+table becomes stacked cards, and figure grids go 4 to 2 to 1 columns. Long lists (signal feed,
+founders, founder timelines) paginate client-side at 10 per page. The founders table header and
+rows share one fixed-width grid template (`GRID` in `founders-table.tsx`); keep them identical or
+the headings drift off the columns.
