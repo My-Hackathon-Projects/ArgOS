@@ -1,0 +1,350 @@
+{
+  "run": {
+    "job": "market",
+    "run_id": "b1dd924b-8add-463c-9e4b-6f67d8c595e1",
+    "opportunity": {
+      "founder_id": null,
+      "company_name": "Nimbus Edge",
+      "idea": "On-device LLM inference runtime that cuts GPU cost for robotics autonomy stacks",
+      "sector": "AI infrastructure / edge ML",
+      "geo": "Germany"
+    },
+    "started_at": "2026-07-19T02:34:27.093975+00:00",
+    "finished_at": "2026-07-19T02:35:00.360998+00:00",
+    "stats": {
+      "queries_run": 10,
+      "hits": 50,
+      "sizing_figures": 4,
+      "competitors": 6,
+      "comparables": 5,
+      "kpi_benchmarks": 6
+    },
+    "trace": [
+      "plan_research -> 10 queries across sub-goals",
+      "run_searches -> 50 unique hits across 5 sub-goals",
+      "extract -> 10 figures, 6 competitors, 5 comparables",
+      "synthesize -> market axis neutral score=62.0 trend=improving",
+      "finalize -> {'queries_run': 10, 'hits': 50, 'sizing_figures': 4, 'competitors': 6, 'comparables': 5, 'kpi_benchmarks': 6}"
+    ]
+  },
+  "analysis": {
+    "sizing": {
+      "figures": [
+        {
+          "metric": "TAM",
+          "value": "USD 7.63B",
+          "unit": "USD",
+          "basis": "reported",
+          "assumptions": [],
+          "citation_indices": [
+            3
+          ],
+          "confidence": 0.92,
+          "note": "Used Europe edge AI market as the closest defensible total addressable market for an edge LLM inference runtime serving robotics autonomy stacks in Germany; Germany-specific market size was not reported in the evidence."
+        },
+        {
+          "metric": "SAM",
+          "value": "USD 3.61B",
+          "unit": "USD",
+          "basis": "estimated_bottom_up",
+          "assumptions": [
+            "Europe edge AI market was USD 7.63B in 2025 (hit 3).",
+            "Hardware accounted for 47.3% of the Europe edge AI market in 2024 (hit 3); used as proxy for the portion most directly addressable by an inference runtime that reduces hardware/GPU cost.",
+            "SAM estimated as 7.63B x 47.3% = 3.61B."
+          ],
+          "citation_indices": [
+            3
+          ],
+          "confidence": 0.56,
+          "note": "Approximation for the portion of the edge AI market most relevant to software that improves on-device inference economics."
+        },
+        {
+          "metric": "SOM",
+          "value": "USD 11.0M",
+          "unit": "USD",
+          "basis": "estimated_bottom_up",
+          "assumptions": [
+            "Germany AI in Industrial Robotics Analytics Market is valued at USD 1.1B (hit 18).",
+            "Applied a 1.0% near-term share as a conservative proxy for achievable penetration by a specialist runtime in the German robotics segment.",
+            "SOM estimated as 1.1B x 1.0% = 11.0M."
+          ],
+          "citation_indices": [
+            18
+          ],
+          "confidence": 0.29,
+          "note": "Very early-stage penetrable share estimate; no direct SOM was reported in the evidence."
+        },
+        {
+          "metric": "CAGR",
+          "value": "20.76%",
+          "unit": "%",
+          "basis": "reported",
+          "assumptions": [],
+          "citation_indices": [
+            3
+          ],
+          "confidence": 0.9,
+          "note": "Europe edge AI market CAGR from 2026 to 2034, used as the nearest reported growth rate for the opportunity context."
+        }
+      ],
+      "market_maturity": "growing",
+      "summary": "The evidence does not provide a direct Germany-specific market size for on-device LLM inference runtimes. The most defensible anchor is the Europe edge AI market at USD 7.63B in 2025 with 20.76% CAGR. For a robotics-autonomy-focused runtime, the addressable wedge is narrower; using the hardware-heavy segment as a proxy yields a SAM of about USD 3.61B. A conservative early SOM proxy using Germany’s industrial robotics analytics market implies roughly USD 11.0M near-term. Overall, this is a growing market with strong underlying demand from industrial automation, robotics, and edge inference."
+    },
+    "competition": {
+      "competitors": [
+        {
+          "name": "NVIDIA TensorRT Edge-LLM",
+          "cluster": "incumbent",
+          "positioning": "High-performance C++ edge inference runtime for LLMs/VLMs on Jetson and DRIVE, optimized for embedded autonomous and robotics workloads.",
+          "is_emerging_threat": true,
+          "citation_indices": [
+            0
+          ]
+        },
+        {
+          "name": "OpenVINO",
+          "cluster": "adjacent",
+          "positioning": "General-purpose inference toolkit/runtime used for CPU and edge deployment; relevant as a competing optimization path for on-device inference.",
+          "is_emerging_threat": false,
+          "citation_indices": [
+            6
+          ]
+        },
+        {
+          "name": "ONNX Runtime",
+          "cluster": "adjacent",
+          "positioning": "Model interchange and inference runtime used as a deployment baseline across CPU/GPU edge stacks.",
+          "is_emerging_threat": false,
+          "citation_indices": [
+            6
+          ]
+        },
+        {
+          "name": "TensorRT",
+          "cluster": "incumbent",
+          "positioning": "Established NVIDIA inference optimization/runtime suite that competes directly on GPU efficiency and deployment performance.",
+          "is_emerging_threat": true,
+          "citation_indices": [
+            6,
+            7
+          ]
+        },
+        {
+          "name": "PyTorch Inference",
+          "cluster": "adjacent",
+          "positioning": "Native framework inference path that can substitute for a specialized runtime in early-stage or less-optimized deployments.",
+          "is_emerging_threat": false,
+          "citation_indices": [
+            6
+          ]
+        },
+        {
+          "name": "Qualcomm Technologies",
+          "cluster": "incumbent",
+          "positioning": "Edge AI silicon/platform incumbent positioned to capture the shift from cloud training to on-device inference across devices.",
+          "is_emerging_threat": true,
+          "citation_indices": [
+            4
+          ]
+        }
+      ],
+      "concentration": "moderate",
+      "summary": "Evidence is thin and points mostly to platform incumbents and adjacent runtimes rather than a dense startup field. The clearest direct competitive pressure is NVIDIA’s edge inference stack; the rest are broader runtime/deployment alternatives or edge platform incumbents."
+    },
+    "comparables": {
+      "comparables": [
+        {
+          "name": "Stanhope AI",
+          "one_liner": "Adaptive AI for autonomous systems operating in the physical world, with applications in robotics and defence.",
+          "stage": "Seed",
+          "round_size": "€6.7M",
+          "valuation": null,
+          "investors": [],
+          "date": "2026-02",
+          "similarity_rationale": "Directly relevant because it is an early-stage AI startup building intelligence for autonomous physical systems. While not specifically an on-device inference runtime, it benchmarks demand for seed-stage capital around AI for robotics/autonomy stacks in Europe.",
+          "citation_indices": [
+            2
+          ],
+          "confidence": 0.87
+        },
+        {
+          "name": "Microagi",
+          "one_liner": "Robotics company collecting factory and household data to train next-generation humanoid robots.",
+          "stage": "Seed",
+          "round_size": "$55M",
+          "valuation": null,
+          "investors": [],
+          "date": "2026-07",
+          "similarity_rationale": "Highly relevant as a Germany-based robotics autonomy startup serving the same broader robotics stack. The round is larger than Nimbus Edge would likely raise, but it is a strong benchmark for investor appetite in German robotics AI infrastructure adjacent to autonomy.",
+          "citation_indices": [
+            7
+          ],
+          "confidence": 0.66
+        },
+        {
+          "name": "Sensmore",
+          "one_liner": "Embodied physical AI and VLAM for heavy machinery in mining, construction, and adjacent industries.",
+          "stage": null,
+          "round_size": null,
+          "valuation": null,
+          "investors": [],
+          "date": null,
+          "similarity_rationale": "Comparable because it sits at the intersection of embodied AI, robotics autonomy, and edge deployment in real-world industrial settings. Funding is not disclosed in the evidence, but the company is clearly in the same problem space and geography-adjacent European robotics ecosystem.",
+          "citation_indices": [
+            8
+          ],
+          "confidence": 0.58
+        },
+        {
+          "name": "Micropsi Industries",
+          "one_liner": "Machine learning solutions for robotics and process control.",
+          "stage": null,
+          "round_size": null,
+          "valuation": null,
+          "investors": [],
+          "date": null,
+          "similarity_rationale": "Relevant as a robotics software company focused on ML for robot control. It is not an inference-runtime business, but it is a close functional analogue for software that improves robotics autonomy performance and cost.",
+          "citation_indices": [
+            8
+          ],
+          "confidence": 0.54
+        },
+        {
+          "name": "WAKU Platform",
+          "one_liner": "Software platform for managing, controlling, and analyzing mobile robots (AGV and AMR).",
+          "stage": null,
+          "round_size": null,
+          "valuation": null,
+          "investors": [],
+          "date": null,
+          "similarity_rationale": "Useful adjacent comp for the robotics software stack, especially where software sits close to fleet operations and control. It is less similar on the core technical problem than inference/runtime startups, but still relevant for early robotics software benchmarking.",
+          "citation_indices": [
+            8
+          ],
+          "confidence": 0.42
+        }
+      ],
+      "summary": "Best benchmarks for Nimbus Edge are early-stage robotics/autonomy AI companies in Europe, especially Stanhope AI and Microagi. The rest are adjacent robotics software/embodied AI comparables with weaker directness but helpful for contextualizing capital appetite in the space."
+    },
+    "kpi": {
+      "benchmarks": [
+        {
+          "metric": "CAC",
+          "value": null,
+          "unit": null,
+          "basis": "gap",
+          "assumptions": [],
+          "citation_indices": [],
+          "confidence": 0.0,
+          "note": "No cited CAC benchmark in the provided evidence."
+        },
+        {
+          "metric": "CPC",
+          "value": null,
+          "unit": null,
+          "basis": "gap",
+          "assumptions": [],
+          "citation_indices": [],
+          "confidence": 0.0,
+          "note": "No cited CPC benchmark in the provided evidence."
+        },
+        {
+          "metric": "LTV",
+          "value": null,
+          "unit": null,
+          "basis": "gap",
+          "assumptions": [],
+          "citation_indices": [],
+          "confidence": 0.0,
+          "note": "No cited LTV benchmark in the provided evidence."
+        },
+        {
+          "metric": "gross_margin",
+          "value": "40–60%",
+          "unit": "%",
+          "basis": "reported",
+          "assumptions": [],
+          "citation_indices": [
+            2
+          ],
+          "confidence": 0.86,
+          "note": "Source states AI startups often operate at 40–60% gross margin due to variable compute, API, and inference costs."
+        },
+        {
+          "metric": "ACV",
+          "value": "$50K–$150K",
+          "unit": "USD",
+          "basis": "reported",
+          "assumptions": [],
+          "citation_indices": [
+            9
+          ],
+          "confidence": 0.84,
+          "note": "Source states Infrastructure/DevOps median ACV ranges from $50K–$150K; used as closest representative band for AI infrastructure / edge ML."
+        },
+        {
+          "metric": "seed_round_size",
+          "value": "$2M–$4M",
+          "unit": "USD",
+          "basis": "gap",
+          "assumptions": [],
+          "citation_indices": [],
+          "confidence": 0.0,
+          "note": "No cited seed-round-size benchmark in the provided evidence."
+        }
+      ],
+      "summary": "Extracted the single most representative cited band where available; flagged gaps for uncited CAC, CPC, LTV, and seed_round_size. For gross_margin, used the AI-startup benchmark from the evidence. For ACV, used the Infrastructure/DevOps benchmark as the closest cited proxy for AI infrastructure / edge ML."
+    },
+    "synthesis": {
+      "hypotheses": [
+        {
+          "statement": "Europe edge AI is already large (USD 7.63B in 2025) and growing quickly (20.76% CAGR), creating a credible macro tailwind for on-device inference infrastructure in robotics autonomy stacks.",
+          "kind": "bull"
+        },
+        {
+          "statement": "Nimbus Edge sits inside the fund thesis overlap of AI infrastructure, robotics, machine learning, and Germany geography, so even a niche but real market can be attractive if it becomes a key cost-saving layer for autonomy deployments.",
+          "kind": "bull"
+        },
+        {
+          "statement": "Industrial automation and robotics demand provide a plausible Germany-specific wedge, with Germany AI in industrial robotics analytics at USD 1.1B supporting a near-term beachhead for an edge runtime product.",
+          "kind": "bull"
+        },
+        {
+          "statement": "The market may be narrower and harder than it looks because the direct wedge for an on-device LLM runtime in robotics is not actually measured; SAM and SOM are heavily estimated and incumbents like NVIDIA TensorRT Edge-LLM may absorb much of the value.",
+          "kind": "bear"
+        }
+      ],
+      "opportunities": [
+        "Strong growth in Europe edge AI (USD 7.63B, 20.76% CAGR) suggests rising demand for local inference and cost/performance optimization.",
+        "Robotics/autonomy workloads are compute-constrained and latency-sensitive, making GPU-cost reduction a meaningful value proposition if product claims hold.",
+        "Germany offers a relevant industrial robotics base, giving a credible early go-to-market wedge within the fund’s geography focus.",
+        "Competition evidence suggests the field is defined more by platform incumbents and adjacent runtimes than by a dense startup swarm, leaving room for a specialized layer if differentiation is real."
+      ],
+      "threats": [
+        "NVIDIA TensorRT / Edge-LLM is the clearest direct competitive threat and could bundle optimization into the default hardware/software stack.",
+        "OpenVINO, ONNX Runtime, PyTorch inference, and Qualcomm provide adjacent optimization/deployment paths that can compress willingness to pay for a standalone runtime.",
+        "Market sizing is indirect: no Germany-specific TAM for on-device LLM inference runtimes, and the SAM uses hardware share as a proxy, which may overstate true software addressability.",
+        "Near-term SOM is very small and low-confidence (USD 11.0M estimated), raising the risk that the immediate market is too niche at seed stage.",
+        "No evidence provided on CAC, LTV, CPC, or robust seed round benchmarks, limiting confidence in how efficiently this market can be captured."
+      ],
+      "why_now": "Timing looks reasonably favorable but not fully proven. The strongest why-now evidence is the Europe edge AI market reaching USD 7.63B in 2025 and growing at 20.76% CAGR, alongside rising demand from industrial automation, robotics, and edge inference noted in the sizing summary. That said, the specific wedge for on-device LLM inference in robotics autonomy is still inferred rather than directly measured, so the timing case is stronger at the broad edge-AI level than at the precise runtime category level.",
+      "axis": {
+        "verdict": "neutral",
+        "score": 62.0,
+        "trend": "improving",
+        "rationale": "Relative to this fund’s thesis, the market is directionally attractive because the opportunity sits squarely at the intersection of AI infrastructure, robotics, machine learning, and Germany. The key support comes from the sizing findings: Europe edge AI is USD 7.63B in 2025 with a 20.76% CAGR, and the overall market maturity is marked as growing. There is also a plausible Germany beachhead via the USD 1.1B AI in industrial robotics analytics market used to frame SOM. However, conviction should be capped because the direct category is not measured. The reported TAM is only a nearest-proxy Europe edge AI figure, the USD 3.61B SAM is an estimated proxy using hardware mix, and the USD 11.0M SOM is a very low-confidence bottom-up estimate. Competition findings also matter: the field is not crowded with startups, but strong platform incumbents—especially NVIDIA TensorRT Edge-LLM / TensorRT, plus OpenVINO, ONNX Runtime, PyTorch inference, and Qualcomm—can commoditize optimization and capture distribution. On balance, this is a warm but not hot market for the fund: good thesis fit and improving macro tailwinds, offset by narrowness, incumbent pressure, and thin category-specific evidence.",
+        "confidence": 0.58
+      },
+      "gaps": [
+        "No Germany-specific TAM reported for on-device LLM inference runtimes or the target category.",
+        "SAM (USD 3.61B) is unverified and estimated using hardware share of the Europe edge AI market as a proxy.",
+        "SOM (USD 11.0M) is unverified and low-confidence, based on applying a 1.0% share to Germany AI in industrial robotics analytics.",
+        "No cited CAC benchmark in the evidence.",
+        "No cited CPC benchmark in the evidence.",
+        "No cited LTV benchmark in the evidence.",
+        "Seed round size benchmark was gap-flagged / uncited in the evidence.",
+        "Comparable funding set is only partially direct to inference-runtime businesses; several comps are adjacent rather than true category matches."
+      ]
+    }
+  }
+}
