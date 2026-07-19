@@ -277,7 +277,7 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
 
 @app.get("/founders/{founder_id}/trace", response_model=list[TraceStepItem])
 def get_founder_trace(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> list[dict]:
-    """Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence."""
+    """Step-level reasoning trace (stretch #1): each agent's work for this founder + evidence."""
     if db.get(Founder, founder_id) is None:
         raise HTTPException(status_code=404, detail="founder not found")
     steps = db.execute(

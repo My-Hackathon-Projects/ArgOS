@@ -13,6 +13,8 @@ import { GapsCard } from "@/components/market/gaps-card";
 import { Section } from "@/components/market/section";
 
 type Hypothesis = { statement: string; evidence_claim_ids?: string[] };
+type TractionItem = { metric: string; value: string; evidence_claim_ids?: string[] };
+type TractionKpis = { items?: TractionItem[]; note?: string | null };
 
 function SourceLinks({ urls }: { urls: string[] }) {
   if (urls.length === 0) return null;
@@ -90,6 +92,9 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
   const s = (m.sections ?? {}) as Record<string, unknown>;
   const hyps = Array.isArray(s.hypotheses) ? (s.hypotheses as Hypothesis[]) : [];
   const swot = (s.swot ?? {}) as Record<string, string[]>;
+  const traction = (s.traction_kpis ?? {}) as TractionKpis;
+  const tractionItems = traction.items ?? [];
+  const unavailable = Array.isArray(s.unavailable) ? (s.unavailable as string[]) : [];
   const q = (m.quality ?? {}) as Record<string, unknown>;
   const provUrls = Array.isArray(q.provenance_urls) ? (q.provenance_urls as string[]) : [];
 
@@ -137,6 +142,17 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
             </div>
           )}
 
+          {typeof s.problem_product === "string" && s.problem_product && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                Problem &amp; product
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+                {s.problem_product}
+              </p>
+            </div>
+          )}
+
           {hyps.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
               <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
@@ -150,6 +166,46 @@ export function MemoSection({ opportunityId }: { opportunityId: string }) {
                     <span className="ml-1 text-[11px] text-subtle">
                       [{h.evidence_claim_ids?.length ?? 0} cited]
                     </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {(tractionItems.length > 0 || traction.note) && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                Traction &amp; KPIs
+              </div>
+              {tractionItems.length > 0 ? (
+                <ul className="mt-2 space-y-1.5">
+                  {tractionItems.map((t, i) => (
+                    <li key={i} className="text-sm leading-relaxed text-foreground">
+                      <span className="font-medium">{t.metric}:</span> {t.value}
+                      <span className="ml-1 text-[11px] text-subtle">
+                        [{t.evidence_claim_ids?.length ?? 0} cited]
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                // Honest empty state — an evidenced "nothing yet" beats an invented KPI.
+                <p className="mt-1.5 text-[13px] italic leading-relaxed text-muted-foreground">
+                  {traction.note}
+                </p>
+              )}
+            </div>
+          )}
+
+          {unavailable.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                Not available at this stage
+              </div>
+              <ul className="mt-1.5 space-y-0.5">
+                {unavailable.map((u, i) => (
+                  <li key={i} className="text-[13px] italic leading-relaxed text-muted-foreground">
+                    {u}
                   </li>
                 ))}
               </ul>
