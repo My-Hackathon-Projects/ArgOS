@@ -8,7 +8,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Configuration"
         title="Investment thesis"
-        subtitle="The lens that drives discovery — sectors, stage, geography, and the founder traits worth chasing."
+        subtitle="The lens that drives discovery: sectors, stage, geography, and the founder traits worth chasing."
       />
       <div className="mt-10">
         <ThesisView />

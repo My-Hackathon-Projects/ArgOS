@@ -8,7 +8,7 @@ export default function ResearchPage() {
       <PageHeader
         eyebrow="Agent"
         title="Market research"
-        subtitle="TAM/SAM/SOM, competition, comparable rounds and KPI benchmarks — web-researched, cited, and gap-flagged. Feeds the Market axis + memo."
+        subtitle="TAM, SAM and SOM, competition, comparable rounds and KPI benchmarks: web researched, cited, and gap flagged. Feeds the Market axis and memo."
       />
       <div className="mt-10">
         <MarketView />

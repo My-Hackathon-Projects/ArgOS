@@ -36,7 +36,7 @@ export function humanize(s: string | null | undefined): string {
 export function splitChannelName(name: string): { title: string; subtitle: string } {
   const parts = name.split(/\s+[—–-]\s+/);
   if (parts.length > 1) {
-    return { title: parts[0].trim(), subtitle: parts.slice(1).join(" — ").trim() };
+    return { title: parts[0].trim(), subtitle: parts.slice(1).join(" · ").trim() };
   }
   return { title: name, subtitle: "" };
 }

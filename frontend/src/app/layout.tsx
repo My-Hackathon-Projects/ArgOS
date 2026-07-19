@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Footer } from "@/components/shell/footer";
 import { NavBar } from "@/components/shell/nav-bar";
 
 export const metadata: Metadata = {
-  title: "VC Brain — Sourcing",
+  title: "VC Brain",
   description: "Detect founders before they show up in any startup database.",
 };
 
@@ -21,8 +22,11 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
         <Providers>
-          <NavBar />
-          <main className="pb-20">{children}</main>
+          <div className="flex min-h-screen flex-col">
+            <NavBar />
+            <main className="flex-1 pb-20">{children}</main>
+            <Footer />
+          </div>
         </Providers>
       </body>
     </html>

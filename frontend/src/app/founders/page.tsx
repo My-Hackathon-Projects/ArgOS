@@ -8,7 +8,7 @@ export default function FoundersPage() {
       <PageHeader
         eyebrow="Founders"
         title="Discovered people"
-        subtitle="Every person resolved from the signal feed. The Founder Score follows the person — across whatever they build next."
+        subtitle="Every person resolved from the signal feed. The Founder Score follows the person, across whatever they build next."
       />
       <div className="mt-10">
         <FoundersTable />

@@ -56,6 +56,14 @@ export function SignalCard({ signal, flash }: { signal: SignalListItem; flash?: 
         <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-subtle">
           <Badge variant="outline">{humanize(signal.signal_type)}</Badge>
           <span className="font-medium text-muted-foreground">{signal.source}</span>
+          {signal.source_reliability != null && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="tabular-nums">
+                reliability {Math.round(signal.source_reliability * 100)}%
+              </span>
+            </>
+          )}
           {time && (
             <>
               <span aria-hidden>·</span>

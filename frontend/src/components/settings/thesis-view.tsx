@@ -73,7 +73,7 @@ export function ThesisView() {
       </Card>
 
       <p className="mt-3 px-1 text-xs text-subtle">
-        Read-only for now — the thesis is synced from code and drives discovery. An editable form
+        Read-only for now. The thesis is synced from code and drives discovery. An editable form
         writes back once the <code className="text-muted-foreground">PUT /thesis</code> endpoint
         lands.
       </p>

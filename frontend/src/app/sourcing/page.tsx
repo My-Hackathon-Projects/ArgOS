@@ -11,7 +11,7 @@ export default function SourcingPage() {
       <PageHeader
         eyebrow="Sourcing"
         title="Detect founders before they show up"
-        subtitle="A live footprint of founders-to-be — papers, launches, repos and profiles surfacing across the open web, resolved to people."
+        subtitle="A live footprint of founders to be: papers, launches, repos and profiles surfacing across the open web, resolved to people."
         actions={<DiscoveryButton />}
       />
 

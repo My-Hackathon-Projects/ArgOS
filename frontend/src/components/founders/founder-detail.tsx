@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, AtSign, Briefcase, Code2, Globe, MapPin } from "lucide-react";
+import { ArrowLeft, AtSign, Briefcase, Code2, GraduationCap, Globe, MapPin } from "lucide-react";
 import { useGetFounder } from "@/api/generated/default/default";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { initials } from "@/lib/format";
+import { initials, relativeTime } from "@/lib/format";
 import { statusBadge } from "@/components/founders/status";
 import { TimelineItem } from "@/components/founders/timeline-item";
 
@@ -20,6 +20,15 @@ function identityHref(kind: string, val: string): string {
 }
 
 const IDENTITY_ICONS = { github: Code2, twitter: AtSign, linkedin: Briefcase, website: Globe };
+
+type EducationEntry = { school?: unknown; degree?: unknown; field?: unknown; year?: unknown };
+
+function educationLine(e: EducationEntry): string {
+  const parts = [e.degree, e.field, e.school, e.year].filter(
+    (v): v is string | number => typeof v === "string" || typeof v === "number",
+  );
+  return parts.join(", ");
+}
 
 export function FounderDetail({ founderId }: { founderId: string }) {
   const { data: f, isLoading, isError } = useGetFounder(founderId);
@@ -83,6 +92,23 @@ export function FounderDetail({ founderId }: { founderId: string }) {
                 </>
               )}
             </div>
+            {Array.isArray(f.education) && f.education.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {(f.education as EducationEntry[]).map((e, i) => {
+                  const line = educationLine(e);
+                  if (!line) return null;
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-start gap-1.5 text-xs text-muted-foreground"
+                    >
+                      <GraduationCap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-subtle" />
+                      {line}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {links.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {links.map(({ kind, val }) => {
@@ -113,6 +139,14 @@ export function FounderDetail({ founderId }: { founderId: string }) {
             </div>
           )}
         </div>
+        {(f.first_discovered_at || f.last_checked_at) && (
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-subtle">
+            {f.first_discovered_at && (
+              <span>discovered {relativeTime(f.first_discovered_at)}</span>
+            )}
+            {f.last_checked_at && <span>last checked {relativeTime(f.last_checked_at)}</span>}
+          </div>
+        )}
       </Card>
 
       <div>

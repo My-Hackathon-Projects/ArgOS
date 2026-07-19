@@ -51,6 +51,14 @@ export function ChannelList() {
                   <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
                 )}
               </div>
+              {c.yield_count > 0 && (
+                <span
+                  className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+                  title="signals yielded"
+                >
+                  {c.yield_count}
+                </span>
+              )}
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.enabled ? "bg-emerald-500" : "bg-zinc-300"}`}
                 title={c.enabled ? "active" : "paused"}
