@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import {
   getGetThesisQueryKey,
   useGetThesis,
@@ -12,16 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const splitList = (s: string): string[] =>
-  s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-const joinList = (a?: string[] | null): string => (a ?? []).join(", ");
-
-function prefList(prefs: Record<string, unknown> | null, key: string): string {
+function prefArr(prefs: Record<string, unknown> | null, key: string): string[] {
   const v = prefs?.[key];
-  return Array.isArray(v) ? (v as unknown[]).filter((x) => typeof x === "string").join(", ") : "";
+  return Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string") : [];
 }
 
 const INPUT =
@@ -47,14 +40,90 @@ function Field({
   );
 }
 
+/** Chip/tag multiselect: values render as removable chips; type + Enter/comma to add. */
+function TagInput({
+  values,
+  onChange,
+  placeholder,
+  suggestions,
+}: {
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+  suggestions?: string[];
+}) {
+  const [draft, setDraft] = useState("");
+  const add = (raw: string) => {
+    const t = raw.trim();
+    if (t && !values.some((v) => v.toLowerCase() === t.toLowerCase())) onChange([...values, t]);
+    setDraft("");
+  };
+  const remove = (v: string) => onChange(values.filter((x) => x !== v));
+  const openSuggestions = (suggestions ?? []).filter(
+    (s) => !values.some((v) => v.toLowerCase() === s.toLowerCase()),
+  );
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30">
+        {values.map((v) => (
+          <span
+            key={v}
+            className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pl-2.5 pr-1 text-xs font-medium text-primary"
+          >
+            {v}
+            <button
+              type="button"
+              onClick={() => remove(v)}
+              className="rounded-full p-0.5 text-primary/60 transition-colors hover:bg-primary/10 hover:text-primary"
+              aria-label={`Remove ${v}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm text-foreground placeholder:text-subtle focus:outline-none"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              add(draft);
+            } else if (e.key === "Backspace" && !draft && values.length) {
+              remove(values[values.length - 1]);
+            }
+          }}
+          onBlur={() => draft && add(draft)}
+          placeholder={values.length ? "" : placeholder}
+        />
+      </div>
+      {openSuggestions.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {openSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => add(s)}
+              className="rounded-full border border-border-strong px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type FormState = {
   name: string;
-  industries: string;
-  geo: string;
-  stage: string;
-  keywords: string;
-  schools: string;
-  traits: string;
+  industries: string[];
+  geo: string[];
+  stage: string[];
+  keywords: string[];
+  schools: string[];
+  traits: string[];
   check_size: string;
   ownership: string;
   risk: string;
@@ -63,17 +132,20 @@ type FormState = {
 
 const EMPTY: FormState = {
   name: "",
-  industries: "",
-  geo: "",
-  stage: "",
-  keywords: "",
-  schools: "",
-  traits: "",
+  industries: [],
+  geo: [],
+  stage: [],
+  keywords: [],
+  schools: [],
+  traits: [],
   check_size: "",
   ownership: "",
   risk: "",
   free_text: "",
 };
+
+const STAGE_SUGGESTIONS = ["pre-idea", "pre-seed", "seed", "series A", "series B", "growth"];
+const RISK_SUGGESTIONS = ["low", "moderate", "high"];
 
 export function ThesisView() {
   const { data, isLoading, isError } = useGetThesis();
@@ -94,12 +166,12 @@ export function ThesisView() {
     setPrefs(p);
     setForm({
       name: data.name ?? "",
-      industries: joinList(data.industries),
-      geo: joinList(data.geo),
-      stage: joinList(data.stage),
-      keywords: joinList(data.keywords),
-      schools: prefList(p, "schools"),
-      traits: prefList(p, "traits"),
+      industries: data.industries ?? [],
+      geo: data.geo ?? [],
+      stage: data.stage ?? [],
+      keywords: data.keywords ?? [],
+      schools: prefArr(p, "schools"),
+      traits: prefArr(p, "traits"),
       check_size: data.check_size != null ? String(data.check_size) : "",
       ownership: data.ownership != null ? String(data.ownership) : "",
       risk: data.risk ?? "",
@@ -114,25 +186,25 @@ export function ThesisView() {
     return <Skeleton className="h-96 w-full rounded-2xl" />;
   }
 
-  const set = (k: keyof FormState) => (v: string) => {
+  const setList = (k: keyof FormState) => (v: string[]) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setSaved(false);
+  };
+  const setStr = (k: keyof FormState) => (v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
     setSaved(false);
   };
 
   const save = () => {
-    const nextPrefs = {
-      ...(prefs ?? {}),
-      schools: splitList(form.schools),
-      traits: splitList(form.traits),
-    };
+    const nextPrefs = { ...(prefs ?? {}), schools: form.schools, traits: form.traits };
     update.mutate(
       {
         data: {
           name: form.name.trim() || null,
-          industries: splitList(form.industries),
-          geo: splitList(form.geo),
-          stage: splitList(form.stage),
-          keywords: splitList(form.keywords),
+          industries: form.industries,
+          geo: form.geo,
+          stage: form.stage,
+          keywords: form.keywords,
           founder_preferences: nextPrefs,
           check_size: form.check_size.trim() ? Number(form.check_size) : null,
           ownership: form.ownership.trim() ? Number(form.ownership) : null,
@@ -144,31 +216,55 @@ export function ThesisView() {
     );
   };
 
-  const textField = (k: keyof FormState, ph: string) => (
-    <input className={INPUT} value={form[k]} onChange={(e) => set(k)(e.target.value)} placeholder={ph} />
-  );
-
   return (
     <div>
       <Card className="overflow-hidden">
-        <Field label="Fund name">{textField("name", "e.g. Munich AI/robotics")}</Field>
-        <Field label="Industries" hint="comma-separated">
-          {textField("industries", "AI infrastructure, robotics, machine learning")}
+        <Field label="Fund name">
+          <input
+            className={INPUT}
+            value={form.name}
+            onChange={(e) => setStr("name")(e.target.value)}
+            placeholder="e.g. Munich AI/robotics"
+          />
         </Field>
-        <Field label="Geography" hint="comma-separated">
-          {textField("geo", "Germany, Munich, Tübingen")}
+        <Field label="Industries" hint="add tags — type + Enter">
+          <TagInput
+            values={form.industries}
+            onChange={setList("industries")}
+            placeholder="AI infrastructure…"
+          />
         </Field>
-        <Field label="Stage" hint="comma-separated">
-          {textField("stage", "pre-idea, pre-seed, seed")}
+        <Field label="Geography" hint="add tags">
+          <TagInput values={form.geo} onChange={setList("geo")} placeholder="Germany, Munich…" />
         </Field>
-        <Field label="Keywords" hint="comma-separated">
-          {textField("keywords", "LLM infra, autonomy, agents")}
+        <Field label="Stage" hint="add tags">
+          <TagInput
+            values={form.stage}
+            onChange={setList("stage")}
+            placeholder="seed…"
+            suggestions={STAGE_SUGGESTIONS}
+          />
         </Field>
-        <Field label="Target schools" hint="founder profile · comma-separated">
-          {textField("schools", "TUM, ETH Zurich")}
+        <Field label="Keywords" hint="add tags">
+          <TagInput
+            values={form.keywords}
+            onChange={setList("keywords")}
+            placeholder="LLM infra, agents…"
+          />
         </Field>
-        <Field label="Founder traits" hint="comma-separated">
-          {textField("traits", "technical, no prior VC backing")}
+        <Field label="Target schools" hint="founder profile">
+          <TagInput
+            values={form.schools}
+            onChange={setList("schools")}
+            placeholder="TUM, ETH Zurich…"
+          />
+        </Field>
+        <Field label="Founder traits">
+          <TagInput
+            values={form.traits}
+            onChange={setList("traits")}
+            placeholder="technical…"
+          />
         </Field>
         <Field label="Check size" hint="$M">
           <input
@@ -176,7 +272,7 @@ export function ThesisView() {
             type="number"
             step="0.1"
             value={form.check_size}
-            onChange={(e) => set("check_size")(e.target.value)}
+            onChange={(e) => setStr("check_size")(e.target.value)}
             placeholder="1.5"
           />
         </Field>
@@ -186,16 +282,41 @@ export function ThesisView() {
             type="number"
             step="0.01"
             value={form.ownership}
-            onChange={(e) => set("ownership")(e.target.value)}
+            onChange={(e) => setStr("ownership")(e.target.value)}
             placeholder="0.1"
           />
         </Field>
-        <Field label="Risk appetite">{textField("risk", "high / moderate / low")}</Field>
+        <Field label="Risk appetite">
+          <div>
+            <input
+              className={INPUT}
+              value={form.risk}
+              onChange={(e) => setStr("risk")(e.target.value)}
+              placeholder="moderate"
+            />
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {RISK_SUGGESTIONS.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setStr("risk")(r)}
+                  className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                    form.risk === r
+                      ? "border-primary text-primary"
+                      : "border-border-strong text-muted-foreground hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Field>
         <Field label="Notes">
           <textarea
             className={`${INPUT} min-h-[84px] resize-y`}
             value={form.free_text}
-            onChange={(e) => set("free_text")(e.target.value)}
+            onChange={(e) => setStr("free_text")(e.target.value)}
             placeholder="Free-text thesis notes…"
           />
         </Field>
