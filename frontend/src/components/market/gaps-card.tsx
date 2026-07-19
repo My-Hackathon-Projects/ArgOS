@@ -1,7 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-/** Honestly-flagged research gaps — a gap beats an invented number. */
+/** Honestly flagged research gaps. A gap beats an invented number. */
 export function GapsCard({ gaps }: { gaps: string[] }) {
   return (
     <Card className="p-4">
