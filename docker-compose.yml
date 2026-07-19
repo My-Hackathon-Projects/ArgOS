@@ -1,23 +1,46 @@
 # Shared local infra. Run from repo root: docker compose up -d
-# Frontend service can be added here later alongside the db.
+# db   = Postgres + pgvector (REQUIRED — signal.embedding / claim.embedding are Vector columns
+#        and migrations run CREATE EXTENSION vector; plain postgres:17 would fail these).
+# blob = MinIO (S3-compatible) for deck-PDF / raw-document storage (BE/ inbound pipeline).
 services:
   db:
     image: pgvector/pgvector:pg16
     container_name: vcbrain-db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: vcbrain
-      POSTGRES_PASSWORD: vcbrain
-      POSTGRES_DB: vcbrain
+      POSTGRES_USER: ${POSTGRES_USER:-vcbrain}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vcbrain}
+      POSTGRES_DB: ${POSTGRES_DB:-vcbrain}
     ports:
-      # Host 5433 → avoids clashing with a native Postgres on 5432.
-      - "5433:5432"
+      # Host 5433 -> avoids clashing with a native Postgres on 5432.
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - vcbrain_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vcbrain -d vcbrain"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vcbrain} -d ${POSTGRES_DB:-vcbrain}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
+  blob:
+    image: minio/minio
+    container_name: vcbrain-blob
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # web console
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - blobdata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   vcbrain_pgdata:
+  blobdata:
