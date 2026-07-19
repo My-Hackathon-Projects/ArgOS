@@ -59,7 +59,8 @@ fundings, and sector KPI benchmarks.</role>
 <task>
 Write {per_goal} focused, executable web-search queries for EACH of these sub-goals
 ({', '.join(SUBGOALS)}):
-- sizing        — TAM/SAM/SOM, market-size reports, growth rate / CAGR for this sector.
+- sizing        — size the GENERAL / PARENT market (broad sector, e.g. "robotics market size",
+                  "edge AI market size 2025") + growth/CAGR. Don't over-narrow to the exact product.
 - competition   — direct competitors, incumbents, and challengers to this idea.
 - comparables   — startups solving a SIMILAR PROBLEM at a similar stage that RAISED funding
                   (seed / Series A). Phrase for funding announcements ("raised", "seed round").
@@ -103,10 +104,15 @@ investment memo.</role>
 {hits_block(hits)}
 
 <task>
-Produce TAM, SAM, and SOM as separate `Figure`s (metric = "TAM"/"SAM"/"SOM"), plus a "CAGR" figure
-if a growth rate is available, and set `market_maturity`. For each: prefer a REPORTED figure from a
-source; if none, derive a bottom-up ESTIMATE from cited inputs; if neither is possible, GAP-flag it.
-Emit AT MOST ONE figure per metric — the single most representative/defensible value, not several.
+Size the market in three NESTED tiers — anchor on the general market, then narrow:
+- TAM: the broad GENERAL / PARENT market this idea sits in (the sector, e.g. "global robotics
+  market" or "edge AI market"). Use a reputable REPORTED total — general markets have stable
+  published figures; do NOT chase an ultra-niche number no report cleanly measures.
+- SAM: the slice addressable given the specific idea + geography/thesis (reported or bottom-up).
+- SOM: the realistic near-term obtainable share (usually a cited bottom-up estimate).
+Also emit a "CAGR" figure and set `market_maturity`. In each figure's `note`, state EXACTLY which
+market it measures (e.g. "global robotics market"). Emit AT MOST ONE figure per metric.
+Prefer a stable general-market TAM + clearly-scoped SAM/SOM over a noisy niche figure.
 </task>
 
 {_CITATION_RULES}
@@ -156,10 +162,11 @@ Extract startups solving a SIMILAR PROBLEM at a similar stage that raised fundin
 <rules>
 1. A comparable whose EXISTENCE is cited but whose amount is undisclosed is still valid — set
    round_size/valuation to null, keep the comparable. NEVER guess an amount.
-2. Prefer problem-similar over merely same-sector. Rank by (problem similarity + STAGE match).
-3. STAGE MATCH MATTERS: prioritize seed / Series A / early-stage companies. A late-stage
-   mega-round (>$500M raised, e.g. a category leader) is a WEAK benchmark for an early-stage deal —
-   include one only if it is directly problem-similar, and give it LOW confidence.
+2. Same PROBLEM / business model beats same sector: an infra/software comp beats a hardware giant
+   in the same vertical. Rank by (problem similarity + stage match).
+3. STAGE + SIZE MATCH: prioritize seed / Series A rounds (roughly <=$50M). Strongly DE-prioritize
+   mega-rounds (>$100M) and late-stage / hardware category leaders — they are NOT benchmarks for an
+   early-stage deal; include at most one, at LOW confidence, only if directly problem-similar.
 4. Only include companies present in <evidence>.
 </rules>
 
@@ -176,9 +183,12 @@ to contextualize a startup's KPIs in the Traction & KPIs memo section.</role>
 {hits_block(hits)}
 
 <task>
-Extract typical sector bands as `Figure`s (metric one of: CAC, CPC, LTV, gross_margin, ACV,
-seed_round_size). Values are ranges/bands ("$1,200-1,800", "70-80%"). Gap-flag any not found.
-Emit AT MOST ONE figure per metric — the single most representative sector band, not several.
+Extract typical sector UNIT-ECONOMICS bands as `Figure`s (metric one of: CAC, CPC, LTV,
+gross_margin, ACV, seed_round_size). Values are ranges/bands ("$1,200-1,800", "70-80%").
+These contextualize a startup's OWN KPIs, so they must be per-company norms, not market totals:
+- seed_round_size = a TYPICAL PER-COMPANY seed round for this sector/stage (e.g. "$1.5M-4M"), NOT
+  an aggregate market/annual fundraising total. Reject any figure that is a whole-market total.
+Emit AT MOST ONE figure per metric. Gap-flag any not found — a gap beats a wrong band.
 </task>
 
 {_CITATION_RULES}
@@ -233,6 +243,8 @@ market scores low and you say why.</role>
    (lower score, lower confidence) — do not manufacture conviction from thin evidence.
 3. `trend` is a market-momentum proxy: accelerating growth / strong why-now -> improving; shrinking
    or commoditizing -> declining; otherwise stable.
+4. When you cite sizing, quote the EXACT TAM/SAM/SOM values and CAGR from <findings> and name which
+   market the TAM measures (from the figure's note). Never introduce a different number.
 </rules>
 
 Write the market judgment now."""
