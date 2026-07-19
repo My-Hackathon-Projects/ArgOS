@@ -3,7 +3,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SignalFeed } from "@/components/sourcing/signal-feed";
 import { ChannelList } from "@/components/sourcing/channel-list";
-import { DiscoveryButton } from "@/components/sourcing/discovery-button";
 
 export default function SourcingPage() {
   return (
@@ -12,7 +11,15 @@ export default function SourcingPage() {
         eyebrow="Sourcing"
         title="Detect founders before they show up"
         subtitle="A live footprint of founders to be: papers, launches, repos and profiles surfacing across the open web, resolved to people."
-        actions={<DiscoveryButton />}
+        actions={
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground">
+            <span className="relative flex h-2 w-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            Discovery agent runs continuously in the background
+          </span>
+        }
         accent="#0071e3"
       />
 
