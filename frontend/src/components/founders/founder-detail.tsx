@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials, relativeTime } from "@/lib/format";
+import { ClaimsList } from "@/components/founders/claims-list";
 import { statusBadge } from "@/components/founders/status";
 import { TimelineItem } from "@/components/founders/timeline-item";
 
@@ -132,15 +133,28 @@ export function FounderDetail({ founderId }: { founderId: string }) {
               </div>
             )}
           </div>
-          {f.discovery_confidence != null && (
-            <div className="shrink-0 sm:text-right">
-              <div className="text-3xl font-semibold tracking-tight text-foreground">
-                {Math.round(f.discovery_confidence * 100)}
-                <span className="text-lg font-normal text-subtle">%</span>
+          <div className="flex shrink-0 gap-5 sm:text-right">
+            {f.founder_score != null && (
+              <div>
+                <div
+                  className="text-3xl font-semibold tracking-tight"
+                  style={{ color: "var(--axis-founder)" }}
+                >
+                  {Math.round(f.founder_score)}
+                </div>
+                <div className="text-xs text-subtle">Founder Score</div>
               </div>
-              <div className="text-xs text-subtle">discovery confidence</div>
-            </div>
-          )}
+            )}
+            {f.discovery_confidence != null && (
+              <div>
+                <div className="text-3xl font-semibold tracking-tight text-foreground">
+                  {Math.round(f.discovery_confidence * 100)}
+                  <span className="text-lg font-normal text-subtle">%</span>
+                </div>
+                <div className="text-xs text-subtle">discovery confidence</div>
+              </div>
+            )}
+          </div>
         </div>
         {(f.first_discovered_at || f.last_checked_at) && (
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-subtle">
@@ -151,6 +165,14 @@ export function FounderDetail({ founderId }: { founderId: string }) {
           </div>
         )}
       </Card>
+
+      <div>
+        <h2 className="mb-4 text-sm font-semibold text-foreground">
+          Claims
+          <span className="ml-2 font-normal text-subtle">{f.claims.length}</span>
+        </h2>
+        <ClaimsList claims={f.claims} />
+      </div>
 
       <div>
         <h2 className="mb-4 text-sm font-semibold text-foreground">

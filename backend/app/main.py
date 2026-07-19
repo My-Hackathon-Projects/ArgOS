@@ -31,7 +31,15 @@ from app.inbound.service import run_inbound_application
 from app.ingest import upsert_signal
 from app.market import read as market_read
 from app.memo.generate import generate_memo
-from app.models import Founder, InvestmentThesis, Memo, Opportunity, Signal, SourcingChannel
+from app.models import (
+    Claim,
+    Founder,
+    InvestmentThesis,
+    Memo,
+    Opportunity,
+    Signal,
+    SourcingChannel,
+)
 from app.screening.assemble import screen_opportunity
 from app.sourcing.seed_data import sync_reference_data
 from app.sourcing.service import run_discovery
@@ -160,6 +168,7 @@ def list_founders(db: Session = Depends(get_db)) -> list[dict]:
                 "display_name": f.display_name,
                 "status": f.status,
                 "discovery_confidence": f.discovery_confidence,
+                "founder_score": f.founder_score,
                 "current_company": f.current_company,
                 "occupation": f.occupation,
                 "city": f.city,
@@ -184,11 +193,21 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
         .scalars()
         .all()
     )
+    claims = (
+        db.execute(
+            select(Claim)
+            .where(Claim.founder_id == f.id)
+            .order_by(Claim.trust_score.desc().nullslast())
+        )
+        .scalars()
+        .all()
+    )
     return {
         "id": str(f.id),
         "display_name": f.display_name,
         "status": f.status,
         "discovery_confidence": f.discovery_confidence,
+        "founder_score": f.founder_score,
         "current_company": f.current_company,
         "occupation": f.occupation,
         "city": f.city,
@@ -214,6 +233,17 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
                 "resolution_method": s.resolution_method,
             }
             for s in signals
+        ],
+        "claims": [
+            {
+                "statement": c.statement,
+                "category": c.category,
+                "trust_score": c.trust_score,
+                "status": c.status,
+                "evidence_count": len(c.evidence),
+                "updated_at": c.updated_at,
+            }
+            for c in claims
         ],
     }
 
@@ -324,7 +354,10 @@ def screen(
         raise HTTPException(status_code=404, detail="opportunity not found")
     screen_opportunity(db, opportunity_id, refresh_market=refresh_market)
     db.expire_all()
-    return _opportunity_dict(db.get(Opportunity, opportunity_id))
+    refreshed = db.get(Opportunity, opportunity_id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return _opportunity_dict(refreshed)
 
 
 def _memo_dict(m: Memo) -> dict:

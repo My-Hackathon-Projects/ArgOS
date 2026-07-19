@@ -10,6 +10,7 @@ export interface FounderListItem {
   display_name: string | null;
   status: string;
   discovery_confidence: number | null;
+  founder_score: number | null;
   current_company: string | null;
   occupation: string | null;
   city: string | null;

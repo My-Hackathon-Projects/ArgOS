@@ -15,6 +15,6 @@ export interface OpportunityDetail {
   geo: string | null;
   status: string;
   created_at: string;
-  decision: string | null;
   axes: OpportunityAxisSummary[];
+  decision: string | null;
 }

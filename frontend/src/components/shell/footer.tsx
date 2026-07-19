@@ -4,8 +4,9 @@ import { BrainCircuit } from "lucide-react";
 const LINKS = [
   { href: "/#about", label: "About us" },
   { href: "/sourcing", label: "Sourcing" },
+  { href: "/inbound", label: "Inbound" },
   { href: "/founders", label: "Founders" },
-  { href: "/research", label: "Market Research" },
+  { href: "/opportunities", label: "Opportunities" },
 ];
 
 export function Footer() {

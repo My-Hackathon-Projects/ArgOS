@@ -38,6 +38,7 @@ class FounderListItem(BaseModel):
     display_name: str | None
     status: str
     discovery_confidence: float | None
+    founder_score: float | None
     current_company: str | None
     occupation: str | None
     city: str | None
@@ -63,11 +64,21 @@ class FounderSignal(BaseModel):
     resolution_method: str | None
 
 
+class FounderClaimItem(BaseModel):
+    statement: str
+    category: str | None
+    trust_score: float | None
+    status: str
+    evidence_count: int
+    updated_at: datetime | None
+
+
 class FounderDetail(BaseModel):
     id: str
     display_name: str | None
     status: str
     discovery_confidence: float | None
+    founder_score: float | None
     current_company: str | None
     occupation: str | None
     city: str | None
@@ -76,6 +87,7 @@ class FounderDetail(BaseModel):
     last_checked_at: datetime | None
     identity: FounderIdentity
     signals: list[FounderSignal]
+    claims: list[FounderClaimItem]
 
 
 class ChannelItem(BaseModel):
@@ -216,11 +228,11 @@ class OpportunityListItem(BaseModel):
     geo: str | None
     status: str
     created_at: datetime
+    axes: list["OpportunityAxisSummary"]
 
 
 class OpportunityDetail(OpportunityListItem):
     decision: str | None
-    axes: list[OpportunityAxisSummary]
 
 
 class MemoView(BaseModel):

@@ -72,24 +72,30 @@ src/
     template.tsx            page-entry transition (remounts per navigation)
     providers.tsx           TanStack QueryClientProvider
     globals.css             design tokens (Apple-style light theme) + animations
-    page.tsx                home: hero, funnel cards, About Us team section
-    sourcing/               live signal feed + type filters + channels + discovery
-    founders/               searchable/sortable table + [id] detail
+    page.tsx                home: convergence hero, funnel cards, About Us team section
+    sourcing/               live signal feed + search + type filters + channels + discovery
+    inbound/                applications inbox + new-application form
+    founders/               searchable/sortable table + [id] detail (claims, Founder Score)
+    opportunities/          list + [id] detail (three-axis screen, market analysis, memo)
     settings/               thesis (read-only)
-    research/               market research (wired: opportunity picker + analysis)
+    research/               redirect to /opportunities (old URL kept working)
   components/
-    shell/                  nav-bar (sticky blurred top nav + mobile menu), footer, heartbeat-badge
-    home/                   team-section (photos from public/images, LinkedIn links)
+    shell/                  nav-bar (sticky blurred top nav + mobile menu), footer
+    home/                   convergence-hero, team-section (photos from public/images)
     sourcing/               live-header, signal-feed, signal-card, type-filter, channel-list,
                             discovery-button
-    founders/               founders-table, founder-toolbar (search + filters), sort,
-                            founder-detail, timeline-item, status
-    market/                 market-view + axis-card, figure-card, entity-cards,
-                            gaps-card, opportunity-picker, section, meta
+    inbound/                inbound-view (inbox rows), deck-apply (POST /apply),
+                            application-form (POST /opportunities)
+    founders/               founders-table, founder-toolbar, sort, founder-detail,
+                            claims-list, timeline-item, status
+    opportunities/          opportunities-list, opportunity-detail (Run screening),
+                            memo-section (generate/read memo), axis (chips + score cards)
+    market/                 market-analysis (embedded in opportunity detail) + axis-card,
+                            figure-card, entity-cards, gaps-card, section, meta
     settings/               thesis-view
     ui/                      button, card, badge, skeleton, page-header, container,
-                            pagination (PAGE_SIZE = 10), filter-pills
-  lib/                      utils (cn), format (time/initials), source-style (gradients)
+                            pagination (PAGE_SIZE = 10), filter-pills, search-input
+  lib/                      utils (cn), format (time/initials), source-style (colors/logos)
   api/                      axios instance + generated client
 public/images/              team profile photos (wired in home/team-section.tsx)
 ```

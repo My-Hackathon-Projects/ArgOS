@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { FilterPills, type FilterOption } from "@/components/ui/filter-pills";
+import { SearchInput } from "@/components/ui/search-input";
 
 /** Founders toolbar: search field, status segmented control, city dropdown. */
 export function FounderToolbar({
@@ -25,17 +26,13 @@ export function FounderToolbar({
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <label className="relative min-w-[220px] flex-1">
-        <span className="sr-only">Search founders</span>
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => onQuery(e.target.value)}
-          placeholder="Search name, company, role or city"
-          className="h-8 w-full rounded-full bg-black/[0.04] pl-9 pr-4 text-xs text-foreground transition-colors placeholder:text-subtle hover:bg-black/[0.06] focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-      </label>
+      <SearchInput
+        value={query}
+        onChange={onQuery}
+        placeholder="Search name, company, role or city"
+        label="Search founders"
+        className="min-w-[220px] flex-1"
+      />
       <FilterPills
         layoutId="founder-status-pill"
         options={statusOptions}

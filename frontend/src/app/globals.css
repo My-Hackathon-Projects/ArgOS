@@ -23,6 +23,10 @@
   --nav-height: 3rem;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.05);
   --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.05), 0 14px 34px rgba(0, 0, 0, 0.09);
+  /* Three-axis accent colors (founder / market / idea). */
+  --axis-founder: #7c3aed;
+  --axis-market: #0071e3;
+  --axis-idea: #059669;
 }
 
 @theme inline {
@@ -42,6 +46,9 @@
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-ring: var(--ring);
+  --color-axis-founder: var(--axis-founder);
+  --color-axis-market: var(--axis-market);
+  --color-axis-idea: var(--axis-idea);
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -63,6 +70,27 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Faint color wash behind every page so surfaces sit on more than flat gray. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60rem 30rem at 15% -5%, color-mix(in srgb, #0071e3 7%, transparent), transparent 70%),
+    radial-gradient(50rem 26rem at 85% 0%, color-mix(in srgb, #7c3aed 6%, transparent), transparent 70%),
+    radial-gradient(40rem 22rem at 50% 110%, color-mix(in srgb, #059669 5%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+/* Gradient display text for hero headlines. */
+.text-gradient {
+  background: linear-gradient(92deg, #0071e3 5%, #7c3aed 55%, #ec4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Translucent, blurred chrome (nav bar, mobile menu). */

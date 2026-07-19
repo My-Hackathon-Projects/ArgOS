@@ -7,6 +7,7 @@ import { SignalCard } from "./signal-card";
 import { LiveHeader } from "./live-header";
 import { TypeFilter } from "./type-filter";
 import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
+import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function SignalFeed() {
@@ -16,6 +17,7 @@ export function SignalFeed() {
   );
   const { data: channels } = useListChannels();
   const [type, setType] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
   // Track which signal ids we've already shown so freshly-arrived ones can flash in.
@@ -51,10 +53,17 @@ export function SignalFeed() {
     () => [...new Set((data ?? []).map((s) => s.signal_type))].sort(),
     [data],
   );
-  const filtered = useMemo(
-    () => (type ? (data ?? []).filter((s) => s.signal_type === type) : (data ?? [])),
-    [data, type],
-  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data ?? []).filter(
+      (s) =>
+        (!type || s.signal_type === type) &&
+        (!q ||
+          [s.title, s.summary, s.source, s.signal_type].some((v) =>
+            v?.toLowerCase().includes(q),
+          )),
+    );
+  }, [data, type, query]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -98,6 +107,16 @@ export function SignalFeed() {
   return (
     <div>
       <LiveHeader count={filtered.length} channels={activeChannels} newestIso={data[0]?.ingested_at} />
+      <SearchInput
+        value={query}
+        onChange={(v) => {
+          setQuery(v);
+          setPage(1);
+        }}
+        placeholder="Search signals by title, summary or source"
+        label="Search signals"
+        className="mb-3"
+      />
       <TypeFilter
         types={types}
         selected={type}
@@ -106,6 +125,11 @@ export function SignalFeed() {
           setPage(1);
         }}
       />
+      {filtered.length === 0 && (
+        <div className="rounded-[1.125rem] border border-dashed border-border-strong bg-surface p-8 text-center text-sm text-muted-foreground">
+          No signals match your search.
+        </div>
+      )}
       <div className="space-y-2.5">
         <AnimatePresence initial={false} mode="popLayout">
           {visible.map((signal, i) => (

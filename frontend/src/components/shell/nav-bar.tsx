@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { BrainCircuit, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HeartbeatBadge } from "@/components/shell/heartbeat-badge";
 
 const NAV = [
   { href: "/sourcing", label: "Sourcing" },
+  { href: "/inbound", label: "Inbound" },
   { href: "/founders", label: "Founders" },
+  { href: "/opportunities", label: "Opportunities" },
   { href: "/settings", label: "Thesis" },
-  { href: "/research", label: "Market Research" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -66,7 +66,6 @@ export function NavBar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <HeartbeatBadge />
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-black/[0.05] md:hidden"

@@ -1,6 +1,6 @@
 import type { FounderListItem } from "@/api/generated/model";
 
-export type SortKey = "name" | "company" | "city" | "signals" | "confidence";
+export type SortKey = "name" | "company" | "city" | "signals" | "confidence" | "score";
 export type SortState = { key: SortKey; dir: "asc" | "desc" } | null;
 
 const getters: Record<SortKey, (f: FounderListItem) => string | number | null> = {
@@ -9,6 +9,7 @@ const getters: Record<SortKey, (f: FounderListItem) => string | number | null> =
   city: (f) => f.city,
   signals: (f) => f.signal_count,
   confidence: (f) => f.discovery_confidence,
+  score: (f) => f.founder_score,
 };
 
 /** Stable client-side sort; null values always sink to the bottom. */

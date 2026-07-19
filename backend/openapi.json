@@ -742,6 +742,66 @@
         ],
         "title": "DiscoveryRunResponse"
       },
+      "FounderClaimItem": {
+        "properties": {
+          "statement": {
+            "type": "string",
+            "title": "Statement"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "trust_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Score"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "title": "Evidence Count"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "statement",
+          "category",
+          "trust_score",
+          "status",
+          "evidence_count",
+          "updated_at"
+        ],
+        "title": "FounderClaimItem"
+      },
       "FounderDetail": {
         "properties": {
           "id": {
@@ -773,6 +833,17 @@
               }
             ],
             "title": "Discovery Confidence"
+          },
+          "founder_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Founder Score"
           },
           "current_company": {
             "anyOf": [
@@ -855,6 +926,13 @@
             },
             "type": "array",
             "title": "Signals"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/FounderClaimItem"
+            },
+            "type": "array",
+            "title": "Claims"
           }
         },
         "type": "object",
@@ -863,6 +941,7 @@
           "display_name",
           "status",
           "discovery_confidence",
+          "founder_score",
           "current_company",
           "occupation",
           "city",
@@ -870,7 +949,8 @@
           "first_discovered_at",
           "last_checked_at",
           "identity",
-          "signals"
+          "signals",
+          "claims"
         ],
         "title": "FounderDetail"
       },
@@ -962,6 +1042,17 @@
             ],
             "title": "Discovery Confidence"
           },
+          "founder_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Founder Score"
+          },
           "current_company": {
             "anyOf": [
               {
@@ -1006,6 +1097,7 @@
           "display_name",
           "status",
           "discovery_confidence",
+          "founder_score",
           "current_company",
           "occupation",
           "city",
@@ -1958,6 +2050,13 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "axes": {
+            "items": {
+              "$ref": "#/components/schemas/OpportunityAxisSummary"
+            },
+            "type": "array",
+            "title": "Axes"
+          },
           "decision": {
             "anyOf": [
               {
@@ -1968,13 +2067,6 @@
               }
             ],
             "title": "Decision"
-          },
-          "axes": {
-            "items": {
-              "$ref": "#/components/schemas/OpportunityAxisSummary"
-            },
-            "type": "array",
-            "title": "Axes"
           }
         },
         "type": "object",
@@ -1987,8 +2079,8 @@
           "geo",
           "status",
           "created_at",
-          "decision",
-          "axes"
+          "axes",
+          "decision"
         ],
         "title": "OpportunityDetail"
       },
@@ -2061,6 +2153,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "axes": {
+            "items": {
+              "$ref": "#/components/schemas/OpportunityAxisSummary"
+            },
+            "type": "array",
+            "title": "Axes"
           }
         },
         "type": "object",
@@ -2072,7 +2171,8 @@
           "sector",
           "geo",
           "status",
-          "created_at"
+          "created_at",
+          "axes"
         ],
         "title": "OpportunityListItem"
       },

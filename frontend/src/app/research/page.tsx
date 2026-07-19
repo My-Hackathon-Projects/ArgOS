@@ -1,18 +1,6 @@
-import { Container } from "@/components/ui/container";
-import { PageHeader } from "@/components/ui/page-header";
-import { MarketView } from "@/components/market/market-view";
+import { redirect } from "next/navigation";
 
+// Market research lives inside the opportunity detail now; keep the old URL working.
 export default function ResearchPage() {
-  return (
-    <Container className="max-w-5xl">
-      <PageHeader
-        eyebrow="Agent"
-        title="Market research"
-        subtitle="TAM, SAM and SOM, competition, comparable rounds and KPI benchmarks: web researched, cited, and gap flagged. Feeds the Market axis and memo."
-      />
-      <div className="mt-10">
-        <MarketView />
-      </div>
-    </Container>
-  );
+  redirect("/opportunities");
 }

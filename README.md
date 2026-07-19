@@ -110,15 +110,20 @@ Verify: <http://localhost:8000/health> returns `{"status":"ok","signals":N}` and
 
 - **Home** (`/`): what VC Brain is, the funnel, and the team. Opens with the
   signal-convergence animation.
-- **Sourcing**: live signal feed (5 second poll, new signals flash in), type filters,
-  pagination, the channels being monitored, and a Run discovery button. Every card opens its
-  real source.
-- **Founders**: searchable, sortable, filterable table of every resolved person. The detail
-  view shows identity links, education, discovery confidence, and the full signal timeline.
+- **Sourcing** (outbound): live signal feed (5 second poll, new signals flash in), search,
+  type filters, pagination, the channels being monitored, and a Run discovery button. Every
+  card opens its real source.
+- **Inbound**: the applications inbox. Upload a pitch deck (extracted, claim-mined and
+  prescreened by the backend) or log a deal by hand; either way it becomes an opportunity in
+  the screening loop.
+- **Founders**: searchable, sortable, filterable table of every resolved person with their
+  Founder Score. The detail view shows identity links, education, corroborated claims with
+  per-claim Trust Scores, and the full signal timeline.
+- **Opportunities**: every deal scored on the three-axis screen (founder, market, idea versus
+  market) with a Run screening button per deal. The detail embeds the market analysis
+  (TAM/SAM/SOM and KPI figures with reported versus estimated basis chips, comparables,
+  competitors, flagged gaps) and the investment memo, generated on demand.
 - **Thesis**: the active investment thesis that drives discovery.
-- **Market Research**: pick an analysed opportunity, see the Market axis score, TAM/SAM/SOM
-  and KPI figures with reported versus estimated basis chips, comparables, competitors, and
-  honestly flagged research gaps.
 
 Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs API keys), or
 `curl -X POST http://localhost:8000/discovery/run`. Then generate claims with
@@ -135,12 +140,15 @@ Populate data: click **Run discovery** on `/sourcing` (30 to 60 seconds, needs A
 | GET | `/health` | heartbeat and signal count |
 | GET | `/signals?limit=` | signal feed |
 | POST | `/signals/ingest` | ingest one signal directly |
+| POST | `/apply` | inbound intake: deck PDF + company name, prescreened |
 | POST | `/discovery/run` | run the discovery graph |
-| GET | `/founders`, `/founders/{id}` | founders list and detail |
+| GET | `/founders`, `/founders/{id}` | founders list and detail (claims, Founder Score) |
 | GET | `/sourcing-channels` | monitored channels |
 | GET | `/thesis` | active thesis |
 | GET | `/market/opportunities`, `/market/opportunities/{id}` | market analyses |
 | POST/GET | `/opportunities`, `/opportunities/{id}` | opportunities for the screening loop |
+| POST | `/opportunities/{id}/screen` | run the three-axis screening |
+| POST/GET | `/opportunities/{id}/memo` | generate / read the investment memo |
 
 Full schema at <http://localhost:8000/docs>.
 

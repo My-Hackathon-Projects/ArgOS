@@ -1,68 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import {
-  useGetMarketAnalysis,
-  useListMarketOpportunities,
-} from "@/api/generated/default/default";
+import { useGetMarketAnalysis } from "@/api/generated/default/default";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AxisCard } from "@/components/market/axis-card";
 import { ComparableCard, CompetitorCard } from "@/components/market/entity-cards";
 import { FigureCard } from "@/components/market/figure-card";
 import { GapsCard } from "@/components/market/gaps-card";
-import { OpportunityPicker } from "@/components/market/opportunity-picker";
 import { Section } from "@/components/market/section";
 
-function LoadingState() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-40 w-full rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+/** Full market research block for one opportunity: sizing, comparables,
+ *  competition, KPI benchmarks, and flagged gaps. Embedded in the opportunity
+ *  detail page under the three-axis scores. */
+export function MarketAnalysis({ opportunityId }: { opportunityId: string }) {
+  const { data: a, isLoading, isError } = useGetMarketAnalysis(opportunityId);
+
+  if (isLoading) {
+    return (
+      <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-2xl" />
         ))}
       </div>
-    </div>
-  );
-}
-
-export function MarketView() {
-  const list = useListMarketOpportunities();
-  const [picked, setPicked] = useState<string | null>(null);
-  const oppId = picked ?? list.data?.[0]?.id ?? null;
-  const analysis = useGetMarketAnalysis(oppId ?? "", { query: { enabled: !!oppId } });
-
-  if (list.isError) {
-    return (
-      <Card className="p-6 text-sm text-muted-foreground">
-        Could not load market research. Is the backend running on{" "}
-        <code className="text-foreground">localhost:8000</code>?
-      </Card>
     );
   }
 
-  if (list.isLoading || (oppId && analysis.isLoading)) {
-    return <LoadingState />;
-  }
-
-  if (!oppId || !analysis.data) {
+  if (isError || !a) {
     return (
-      <Card className="p-6 text-sm text-muted-foreground">
-        No market analysis yet. Run the market-research agent on an opportunity
-        (<code className="text-foreground">app.market.service.run_market_analysis</code>) to
-        populate this view.
-      </Card>
+      <Section title="Market research">
+        <Card className="p-5 text-sm text-muted-foreground">
+          No market analysis yet for this opportunity. Run the market-research agent
+          (<code className="text-foreground">app.market.service.run_market_analysis</code>) to
+          fill sizing, competition, comparables and the Market axis.
+        </Card>
+      </Section>
     );
   }
-
-  const a = analysis.data;
 
   return (
     <div>
-      <OpportunityPicker items={list.data ?? []} selectedId={oppId} onSelect={setPicked} />
-
-      <AxisCard a={a} />
+      {a.axis?.rationale && (
+        <Section title="Market rationale">
+          <Card className="p-5">
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              {a.axis.rationale}
+            </p>
+          </Card>
+        </Section>
+      )}
 
       {a.sizing.length > 0 && (
         <Section title="Market sizing">

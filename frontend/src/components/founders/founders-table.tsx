@@ -18,7 +18,7 @@ import { statusBadge } from "@/components/founders/status";
 // One shared template for the header row and every body row. The trailing columns are
 // fixed widths so all grids resolve identically and the headings line up with the cells.
 const GRID =
-  "md:grid-cols-[minmax(0,1.8fr)_minmax(0,1.2fr)_minmax(0,0.95fr)_6.5rem_8.5rem_8rem]";
+  "md:grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_minmax(0,0.85fr)_5.5rem_5rem_8rem_8rem]";
 
 function Confidence({ value }: { value: number | null }) {
   if (value == null) return <span className="text-xs text-subtle">—</span>;
@@ -102,6 +102,12 @@ function Row({ f }: { f: FounderListItem }) {
         {f.signal_count}
         <span className="ml-1 text-xs text-subtle">signals</span>
       </div>
+      <div
+        className="hidden text-sm font-semibold tabular-nums md:block"
+        style={{ color: f.founder_score != null ? "var(--axis-founder)" : undefined }}
+      >
+        {f.founder_score != null ? Math.round(f.founder_score) : <span className="font-normal text-subtle">—</span>}
+      </div>
       <div className="hidden md:block">
         <Confidence value={f.discovery_confidence} />
       </div>
@@ -115,6 +121,14 @@ function Row({ f }: { f: FounderListItem }) {
         {f.current_company && <span className="truncate">{f.current_company}</span>}
         {f.city && <span>{f.city}</span>}
         <span className="tabular-nums">{f.signal_count} signals</span>
+        {f.founder_score != null && (
+          <span
+            className="font-semibold tabular-nums"
+            style={{ color: "var(--axis-founder)" }}
+          >
+            score {Math.round(f.founder_score)}
+          </span>
+        )}
         <Confidence value={f.discovery_confidence} />
       </div>
     </Link>
@@ -202,6 +216,7 @@ export function FoundersTable() {
           <SortHeader label="Company" k="company" sort={sort} onSort={onSort} />
           <SortHeader label="Location" k="city" sort={sort} onSort={onSort} />
           <SortHeader label="Signals" k="signals" sort={sort} onSort={onSort} />
+          <SortHeader label="Score" k="score" sort={sort} onSort={onSort} />
           <SortHeader label="Confidence" k="confidence" sort={sort} onSort={onSort} />
           <span className="uppercase tracking-wider">Status</span>
         </div>

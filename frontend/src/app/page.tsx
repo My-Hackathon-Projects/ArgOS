@@ -10,24 +10,32 @@ const PIPELINE = [
     icon: Radar,
     title: "Sourcing",
     href: "/sourcing",
+    color: "#0071e3",
+    soft: "rgba(0,113,227,0.08)",
     text: "Thirteen public channels, from arXiv to GitHub to Devpost, are watched continuously and every raw signal is resolved to a real person.",
   },
   {
     icon: ShieldCheck,
     title: "Screening",
     href: "/founders",
+    color: "#7c3aed",
+    soft: "rgba(124,58,237,0.08)",
     text: "Noisy signals collapse into corroborated claims. Trust and Founder Scores stay deterministic formulas, so every number can be audited.",
   },
   {
     icon: LineChart,
     title: "Diligence",
-    href: "/research",
+    href: "/opportunities",
+    color: "#059669",
+    soft: "rgba(5,150,105,0.08)",
     text: "A market research agent sizes TAM, SAM and SOM, maps competitors and comparable rounds, and flags gaps instead of inventing figures.",
   },
   {
     icon: Scale,
     title: "Decision",
-    href: null,
+    href: "/opportunities",
+    color: "#d97706",
+    soft: "rgba(217,119,6,0.09)",
     text: "A three axis screen across founder, market and idea feeds the investment memo and the final call.",
   },
 ];
@@ -44,28 +52,21 @@ export default function HomePage() {
           One funnel, four stages
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {PIPELINE.map(({ icon: Icon, title, href, text }) => {
-            const body = (
-              <>
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-primary">
+          {PIPELINE.map(({ icon: Icon, title, href, color, soft, text }) => (
+            <Link key={title} href={href} className="block">
+              <Card className="card-shadow-hover relative h-full overflow-hidden p-5 transition-shadow duration-300">
+                <span className="absolute inset-x-0 top-0 h-1" style={{ background: color }} aria-hidden />
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{ background: soft, color }}
+                >
                   <Icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 text-base font-semibold text-foreground">{title}</h3>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{text}</p>
-              </>
-            );
-            return href ? (
-              <Link key={title} href={href} className="block">
-                <Card className="card-shadow-hover h-full p-5 transition-shadow duration-300">
-                  {body}
-                </Card>
-              </Link>
-            ) : (
-              <Card key={title} className="h-full p-5">
-                {body}
               </Card>
-            );
-          })}
+            </Link>
+          ))}
         </div>
       </section>
 

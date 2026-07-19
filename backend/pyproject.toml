@@ -73,6 +73,7 @@ exclude = [
     "app/claims/extract.py",
     "app/ingest.py",
     "tests/test_claims.py",
+    "tests/test_idea_axis.py",
     ".venv",
 ]
 

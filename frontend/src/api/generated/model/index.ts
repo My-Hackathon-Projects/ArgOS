@@ -10,6 +10,7 @@ export * from './bodyApplyInbound';
 export * from './channelItem';
 export * from './discoveryRunResponse';
 export * from './discoveryRunResponseStats';
+export * from './founderClaimItem';
 export * from './founderDetail';
 export * from './founderDetailEducation';
 export * from './founderIdentity';

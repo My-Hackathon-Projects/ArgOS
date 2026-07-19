@@ -4,6 +4,7 @@
  * VC Brain — Sourcing
  * OpenAPI spec version: 0.1.0
  */
+import type { OpportunityAxisSummary } from './opportunityAxisSummary';
 
 export interface OpportunityListItem {
   id: string;
@@ -14,4 +15,5 @@ export interface OpportunityListItem {
   geo: string | null;
   status: string;
   created_at: string;
+  axes: OpportunityAxisSummary[];
 }

@@ -4,6 +4,7 @@
  * VC Brain — Sourcing
  * OpenAPI spec version: 0.1.0
  */
+import type { FounderClaimItem } from './founderClaimItem';
 import type { FounderDetailEducation } from './founderDetailEducation';
 import type { FounderIdentity } from './founderIdentity';
 import type { FounderSignal } from './founderSignal';
@@ -13,6 +14,7 @@ export interface FounderDetail {
   display_name: string | null;
   status: string;
   discovery_confidence: number | null;
+  founder_score: number | null;
   current_company: string | null;
   occupation: string | null;
   city: string | null;
@@ -21,4 +23,5 @@ export interface FounderDetail {
   last_checked_at: string | null;
   identity: FounderIdentity;
   signals: FounderSignal[];
+  claims: FounderClaimItem[];
 }

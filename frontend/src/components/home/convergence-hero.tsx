@@ -143,7 +143,10 @@ export function ConvergenceHero() {
         <canvas
           ref={canvasRef}
           aria-hidden
-          className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${done ? "opacity-0" : "opacity-100"}`}
+          // Explicit CSS size: the width/height ATTRIBUTES hold the HiDPI bitmap size
+          // (css * dpr); without CSS sizing the canvas would render at bitmap width and
+          // overflow the page horizontally on retina screens.
+          className={`pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-700 ${done ? "opacity-0" : "opacity-100"}`}
         />
       )}
       <div className="relative mx-auto flex max-w-2xl flex-col items-center pt-6 text-center sm:pt-12">
@@ -157,7 +160,7 @@ export function ConvergenceHero() {
           {...appear(0.8)}
           className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
         >
-          An operating system for venture sourcing
+          An operating system for <span className="text-gradient">venture sourcing</span>
         </motion.h1>
         <motion.p
           {...appear(1.1)}
