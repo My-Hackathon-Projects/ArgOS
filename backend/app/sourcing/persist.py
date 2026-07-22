@@ -15,11 +15,30 @@ from app.models import Founder, Identity, JobRun, Signal, TraceStep
 
 _STRONG_KEYS = ("github", "twitter", "linkedin", "website", "orcid")
 
+# Leading honorifics/titles are stripped before name matching so "Prof. Stefan X" and
+# "Stefan X" resolve to the same person (observed real dup: honorifics + middle initials).
+_HONORIFICS = {
+    "prof", "professor", "dr", "phd", "md", "dphil", "herr", "frau",
+    "mr", "mrs", "ms", "mx", "dipl", "ing", "msc", "bsc",
+}
+
 
 def _norm_name(s: str | None) -> str:
+    """Canonical key for founder-name matching.
+
+    Accent-folds + lowercases, strips leading honorifics (Prof./Dr./...), and drops middle
+    INITIALS (single letters), so "Prof. Rebecca C. Reisch" and "Rebecca Reisch" collapse to
+    one person. Deliberately leaves the first + last token untouched, so distinct first names
+    (Fan Wu vs Jingcheng Wu) never merge, and full middle names (not initials) are kept.
+    """
     decomposed = unicodedata.normalize("NFKD", (s or "").lower().strip())
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return " ".join(stripped.split())
+    tokens = stripped.replace(".", " ").split()
+    while tokens and tokens[0] in _HONORIFICS:
+        tokens.pop(0)
+    if len(tokens) > 2:
+        tokens = [tokens[0], *(t for t in tokens[1:-1] if len(t) > 1), tokens[-1]]
+    return " ".join(tokens)
 
 
 def _parse_dt(s: str | None) -> datetime | None:
