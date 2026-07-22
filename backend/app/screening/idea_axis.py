@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.models import Claim, ClaimEvidence, Opportunity, Signal, ThreeAxis
 from app.screening.llm import structured_llm
 from app.screening.trend import trend_vs_prev
+from app.text import strip_inline_ids
 
 # survives_as_is -> the idea holds -> bull; pivot_needed -> neutral; fails -> bear.
 _VERDICT_MAP: dict[str, Literal["bull", "neutral", "bear"]] = {
@@ -96,7 +97,8 @@ Judge whether the idea, as stated, survives scrutiny against this market:
 
 ## Rules
 1. Base the verdict ONLY on the evidence above. Cite the claim ids you rely on in evidence_claim_ids
-   — use ONLY ids shown in [brackets]; never invent an id or a fact.
+   — use ONLY ids shown in [brackets]; never invent an id or a fact. NEVER write a claim id inside
+   the rationale prose — ids belong ONLY in evidence_claim_ids.
 2. Thin team evidence is NOT a negative — it lowers CONFIDENCE, never forces 'fails'. If the team has
    few claims, prefer 'pivot_needed'/'survives_as_is' with low confidence and say so in gaps.
 3. score 0..100 = idea-vs-market attractiveness; confidence 0..1 = how sure the evidence lets you be.
@@ -132,7 +134,7 @@ def finalize_idea(
         score=out.score,
         trend="stable",  # placeholder — the real trend is derived at upsert from the prior score
         confidence=round(confidence, 2),
-        rationale=out.rationale,
+        rationale=strip_inline_ids(out.rationale),
         evidence={"claim_ids": resolved, "urls": []},
         gaps=gaps,
     )

@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Claim, ClaimEvidence, Memo, Opportunity, Signal, ThreeAxis
 from app.screening.llm import structured_llm
+from app.text import strip_inline_ids
 
 REQUIRED_SECTIONS = (
     "snapshot",
@@ -170,7 +171,9 @@ sector: {opp.sector}   geo: {opp.geo}
   unknown'). A memo that marks its own gaps is more trustworthy than one that hides them.
 
 ## Rules
-1. Cite ONLY claim ids shown in [brackets]; never invent an id, a number, or a fact.
+1. Cite claim ids ONLY inside the evidence_claim_ids arrays — NEVER write a claim id inside a
+   sentence or any prose field (snapshot, problem_product, swot, recommendation). Never invent
+   an id, a number, or a fact.
 2. If a required data point is absent, put it in gaps — do NOT fabricate it. An uncited traction
    metric will be deleted by a deterministic check, so don't bother inventing one.
 3. Be specific and concise."""
@@ -184,7 +187,9 @@ sector: {opp.sector}   geo: {opp.geo}
     for h in out.hypotheses:
         resolved = [cid for cid in h.evidence_claim_ids if cid in valid_ids]
         dropped += len(h.evidence_claim_ids) - len(resolved)
-        resolved_hyps.append({"statement": h.statement, "evidence_claim_ids": resolved})
+        resolved_hyps.append(
+            {"statement": strip_inline_ids(h.statement), "evidence_claim_ids": resolved}
+        )
     if dropped:
         gaps.append(f"dropped {dropped} hypothesis citation(s) not in the evidence set")
 
@@ -196,7 +201,11 @@ sector: {opp.sector}   geo: {opp.geo}
         resolved = [cid for cid in t.evidence_claim_ids if cid in valid_ids]
         if resolved:
             resolved_traction.append(
-                {"metric": t.metric, "value": t.value, "evidence_claim_ids": resolved}
+                {
+                    "metric": strip_inline_ids(t.metric),
+                    "value": strip_inline_ids(t.value),
+                    "evidence_claim_ids": resolved,
+                }
             )
         else:
             dropped_metrics += 1
@@ -204,10 +213,12 @@ sector: {opp.sector}   geo: {opp.geo}
         gaps.append(f"dropped {dropped_metrics} traction metric(s) with no resolvable evidence")
 
     sections = {
-        "snapshot": out.snapshot,
+        "snapshot": strip_inline_ids(out.snapshot),
         "hypotheses": resolved_hyps,
-        "swot": out.swot.model_dump(),
-        "problem_product": out.problem_product,
+        "swot": {
+            k: [strip_inline_ids(x) for x in v] for k, v in out.swot.model_dump().items()
+        },
+        "problem_product": strip_inline_ids(out.problem_product),
         "traction_kpis": {
             "items": resolved_traction,
             # Explicitly-empty is honest, not missing: pre-track-record founders may have zero
@@ -256,7 +267,7 @@ sector: {opp.sector}   geo: {opp.geo}
         row = Memo(opportunity_id=opp.id)
         db.add(row)
     row.sections = sections
-    row.recommendation = out.recommendation
+    row.recommendation = strip_inline_ids(out.recommendation)
     row.confidence = out.confidence
     row.gaps = gaps
     row.quality = quality
