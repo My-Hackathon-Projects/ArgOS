@@ -143,12 +143,26 @@ def test_get_unknown_opportunity_404(client):
 
 
 def test_decide_pursue_stamps_latency(client):
-    c, _ = client
+    c, session = client
     r = c.post("/opportunities", json={"idea": "TEST decide pursue"})
     created = r.json()
     # No founder → the creation itself starts the latency clock.
     assert created["first_signal_at"] is not None
     assert created["decision"] is None
+
+    # pursue requires a screened opportunity — give it an axis (as /screen would).
+    session.add(
+        ThreeAxis(
+            opportunity_id=uuid.UUID(created["id"]),
+            axis="market",
+            score=61.0,
+            verdict="neutral",
+            trend="stable",
+            confidence=0.7,
+            rationale="TEST",
+        )
+    )
+    session.flush()
 
     r = c.post(f"/opportunities/{created['id']}/decision", json={"decision": "pursue"})
     assert r.status_code == 200, r.text
@@ -158,6 +172,16 @@ def test_decide_pursue_stamps_latency(client):
     assert decided["decided_at"] is not None
     assert decided["signal_to_decision_seconds"] is not None
     assert decided["signal_to_decision_seconds"] >= 0
+
+
+def test_decide_pursue_unscreened_409(client):
+    c, _ = client
+    r = c.post("/opportunities", json={"idea": "TEST pursue unscreened"})
+    opp_id = r.json()["id"]
+    # pursue on an opportunity with zero axes is a decision on nothing — must fail-fast.
+    r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "pursue"})
+    assert r.status_code == 409, r.text
+    assert "screen" in r.json()["detail"].lower()
 
 
 def test_decide_pass_rejects(client):

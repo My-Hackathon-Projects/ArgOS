@@ -471,6 +471,11 @@ def decide(opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depen
     opp = db.get(Opportunity, opportunity_id)
     if opp is None:
         raise HTTPException(status_code=404, detail="opportunity not found")
+    if body.decision == "pursue" and not opp.axes:
+        raise HTTPException(
+            status_code=409,
+            detail="cannot pursue an unscreened opportunity — run /screen first",
+        )
     opp.decision = body.decision
     opp.status = _DECISION_STATUS[body.decision]
     opp.decided_at = datetime.now(UTC)
