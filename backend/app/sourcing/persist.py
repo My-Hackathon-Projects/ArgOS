@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Founder, Identity, JobRun, Signal, TraceStep
+from app.normalize import normalize_city
 
 _STRONG_KEYS = ("github", "twitter", "linkedin", "website", "orcid")
 
@@ -106,7 +107,7 @@ def persist_delivery(db: Session, founders: list[dict]) -> dict:
                 display_name=f["display_name"],
                 first_name=f.get("first_name"),
                 last_name=f.get("last_name"),
-                city=f.get("city"),
+                city=normalize_city(f.get("city")),
                 occupation=f.get("occupation"),
                 current_company=f.get("current_company"),
                 education=f.get("education"),
@@ -140,7 +141,8 @@ def persist_delivery(db: Session, founders: list[dict]) -> dict:
                 )
             for attr in ("city", "occupation", "current_company"):
                 if not getattr(founder, attr) and f.get(attr):
-                    setattr(founder, attr, f[attr])
+                    val = normalize_city(f[attr]) if attr == "city" else f[attr]
+                    setattr(founder, attr, val)
 
         founder_new_ids: list[str] = []
         for s in f.get("signals", []):
