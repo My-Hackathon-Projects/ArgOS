@@ -14,10 +14,18 @@ from sqlalchemy.orm import Session
 
 from app.db import engine
 from app.inbound.deck import DECK_SOURCE_RELIABILITY, parse_deck
-from app.inbound.extract import DeckClaim, DeckExtraction, PreScreenResult
+from app.inbound.extract import DeckClaim, DeckExtraction, DeckFounder, PreScreenResult
 from app.inbound.service import hard_filter
 from app.main import app
-from app.models import Claim, ClaimEvidence, InvestmentThesis, Opportunity, Signal, TraceStep
+from app.models import (
+    Claim,
+    ClaimEvidence,
+    Founder,
+    InvestmentThesis,
+    Opportunity,
+    Signal,
+    TraceStep,
+)
 
 
 def _pdf(pages: list[str]) -> bytes:
@@ -113,6 +121,40 @@ def _no_default_thesis(session):
     # the LLM-prescreen seam, and hard_filter has its own unit tests above.
     session.execute(update(InvestmentThesis).values(is_default=False))
     session.flush()
+
+
+def test_apply_attaches_founder(client, monkeypatch):
+    """Founder-first: a deck naming a founder resolves/attaches a Founder to the opportunity."""
+    c, session = client
+    _no_default_thesis(session)
+    fname = "Dana Testfounder " + uuid.uuid4().hex[:8]
+
+    def fake_extract(*_a, **_k):
+        return DeckExtraction(
+            idea="TEST warehouse robots",
+            sector="robotics",
+            geo="EU",
+            founders=[DeckFounder(name=fname, role="CEO", linkedin="dana-test")],
+            claims=[DeckClaim(category="team", statement="ex-Google founding team", source_page=1)],
+        )
+
+    monkeypatch.setattr("app.inbound.service.extract_deck", fake_extract)
+    monkeypatch.setattr(
+        "app.inbound.service.prescreen_llm",
+        lambda *_a, **_k: PreScreenResult(verdict="pass", reason="TEST viable"),
+    )
+
+    r = c.post(
+        "/apply",
+        files={"deck": ("deck.pdf", _pdf(["Founder: Dana"]), "application/pdf")},
+        data={"company_name": "TEST Robotics " + uuid.uuid4().hex},
+    )
+    assert r.status_code == 201, r.text
+    opp = session.get(Opportunity, uuid.UUID(r.json()["opportunity_id"]))
+    assert opp.founder_id is not None
+    founder = session.get(Founder, opp.founder_id)
+    assert founder.display_name == fname
+    assert founder.current_company == opp.company_name
 
 
 def test_apply_round_trip(client, monkeypatch):

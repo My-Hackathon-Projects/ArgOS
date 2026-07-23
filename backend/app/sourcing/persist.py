@@ -6,6 +6,7 @@ without false-merging on a bare shared name.
 """
 
 import unicodedata
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -81,6 +82,45 @@ def _resolve(db: Session, f: dict) -> tuple[object | None, str | None]:
             if _norm_name(name) == target:
                 return fid, "fuzzy"
     return None, None
+
+
+def resolve_or_create_founder(db: Session, f: dict) -> tuple[uuid.UUID, str]:
+    """Resolve a founder dict to an existing founder, or create one. Returns (founder_id, method).
+
+    method in {"exact_key", "fuzzy", "created"}. Shared by the discovery persist path and the
+    inbound intake so BOTH funnels attach the same person through the one resolver (_resolve) —
+    ArgOS is founder-first, every opportunity needs a person. Flushes; the caller commits.
+    """
+    fid, method = _resolve(db, f)
+    if fid is not None:
+        return fid, method
+    founder = Founder(
+        display_name=f["display_name"],
+        first_name=f.get("first_name"),
+        last_name=f.get("last_name"),
+        city=normalize_city(f.get("city")),
+        occupation=f.get("occupation"),
+        current_company=f.get("current_company"),
+        education=f.get("education"),
+        status=f.get("status", "candidate"),
+        discovery_confidence=f.get("discovery_confidence"),
+        first_discovered_at=_parse_dt(f.get("first_discovered_at")) or datetime.now(UTC),
+        last_checked_at=datetime.now(UTC),
+    )
+    db.add(founder)
+    db.flush()
+    ident = f.get("identity") or {}
+    db.add(
+        Identity(
+            founder_id=founder.id,
+            github=ident.get("github"),
+            twitter=ident.get("twitter"),
+            linkedin=ident.get("linkedin"),
+            website=ident.get("website"),
+            orcid=ident.get("orcid"),
+        )
+    )
+    return founder.id, "created"
 
 
 def persist_delivery(db: Session, founders: list[dict]) -> dict:

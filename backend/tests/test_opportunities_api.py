@@ -144,13 +144,15 @@ def test_get_unknown_opportunity_404(client):
 
 def test_decide_pursue_stamps_latency(client):
     c, session = client
-    r = c.post("/opportunities", json={"idea": "TEST decide pursue"})
+    f = Founder(display_name="TEST-" + uuid.uuid4().hex)
+    session.add(f)
+    session.flush()
+    r = c.post("/opportunities", json={"founder_id": str(f.id), "idea": "TEST decide pursue"})
     created = r.json()
-    # No founder → the creation itself starts the latency clock.
     assert created["first_signal_at"] is not None
     assert created["decision"] is None
 
-    # pursue requires a screened opportunity — give it an axis (as /screen would).
+    # pursue needs a screened opp (founder mapped above — founder-first); give it an axis.
     session.add(
         ThreeAxis(
             opportunity_id=uuid.UUID(created["id"]),
@@ -182,6 +184,28 @@ def test_decide_pursue_unscreened_409(client):
     r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "pursue"})
     assert r.status_code == 409, r.text
     assert "screen" in r.json()["detail"].lower()
+
+
+def test_decide_pursue_no_founder_409(client):
+    c, session = client
+    # Screened but founderless: ArgOS is founder-first — no Founder Score, no pursue.
+    r = c.post("/opportunities", json={"idea": "TEST pursue no founder"})
+    opp_id = r.json()["id"]
+    session.add(
+        ThreeAxis(
+            opportunity_id=uuid.UUID(opp_id),
+            axis="market",
+            score=61.0,
+            verdict="neutral",
+            trend="stable",
+            confidence=0.7,
+            rationale="TEST",
+        )
+    )
+    session.flush()
+    r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "pursue"})
+    assert r.status_code == 409, r.text
+    assert "founder" in r.json()["detail"].lower()
 
 
 def test_decide_pass_rejects(client):

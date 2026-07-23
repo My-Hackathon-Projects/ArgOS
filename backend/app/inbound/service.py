@@ -23,6 +23,7 @@ from app.inbound.deck import DECK_SOURCE_RELIABILITY, parse_deck
 from app.inbound.extract import DeckClaim, PreScreenResult, extract_deck, prescreen_llm
 from app.ingest import upsert_signal
 from app.models import Claim, ClaimEvidence, InvestmentThesis, Opportunity, Signal, TraceStep
+from app.sourcing.persist import resolve_or_create_founder
 
 _RELEVANCE = 0.85  # deck page directly asserts the claim (mirrors app.claims.service)
 
@@ -125,6 +126,24 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
     opp.sector = extraction.sector
     opp.geo = extraction.geo
 
+    # Founder-first: resolve/attach the primary founder from the deck so the opportunity has a
+    # person (and, once profiled, a Founder Score) — a founderless inbound opp can't be decided.
+    # Reuses the sourcing resolver so an already-known founder links to their existing record.
+    founder_name: str | None = None
+    if extraction.founders:
+        primary = extraction.founders[0]
+        opp.founder_id, _method = resolve_or_create_founder(
+            db,
+            {
+                "display_name": primary.name,
+                "occupation": primary.role,
+                "current_company": name,
+                "identity": {"linkedin": primary.linkedin},
+                "status": "candidate",
+            },
+        )
+        founder_name = primary.name
+
     thesis = (
         db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))
         .scalars()
@@ -152,6 +171,7 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
                 "idea": opp.idea,
                 "sector": opp.sector,
                 "geo": opp.geo,
+                "founder": founder_name,
             },
             evidence_ids=[str(s.id) for s in signal_by_page.values()],
         )

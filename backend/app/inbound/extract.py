@@ -21,6 +21,18 @@ class DeckClaim(BaseModel):
     source_page: int = Field(ge=1, description="1-based deck page the assertion appears on.")
 
 
+class DeckFounder(BaseModel):
+    """A founder/co-founder named in the deck — ArgOS is founder-first, so we pull the person."""
+
+    name: str = Field(description="Full name of a founder/co-founder named in the deck.")
+    role: str | None = Field(
+        default=None, description="Role if stated, e.g. 'CEO', 'CTO'. null otherwise."
+    )
+    linkedin: str | None = Field(
+        default=None, description="LinkedIn URL or handle if shown in the deck. null otherwise."
+    )
+
+
 class DeckExtraction(BaseModel):
     """Output of the one-pass deck extraction call."""
 
@@ -34,6 +46,11 @@ class DeckExtraction(BaseModel):
     )
     geo: str | None = Field(
         default=None, description="Primary geography, e.g. 'US', 'EU'. null if unclear."
+    )
+    founders: list[DeckFounder] = Field(
+        default_factory=list,
+        description="Founders/co-founders named in the deck, primary/CEO first if discernible. "
+        "Empty only if the deck names no people.",
     )
     claims: list[DeckClaim] = Field(default_factory=list)
 
@@ -59,7 +76,10 @@ def extract_deck(company_name: str, pages: list[tuple[int, str]]) -> DeckExtract
 ## Task
 1. Profile: idea (one sentence, what the company does), sector (lowercase label), geo. Use null when
    the deck does not say — never guess.
-2. Claims: every CHECKABLE factual assertion (traction, revenue, team, market, product). A claim must
+2. Founders: every founder/co-founder named in the deck (name, role, LinkedIn if shown), primary/CEO
+   first. This is a founder-first fund — the people matter as much as the idea. Empty only if the
+   deck names no people; never invent a name.
+3. Claims: every CHECKABLE factual assertion (traction, revenue, team, market, product). A claim must
    be specific enough to verify or refute later ('$50K MRR', 'ex-Google founding team', '10k users').
    Skip vision statements, adjectives, and unfalsifiable marketing copy.
 

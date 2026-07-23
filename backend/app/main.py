@@ -472,11 +472,18 @@ def decide(opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depen
     opp = db.get(Opportunity, opportunity_id)
     if opp is None:
         raise HTTPException(status_code=404, detail="opportunity not found")
-    if body.decision == "pursue" and not opp.axes:
-        raise HTTPException(
-            status_code=409,
-            detail="cannot pursue an unscreened opportunity — run /screen first",
-        )
+    if body.decision == "pursue":
+        if not opp.axes:
+            raise HTTPException(
+                status_code=409,
+                detail="cannot pursue an unscreened opportunity — run /screen first",
+            )
+        if opp.founder_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail="cannot pursue an opportunity with no founder — ArgOS is founder-first; "
+                "a Founder Score is required to decide, so map a founder first",
+            )
     opp.decision = body.decision
     opp.status = _DECISION_STATUS[body.decision]
     opp.decided_at = datetime.now(UTC)
