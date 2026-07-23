@@ -14,11 +14,14 @@ import { humanize } from "@/lib/source-style";
 // Every claim is sourced — "verified" here means the corroborating evidence cleared the
 // trust bar, not that unlabeled claims are unsourced. Hence corroboration language, not
 // "verified/unverified", which reads as "no evidence" to an investor.
-function claimStatusBadge(status: string): { variant: BadgeProps["variant"]; label: string } {
+// Number-first: badge ONLY the meaningful states. The sub-threshold majority (~95% of
+// claims) carries no badge — the trust % + breakdown are the signal, and a constant
+// "Uncorroborated" label would be noise (and every claim IS sourced, so it misleads).
+function claimStatusBadge(status: string): { variant: BadgeProps["variant"]; label: string } | null {
   if (status === "verified") return { variant: "success", label: "Corroborated" };
   if (status === "contradicted") return { variant: "danger", label: "Contradicted" };
   if (status === "needs_review") return { variant: "danger", label: "Needs review" };
-  return { variant: "muted", label: "Uncorroborated" };
+  return null;
 }
 
 function pct(v: number): number {
@@ -140,7 +143,7 @@ export function ClaimsList({ claims }: { claims: FounderClaimItem[] }) {
                         )}
                       </span>
                       {c.updated_at && <span>updated {relativeTime(c.updated_at)}</span>}
-                      <Badge variant={s.variant}>{s.label}</Badge>
+                      {s && <Badge variant={s.variant}>{s.label}</Badge>}
                       {tc && (
                         <ChevronDown
                           className={cn(
