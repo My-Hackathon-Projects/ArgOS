@@ -65,6 +65,17 @@ class FounderSignal(BaseModel):
     resolution_method: str | None
 
 
+class ClaimTrustComponents(BaseModel):
+    """The decomposition behind trust_score — the 'show the receipts' panel."""
+
+    support: float  # noisy-OR over supporting evidence weights
+    refute: float  # noisy-OR over refuting evidence weights
+    corroboration_n: int  # count of supporting edges
+    refutation_n: int  # count of refuting edges
+    sources: list[str]  # distinct source names behind the claim
+    external_verified: bool  # any single support edge authoritative enough to stand alone
+
+
 class FounderClaimItem(BaseModel):
     statement: str
     category: str | None
@@ -74,6 +85,7 @@ class FounderClaimItem(BaseModel):
     supporting_count: int  # supports edges — corroboration
     refuting_count: int  # refutes edges — contradiction flags
     updated_at: datetime | None
+    trust_components: ClaimTrustComponents | None  # decomposition for the trust breakdown panel
 
 
 class ScorePoint(BaseModel):

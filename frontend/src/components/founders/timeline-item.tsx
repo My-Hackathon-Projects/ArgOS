@@ -23,16 +23,6 @@ export function TimelineItem({ s }: { s: FounderSignal }) {
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
         <Badge variant="outline">{humanize(s.signal_type)}</Badge>
         <span className="font-medium text-muted-foreground">{s.source}</span>
-        {s.resolution_method && (
-          <>
-            <span aria-hidden>·</span>
-            <span>
-              matched via {s.resolution_method}
-              {s.resolution_confidence != null &&
-                ` (${Math.round(s.resolution_confidence * 100)}%)`}
-            </span>
-          </>
-        )}
         {time && (
           <>
             <span aria-hidden>·</span>

@@ -4,6 +4,7 @@
  * ArgOS
  * OpenAPI spec version: 0.1.0
  */
+import type { ClaimTrustComponents } from './claimTrustComponents';
 
 export interface FounderClaimItem {
   statement: string;
@@ -14,4 +15,5 @@ export interface FounderClaimItem {
   supporting_count: number;
   refuting_count: number;
   updated_at: string | null;
+  trust_components: ClaimTrustComponents | null;
 }

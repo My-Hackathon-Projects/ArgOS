@@ -261,6 +261,7 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
                 "supporting_count": sum(1 for e in c.evidence if e.stance == "supports"),
                 "refuting_count": sum(1 for e in c.evidence if e.stance == "refutes"),
                 "updated_at": c.updated_at,
+                "trust_components": c.trust_components,
             }
             for c in claims
         ],

@@ -8,6 +8,7 @@
 export * from './applyResponse';
 export * from './bodyApplyInbound';
 export * from './channelItem';
+export * from './claimTrustComponents';
 export * from './decisionRequest';
 export * from './decisionRequestDecision';
 export * from './discoveryRunResponse';

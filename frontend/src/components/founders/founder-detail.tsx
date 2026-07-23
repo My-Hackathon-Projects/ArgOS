@@ -227,15 +227,6 @@ export function FounderDetail({ founderId }: { founderId: string }) {
                 <ScoreSparkline history={f.score_history} />
               </div>
             )}
-            {f.discovery_confidence != null && (
-              <div>
-                <div className="font-mono text-3xl font-semibold tracking-tight tabular-nums text-foreground">
-                  <CountUp value={f.discovery_confidence * 100} />
-                  <span className="text-lg font-normal text-subtle">%</span>
-                </div>
-                <div className="text-xs text-subtle">discovery confidence</div>
-              </div>
-            )}
           </div>
         </div>
         {(f.first_discovered_at || f.last_checked_at) && (

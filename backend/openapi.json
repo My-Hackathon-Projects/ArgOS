@@ -267,7 +267,7 @@
     "/founders/{founder_id}/trace": {
       "get": {
         "summary": "Get Founder Trace",
-        "description": "Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence.",
+        "description": "Step-level reasoning trace (stretch #1): each agent's work for this founder + evidence.",
         "operationId": "get_founder_trace",
         "parameters": [
           {
@@ -923,6 +923,48 @@
         ],
         "title": "ChannelItem"
       },
+      "ClaimTrustComponents": {
+        "properties": {
+          "support": {
+            "type": "number",
+            "title": "Support"
+          },
+          "refute": {
+            "type": "number",
+            "title": "Refute"
+          },
+          "corroboration_n": {
+            "type": "integer",
+            "title": "Corroboration N"
+          },
+          "refutation_n": {
+            "type": "integer",
+            "title": "Refutation N"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "external_verified": {
+            "type": "boolean",
+            "title": "External Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "support",
+          "refute",
+          "corroboration_n",
+          "refutation_n",
+          "sources",
+          "external_verified"
+        ],
+        "title": "ClaimTrustComponents",
+        "description": "The decomposition behind trust_score \u2014 the 'show the receipts' panel."
+      },
       "DecisionRequest": {
         "properties": {
           "decision": {
@@ -1036,6 +1078,16 @@
               }
             ],
             "title": "Updated At"
+          },
+          "trust_components": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimTrustComponents"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1047,7 +1099,8 @@
           "evidence_count",
           "supporting_count",
           "refuting_count",
-          "updated_at"
+          "updated_at",
+          "trust_components"
         ],
         "title": "FounderClaimItem"
       },
