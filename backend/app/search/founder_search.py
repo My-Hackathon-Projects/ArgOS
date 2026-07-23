@@ -59,9 +59,7 @@ def run_founder_search(db: Session, query: str) -> FounderSearchResponse:
     lines = []
     for f in founders:
         claims = (
-            db.execute(
-                select(Claim.statement).where(Claim.founder_id == f.id).limit(15)
-            )
+            db.execute(select(Claim.statement).where(Claim.founder_id == f.id).limit(15))
             .scalars()
             .all()
         )

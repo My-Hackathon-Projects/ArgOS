@@ -215,9 +215,7 @@ sector: {opp.sector}   geo: {opp.geo}
     sections = {
         "snapshot": strip_inline_ids(out.snapshot),
         "hypotheses": resolved_hyps,
-        "swot": {
-            k: [strip_inline_ids(x) for x in v] for k, v in out.swot.model_dump().items()
-        },
+        "swot": {k: [strip_inline_ids(x) for x in v] for k, v in out.swot.model_dump().items()},
         "problem_product": strip_inline_ids(out.problem_product),
         "traction_kpis": {
             "items": resolved_traction,

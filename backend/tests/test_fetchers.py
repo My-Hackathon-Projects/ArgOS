@@ -213,7 +213,7 @@ def test_hn_hit_self_post_without_url():
 
 def test_clean_hn_text_unescapes_and_keeps_link_targets():
     raw = (
-        "Hey HN &#x27;team&#x27;, see <a href=\"https:&#x2F;&#x2F;armalo.ai\" "
+        'Hey HN &#x27;team&#x27;, see <a href="https:&#x2F;&#x2F;armalo.ai" '
         'rel="nofollow">armalo.ai</a><p>Second paragraph</p>'
     )
     cleaned = _clean_hn_text(raw)

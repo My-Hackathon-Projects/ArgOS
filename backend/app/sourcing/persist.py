@@ -18,8 +18,22 @@ _STRONG_KEYS = ("github", "twitter", "linkedin", "website", "orcid")
 # Leading honorifics/titles are stripped before name matching so "Prof. Stefan X" and
 # "Stefan X" resolve to the same person (observed real dup: honorifics + middle initials).
 _HONORIFICS = {
-    "prof", "professor", "dr", "phd", "md", "dphil", "herr", "frau",
-    "mr", "mrs", "ms", "mx", "dipl", "ing", "msc", "bsc",
+    "prof",
+    "professor",
+    "dr",
+    "phd",
+    "md",
+    "dphil",
+    "herr",
+    "frau",
+    "mr",
+    "mrs",
+    "ms",
+    "mx",
+    "dipl",
+    "ing",
+    "msc",
+    "bsc",
 }
 
 
