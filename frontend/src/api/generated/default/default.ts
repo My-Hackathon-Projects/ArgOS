@@ -709,7 +709,7 @@ export function useGetFounder<TData = Awaited<ReturnType<typeof getFounder>>, TE
 
 
 /**
- * Step-level reasoning trace (stretch #1): what each agent did for this founder, with evidence.
+ * Step-level reasoning trace (stretch #1): each agent's work for this founder + evidence.
  * @summary Get Founder Trace
  */
 export const getFounderTrace = (
