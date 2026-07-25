@@ -242,12 +242,11 @@ def test_first_signal_at_uses_earliest_founder_signal(client):
     from app.models import Signal
 
     old = datetime(2024, 3, 1, tzinfo=UTC)
-    session.add(
+    f.signals.append(
         Signal(
             source="synthetic",
             signal_type="post",
             external_id="TEST-" + uuid.uuid4().hex,
-            founder_id=f.id,
             occurred_at=old,
         )
     )

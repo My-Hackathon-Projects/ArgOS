@@ -6,8 +6,7 @@ second Founder row is minted. Founder Score is per-person and must never fragmen
 invariant under test is: re-discovering a known person NEVER increases the founder count.
 """
 
-import uuid
-
+from helpers import unique_suffix
 from sqlalchemy import func, select
 
 from app.db import SessionLocal
@@ -48,7 +47,7 @@ def test_rediscovery_with_shared_artifact_resolves_to_existing_founder() -> None
     """The Mario Krenn / Philipp Hennig case: duplicate shared 2-3 canonical artifacts."""
     db = SessionLocal()
     try:
-        suffix = uuid.uuid4().hex
+        suffix = unique_suffix()
         name = f"Mario Krenn {suffix}"
         shared = _artifact(suffix, 1)
 
@@ -70,7 +69,7 @@ def test_rediscovery_with_newly_found_identity_enriches_existing_founder() -> No
     """The Taylor T. Johnson case: original had no identity, the duplicate carried the LinkedIn."""
     db = SessionLocal()
     try:
-        suffix = uuid.uuid4().hex
+        suffix = unique_suffix()
         name = f"Taylor Johnson {suffix}"
 
         persist_delivery(db, [_candidate(name, [_artifact(suffix, 1)])], commit=False)
@@ -95,7 +94,7 @@ def test_two_mentions_of_one_person_in_one_delivery_create_one_founder() -> None
     """autoflush=False meant an Identity added earlier in the same loop was invisible."""
     db = SessionLocal()
     try:
-        suffix = uuid.uuid4().hex
+        suffix = unique_suffix()
         name = f"Weiming Xiang {suffix}"
         handle = f"wxiang-{suffix}"
         first = _candidate(name, [_artifact(suffix, 1)])
@@ -115,7 +114,7 @@ def test_replaying_the_same_delivery_is_idempotent() -> None:
     """Discovery re-runs on a similar seed every cycle; the founder count must be stable."""
     db = SessionLocal()
     try:
-        suffix = uuid.uuid4().hex
+        suffix = unique_suffix()
         delivery = [
             _candidate(f"Diego Lopez {suffix}", [_artifact(suffix, 1)]),
             _candidate(f"Nathaniel Hamilton {suffix}", [_artifact(suffix, 2)]),
@@ -137,7 +136,7 @@ def test_conflicting_strong_identities_never_merge_two_people() -> None:
     """Homonym safety: same name, but each side has a different LinkedIn -> two people."""
     db = SessionLocal()
     try:
-        suffix = uuid.uuid4().hex
+        suffix = unique_suffix()
         name = f"Xiaodong Yang {suffix}"
         first = _candidate(name, [_artifact(suffix, 1)])
         first["identity"] = {"linkedin": f"https://www.linkedin.com/in/xy-a-{suffix}"}
@@ -157,7 +156,7 @@ def test_every_persisted_founder_has_at_least_one_signal() -> None:
     """Founder-first invariant: a person with no evidence has no reason to exist."""
     db = SessionLocal()
     try:
-        suffix = uuid.uuid4().hex
+        suffix = unique_suffix()
         persist_delivery(
             db,
             [

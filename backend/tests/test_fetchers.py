@@ -106,6 +106,29 @@ def test_fallback_does_not_swallow_contract_bugs(monkeypatch):
         buggy("q", CHANNEL)
 
 
+def test_tavily_provider_error_uses_responses_web_search(monkeypatch):
+    fallback = [{"url": "https://fallback.example/result"}]
+
+    def quota_exhausted(*args, **kwargs):
+        raise httpx.HTTPStatusError("quota exhausted", request=None, response=None)
+
+    monkeypatch.setattr(fetchers.tavily, "tavily_search", quota_exhausted)
+    monkeypatch.setattr(fetchers, "responses_web_search", lambda query, channel: fallback)
+
+    assert fetchers.tavily_fetch("test query", CHANNEL) == fallback
+
+
+def test_tavily_zero_results_does_not_use_responses(monkeypatch):
+    monkeypatch.setattr(fetchers.tavily, "tavily_search", lambda *args, **kwargs: {"results": []})
+    monkeypatch.setattr(
+        fetchers,
+        "responses_web_search",
+        lambda *args, **kwargs: pytest.fail("Responses fallback should not run"),
+    )
+
+    assert fetchers.tavily_fetch("test query", CHANNEL) == []
+
+
 # ── github normalization ─────────────────────────────────────────────────────
 
 

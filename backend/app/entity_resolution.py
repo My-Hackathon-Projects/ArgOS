@@ -69,6 +69,77 @@ def normalize_person_name(value: str | None) -> str:
     return " ".join(tokens)
 
 
+# Tokens that mark an organisation, event or programme rather than a human being. Kept as whole
+# tokens (never substrings) so real surnames like "Hackett" or "Labbe" are unaffected.
+_NON_PERSON_TOKENS = frozenset(
+    {
+        "hackathon",
+        "hack",
+        "hacks",
+        "makeathon",
+        "hackfest",
+        "datathon",
+        "jam",
+        "expo",
+        "summit",
+        "conference",
+        "congress",
+        "meetup",
+        "festival",
+        "challenge",
+        "bootcamp",
+        "accelerator",
+        "incubator",
+        "demoday",
+        "cohort",
+        "edition",
+        "university",
+        "universitaet",
+        "universitat",
+        "institute",
+        "institut",
+        "college",
+        "gmbh",
+        "ug",
+        "ltd",
+        "llc",
+        "inc",
+        "corp",
+        "ventures",
+        "capital",
+        "partners",
+        "foundation",
+        "association",
+        "society",
+        "consortium",
+        "committee",
+    }
+)
+
+
+def is_person_name(name: str | None) -> bool:
+    """Deterministic gate: could this string be a human being's name?
+
+    Founder-first means the founder table holds people. Without this gate the only check was
+    "two whitespace-separated tokens", which admitted events and GitHub organisations — the dev
+    DB accumulated MakeUofT 2026, hackaTUM 2025, MunichTech EXPO and the org handle tum-ei-eda,
+    each carrying signals and a Founder Score.
+    """
+    raw = (name or "").strip()
+    if not raw or raw.casefold() == "none":
+        return False
+    if any(character.isdigit() for character in raw):
+        return False  # cohort years: "MakeUofT 2026", "hackaTUM 2025"
+    if any(separator in raw for separator in ("&", "|", "/", "@", "!")):
+        return False
+    if not any(character.isspace() for character in raw):
+        return False  # bare handles: "annu12340", "tum-ei-eda", "curatorshashi"
+    tokens = normalize_person_name(raw).split()
+    if len(tokens) < 2:
+        return False
+    return not any(token in _NON_PERSON_TOKENS for token in tokens)
+
+
 def normalize_comparison_text(value: str | None) -> str:
     """Normalize organization and education text without applying person-name rules."""
     value = unicodedata.normalize("NFKD", (value or "").casefold())

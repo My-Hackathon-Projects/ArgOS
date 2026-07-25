@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.entity_resolution import (
     FounderCandidate,
     compact_person_name,
+    is_person_name,
     resolve_candidates,
     review_fingerprint,
 )
@@ -295,8 +296,14 @@ def persist_delivery(
     new_signals = 0
     resolved = 0
     dropped_no_evidence = 0
+    dropped_non_person = 0
 
     for f in founders:
+        # Personhood is decided at the single writer, so no caller can put an event or an
+        # organisation into the founder table regardless of what upstream extraction produced.
+        if not is_person_name(f.get("display_name")):
+            dropped_non_person += 1
+            continue
         # Materialize evidence first. A new outbound founder is never created without at
         # least one attributable artifact; invalid/empty research output is discarded.
         attributed_signals: list[tuple[Signal, dict]] = []
@@ -398,5 +405,6 @@ def persist_delivery(
         # Candidates discarded for having no attributable artifact. Reported so a silent drop
         # of thin-footprint (cold-start) founders is visible to the operator.
         "dropped_no_evidence": dropped_no_evidence,
+        "dropped_non_person": dropped_non_person,
         "job_run_id": str(job.id),
     }

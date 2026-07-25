@@ -8,7 +8,8 @@ Seeds (app/sourcing/seeds.py) drive the channels; the thesis rides in every prom
 finalize hands back an in-memory delivery; persistence is a separate single-writer step.
 Auto-traced to LangSmith when LANGSMITH_TRACING=true.
 
-Future: add OpenAI's native web-search tool as a SECOND source in run_searches (union + dedup).
+Tavily is primary; Responses web search is a provider-failure fallback, normalized through
+the same fetcher contract before any candidate or identity processing.
 """
 
 import hashlib
@@ -26,8 +27,9 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 
 from app.config import settings
+from app.entity_resolution import is_person_name
 from app.sourcing import tavily
-from app.sourcing.fetchers import get_fetcher
+from app.sourcing.fetchers import get_fetcher, tavily_fetch
 from app.sourcing.schemas import CandidateList, CandidateResearch, SearchPlan
 from app.sourcing.seeds import enabled_channels
 
@@ -155,13 +157,12 @@ def _norm(s: str | None) -> str:
 
 
 def _worth_researching(cand: dict) -> bool:
-    """Cheap gate before the expensive synthesis: skip junk (no name / 'None' / no identity)."""
-    name = (cand.get("display_name") or "").strip()
-    if not name or name.lower() == "none":
-        return False
-    has_full_name = len(name.split()) >= 2
-    has_identity = any(cand.get(k) for k in ("github", "linkedin", "website", "orcid", "twitter"))
-    return has_full_name or has_identity
+    """Cheap gate before the expensive synthesis: skip junk and anything that is not a person.
+
+    An identity alone is NOT sufficient — a GitHub organisation has one. The prompt says "people
+    only", but an LLM instruction is not a gate, so personhood is decided deterministically.
+    """
+    return is_person_name(cand.get("display_name"))
 
 
 # ── ① plan_searches (fast model, structured prompt) ──────────────────────────
@@ -341,21 +342,11 @@ def _research_context(cand: dict, thesis: dict) -> str:
     ][: settings.research_rounds]
     parts = []
     for q in rounds:
-        try:
-            res = tavily.tavily_search(
-                q,
-                settings.tavily_api_key,
-                max_results=settings.tavily_max_results,
-                search_depth="advanced",
-                include_raw_content=True,
-            )
-        except httpx.HTTPError:
-            continue
+        hits = tavily_fetch(q, {"name": "founder_research"})
         parts.append(
             "\n\n".join(
-                f"{r.get('title')}\n{r.get('url')}\n"
-                f"{(r.get('raw_content') or r.get('content') or '')[:1200]}"
-                for r in res.get("results", [])
+                f"{hit.get('title')}\n{hit.get('url')}\n{hit.get('content', '')[:1200]}"
+                for hit in hits
             )
         )
     return "\n\n".join(parts)
