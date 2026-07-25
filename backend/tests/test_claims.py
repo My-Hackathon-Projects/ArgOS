@@ -13,7 +13,7 @@ from app.claims import score, trust
 from app.claims.schemas import ExtractedClaim
 from app.claims.service import _mint
 from app.db import SessionLocal
-from app.models import Claim, ClaimEvidence, Founder, Signal
+from app.models import Claim, ClaimEvidence, Founder, Signal, founder_signal
 
 # ── Trust Score (noisy-OR, deterministic) ────────────────────────────────────
 
@@ -82,12 +82,12 @@ def test_mint_drops_colliding_dedup_key():
             signal_type="profile",
             external_id="t:" + uuid.uuid4().hex,
             canonical_url="https://t/" + uuid.uuid4().hex,
-            founder_id=f.id,
             source_reliability=0.6,
             resolution_confidence=0.9,
         )
         db.add(s)
         db.flush()
+        db.execute(founder_signal.insert().values(founder_id=f.id, signal_id=s.id))
 
         seen: set = set()
         used: set = set()

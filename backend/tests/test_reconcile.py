@@ -38,7 +38,6 @@ def test_merge_moves_founder_owned_records_and_keeps_deleted_uuid_in_audit() -> 
             source="test",
             signal_type="profile",
             external_id=f"signal-{suffix}",
-            founder_id=duplicate.id,
         )
         duplicate.signals.append(signal)
         claim = Claim(
@@ -100,7 +99,7 @@ def test_merge_moves_founder_owned_records_and_keeps_deleted_uuid_in_audit() -> 
         assert moved_founder_company is not None
         assert moved_alias is not None
         assert moved_identity.founder_id == canonical.id
-        assert moved_signal.founder_id == canonical.id
+        # Signal ownership lives solely in founder_signal now, not on the signal row.
         assert moved_signal.id in {item.id for item in canonical.signals}
         assert moved_claim.founder_id == canonical.id
         assert moved_opportunity.founder_id == canonical.id

@@ -2,7 +2,8 @@
 
 Writes, in one transaction:
   - opportunity (+ optional company / founder_company) if not passed an existing id,
-  - one `web` signal per cited hit (founder_id NULL -> never enters the founder-claim pipeline),
+  - one `web` signal per cited hit (never attributed in founder_signal -> stays out of
+    the founder-claim pipeline),
   - market claims (category market_size|market|competition|comparable), opportunity-anchored,
     each with claim_evidence(stance='supports') and a deterministic trust_score REUSING
     app.claims.trust (the shared formula — no parallel trust model),
@@ -118,7 +119,6 @@ def _mint_signals(db: Session, hits_by_goal: dict) -> dict:
                 summary=(h.get("content") or "")[:500],
                 source_reliability=SOURCE_RELIABILITY.get(src, 0.4),
                 sources_seen=[src],
-                founder_id=None,  # market signals are NOT founder-linked
                 raw=h,
             )
             db.add(sig)
@@ -180,7 +180,6 @@ def _persist_claims(db: Session, opp_id, analysis: dict, canon_map: dict) -> tup
         if claim is None:
             claim = Claim(
                 opportunity_id=opp_id,
-                founder_id=None,
                 category=category,
                 statement=statement,
                 attributes=attributes,

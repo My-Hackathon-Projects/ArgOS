@@ -25,7 +25,6 @@ from app.models import (
     Identity,
     Opportunity,
     ScoreHistory,
-    Signal,
     TraceStep,
     founder_signal,
 )
@@ -233,7 +232,6 @@ def merge_founders(
     _move_aliases(db, canonical.id, duplicate.id)
     _move_signal_attributions(db, canonical.id, duplicate.id)
     for table, column in (
-        (Signal, Signal.founder_id),
         (Opportunity, Opportunity.founder_id),
         (ScoreHistory, ScoreHistory.founder_id),
         (TraceStep, TraceStep.founder_id),

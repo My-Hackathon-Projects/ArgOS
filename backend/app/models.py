@@ -133,9 +133,6 @@ class Signal(Base):
     source: Mapped[str]  # github|arxiv|devpost|producthunt|hn|web|synthetic|inbound
     signal_type: Mapped[str]  # commit|repo|paper|launch|hackathon|profile|post|deck
     external_id: Mapped[str]  # source-native id (web signals use canonical_url)
-    founder_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("founder.id", ondelete="SET NULL")
-    )
     entity_hint: Mapped[str | None]  # raw handle/name pre-resolution ("github:torvalds")
     url: Mapped[str | None]
     canonical_url: Mapped[str | None]  # normalized artifact URL — global dedup key

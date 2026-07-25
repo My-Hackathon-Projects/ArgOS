@@ -11,7 +11,16 @@ import pytest
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import Claim, ClaimEvidence, Founder, Opportunity, ScoreHistory, Signal, ThreeAxis
+from app.models import (
+    Claim,
+    ClaimEvidence,
+    Founder,
+    Opportunity,
+    ScoreHistory,
+    Signal,
+    ThreeAxis,
+    founder_signal,
+)
 from app.screening.founder_axis import (
     BEAR_BELOW,
     BULL_AT_LEAST,
@@ -160,10 +169,10 @@ def test_upsert_founder_axis_real_db():
             signal_type="repo",
             external_id="TEST-" + uuid.uuid4().hex,
             url="https://github.com/test/repo",
-            founder_id=f.id,
         )
         db.add(sig)
         db.flush()
+        db.execute(founder_signal.insert().values(founder_id=f.id, signal_id=sig.id))
         claim_ids = []
         for i in range(7):
             cl = Claim(
