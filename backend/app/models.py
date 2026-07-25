@@ -16,10 +16,13 @@ from sqlalchemy import (
     ARRAY,
     Boolean,
     CheckConstraint,
+    Column,
     Date,
+    Float,
     ForeignKey,
     Integer,
     String,
+    Table,
     UniqueConstraint,
     func,
     text,
@@ -28,6 +31,29 @@ from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+# A source artifact may evidence several people (for example, every member of a
+# hackathon-winning team).  Keep the artifact globally deduplicated while making
+# its attribution to founders explicit and many-to-many.
+founder_signal = Table(
+    "founder_signal",
+    Base.metadata,
+    Column(
+        "founder_id",
+        UUID(as_uuid=True),
+        ForeignKey("founder.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "signal_id",
+        UUID(as_uuid=True),
+        ForeignKey("signal.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("attribution_confidence", Float, nullable=True),
+    Column("attribution_method", String, nullable=True),
+    Column("attributed_at", TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+)
 
 
 class Founder(Base):
@@ -53,6 +79,10 @@ class Founder(Base):
     last_name: Mapped[str | None]
     dob: Mapped[date | None] = mapped_column(Date)
     city: Mapped[str | None]
+    raw_location: Mapped[str | None]
+    city_key: Mapped[str | None]
+    country_code: Mapped[str | None]
+    location_quality: Mapped[str | None]
     occupation: Mapped[str | None]
     current_company: Mapped[str | None]  # None = pre-company founder (primary target)
     education: Mapped[list | None] = mapped_column(JSONB)  # [{school, degree, field, year}]
@@ -69,7 +99,9 @@ class Founder(Base):
     )  # claim-generation cursor (warm-update gate)
 
     identities: Mapped[list["Identity"]] = relationship(back_populates="founder")
-    signals: Mapped[list["Signal"]] = relationship(back_populates="founder")
+    signals: Mapped[list["Signal"]] = relationship(
+        secondary=founder_signal, back_populates="founders"
+    )
     claims: Mapped[list["Claim"]] = relationship(back_populates="founder")
 
 
@@ -120,7 +152,9 @@ class Signal(Base):
     sources_seen: Mapped[list | None] = mapped_column(JSONB)  # channels that surfaced this artifact
     raw: Mapped[dict | None] = mapped_column(JSONB)  # full original payload, nothing discarded
 
-    founder: Mapped[Founder | None] = relationship(back_populates="signals")
+    founders: Mapped[list[Founder]] = relationship(
+        secondary=founder_signal, back_populates="signals"
+    )
     claim_links: Mapped[list["ClaimEvidence"]] = relationship(back_populates="signal")
 
 
@@ -468,6 +502,61 @@ class TraceStep(Base):
     input: Mapped[dict | None] = mapped_column(JSONB)  # input summary (not the full payload)
     output: Mapped[dict | None] = mapped_column(JSONB)  # output summary
     evidence_ids: Mapped[list | None] = mapped_column(JSONB)  # cited claim/signal ids (provenance)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+
+class FounderAlias(Base):
+    """A source spelling retained after a founder mention is resolved."""
+
+    __tablename__ = "founder_alias"
+    __table_args__ = (UniqueConstraint("founder_id", "normalized_name", name="uq_founder_alias"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
+    raw_name: Mapped[str]
+    normalized_name: Mapped[str]
+    source: Mapped[str | None]
+    signal_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("signal.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+
+class EntityMerge(Base):
+    """Audit record for an automatic or reviewed founder merge."""
+
+    __tablename__ = "entity_merge"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    canonical_founder_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("founder.id", ondelete="CASCADE")
+    )
+    merged_founder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("founder.id", ondelete="SET NULL")
+    )
+    # Immutable UUID of the deleted duplicate. The FK above is intentionally nulled by the
+    # deletion, so it cannot be the sole audit reference.
+    merged_founder_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    method: Mapped[str]
+    confidence: Mapped[float | None]
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+
+class FounderResolutionReview(Base):
+    """Stable record for an unresolved incoming person mention."""
+
+    __tablename__ = "founder_resolution_review"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fingerprint: Mapped[str] = mapped_column(unique=True)
+    founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )

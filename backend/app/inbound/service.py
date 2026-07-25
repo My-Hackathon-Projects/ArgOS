@@ -16,13 +16,22 @@ reason lands in a trace_step row (provenance). Full 3-axis screening stays manua
 from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.claims import trust as trust_mod
 from app.inbound.deck import DECK_SOURCE_RELIABILITY, parse_deck
 from app.inbound.extract import DeckClaim, PreScreenResult, extract_deck, prescreen_llm
 from app.ingest import upsert_signal
-from app.models import Claim, ClaimEvidence, InvestmentThesis, Opportunity, Signal, TraceStep
+from app.models import (
+    Claim,
+    ClaimEvidence,
+    InvestmentThesis,
+    Opportunity,
+    Signal,
+    TraceStep,
+    founder_signal,
+)
 from app.sourcing.persist import resolve_or_create_founder
 
 _RELEVANCE = 0.85  # deck page directly asserts the claim (mirrors app.claims.service)
@@ -142,6 +151,17 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
                 "status": "candidate",
             },
         )
+        for signal in signal_by_page.values():
+            db.execute(
+                insert(founder_signal)
+                .values(
+                    founder_id=opp.founder_id,
+                    signal_id=signal.id,
+                    attribution_confidence=0.7,
+                    attribution_method="deck_primary_founder",
+                )
+                .on_conflict_do_nothing(index_elements=["founder_id", "signal_id"])
+            )
         founder_name = primary.name
 
     thesis = (

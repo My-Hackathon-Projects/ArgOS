@@ -5,14 +5,41 @@
   resolves back to the existing founder, dedup-skips already-stored signals).
 """
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import SessionLocal
 from app.models import Founder, InvestmentThesis
 from app.sourcing.graph import _profile_one, build_discovery_graph
 from app.sourcing.persist import persist_delivery
+from app.sourcing.responses_search import (
+    reset_search_budget,
+    search_budget_used,
+    search_failures,
+)
 from app.sourcing.thesis import DEFAULT_THESIS
+
+_OUTBOUND_SOURCING_LOCK = 437_116
+
+
+def _search_usage() -> dict:
+    """Paid-search accounting for the run, so cost and degradation are both visible."""
+    failures = search_failures()
+    return {
+        "web_searches": search_budget_used(),
+        "web_search_budget": settings.responses_search_max_calls,
+        "web_search_failures": len(failures),
+    }
+
+
+def _acquire_outbound_sourcing_lock(db: Session) -> bool:
+    """Allow exactly one discovery or refresh run across all backend processes."""
+    return bool(
+        db.scalar(
+            text("SELECT pg_try_advisory_xact_lock(:lock_id)"), {"lock_id": _OUTBOUND_SOURCING_LOCK}
+        )
+    )
 
 
 def _load_thesis(db: Session) -> dict:
@@ -36,9 +63,18 @@ def discovery_job() -> dict:
     """DISCOVERY cron: find NEW founders matching the thesis."""
     db = SessionLocal()
     try:
+        if not _acquire_outbound_sourcing_lock(db):
+            db.rollback()
+            return {"skipped": "outbound sourcing already running"}
+        reset_search_budget()
         thesis = _load_thesis(db)
         state = build_discovery_graph().invoke({"thesis": thesis, "trace": []})
-        return persist_delivery(db, state.get("founders", []))
+        summary = persist_delivery(db, state.get("founders", []), commit=False)
+        db.commit()
+        return summary | _search_usage()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -47,6 +83,10 @@ def refresh_job(limit: int = 5) -> dict:
     """REFRESH cron: re-check the N stalest known founders → append any new signals."""
     db = SessionLocal()
     try:
+        if not _acquire_outbound_sourcing_lock(db):
+            db.rollback()
+            return {"skipped": "outbound sourcing already running"}
+        reset_search_budget()
         thesis = _load_thesis(db)
         founders = (
             db.execute(
@@ -72,6 +112,11 @@ def refresh_job(limit: int = 5) -> dict:
                 "orcid": ident.orcid if ident else None,
             }
             deliveries.append(_profile_one(cand, thesis))
-        return persist_delivery(db, deliveries)
+        summary = persist_delivery(db, deliveries, source="refresh", commit=False)
+        db.commit()
+        return summary | _search_usage()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

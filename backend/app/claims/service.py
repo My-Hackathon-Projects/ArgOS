@@ -18,7 +18,16 @@ from app.claims import extract, score
 from app.claims import trust as trust_mod
 from app.claims.schemas import CATEGORIES
 from app.db import SessionLocal
-from app.models import Claim, ClaimEvidence, Founder, JobRun, ScoreHistory, Signal, TraceStep
+from app.models import (
+    Claim,
+    ClaimEvidence,
+    Founder,
+    JobRun,
+    ScoreHistory,
+    Signal,
+    TraceStep,
+    founder_signal,
+)
 
 _RELEVANCE = 0.85  # v1: fixed per-evidence relevance (the LLM asserted the link); refine later.
 
@@ -53,7 +62,14 @@ def _max_occurred(signals: list[Signal], idxs: list[int]) -> datetime | None:
     return max(dates) if dates else None
 
 
-def _add_evidence(db: Session, claim_id, signal: Signal, stance: str, seen: set) -> bool:
+def _add_evidence(
+    db: Session,
+    claim_id,
+    signal: Signal,
+    stance: str,
+    seen: set,
+    attribution_confidence: float | None = None,
+) -> bool:
     key = (claim_id, signal.id)
     if key in seen:  # idempotent: never violate uq_claim_evidence_edge
         return False
@@ -64,7 +80,11 @@ def _add_evidence(db: Session, claim_id, signal: Signal, stance: str, seen: set)
             signal_id=signal.id,
             stance=stance,
             weight=trust_mod.evidence_weight(
-                signal.source_reliability, signal.resolution_confidence, _RELEVANCE
+                signal.source_reliability,
+                attribution_confidence
+                if attribution_confidence is not None
+                else signal.resolution_confidence,
+                _RELEVANCE,
             ),
             extraction_conf=_RELEVANCE,
         )
@@ -73,7 +93,13 @@ def _add_evidence(db: Session, claim_id, signal: Signal, stance: str, seen: set)
 
 
 def _mint(
-    db: Session, founder_id, ec, signals: list[Signal], seen: set, used_keys: set
+    db: Session,
+    founder_id,
+    ec,
+    signals: list[Signal],
+    seen: set,
+    used_keys: set,
+    attribution_confidence_by_signal_id: dict | None = None,
 ) -> Claim | None:
     sup = [i for i in ec.supporting_signals if 0 <= i < len(signals)]
     if not sup:
@@ -98,10 +124,24 @@ def _mint(
     db.add(claim)
     db.flush()
     for i in sup:
-        _add_evidence(db, claim.id, signals[i], "supports", seen)
+        _add_evidence(
+            db,
+            claim.id,
+            signals[i],
+            "supports",
+            seen,
+            (attribution_confidence_by_signal_id or {}).get(signals[i].id),
+        )
     for i in ec.refuting_signals:
         if 0 <= i < len(signals):
-            _add_evidence(db, claim.id, signals[i], "refutes", seen)
+            _add_evidence(
+                db,
+                claim.id,
+                signals[i],
+                "refutes",
+                seen,
+                (attribution_confidence_by_signal_id or {}).get(signals[i].id),
+            )
     return claim
 
 
@@ -140,13 +180,16 @@ def run_claims_for_founder(db: Session, founder_id) -> dict:
     founder = db.get(Founder, founder_id)
     if founder is None:
         raise ValueError(f"founder {founder_id} not found")
-    all_signals = (
-        db.execute(
-            select(Signal).where(Signal.founder_id == founder_id).order_by(Signal.occurred_at)
-        )
-        .scalars()
-        .all()
-    )
+    signal_rows = db.execute(
+        select(Signal, founder_signal.c.attribution_confidence)
+        .join(founder_signal, founder_signal.c.signal_id == Signal.id)
+        .where(founder_signal.c.founder_id == founder_id)
+        .order_by(Signal.occurred_at)
+    ).all()
+    all_signals = [signal for signal, _ in signal_rows]
+    attribution_confidence_by_signal_id = {
+        signal.id: confidence for signal, confidence in signal_rows
+    }
     if not all_signals:
         return {"founder_id": str(founder_id), "skipped": "no signals"}
 
@@ -168,7 +211,15 @@ def run_claims_for_founder(db: Session, founder_id) -> dict:
         for ec in result.claims:
             if not _valid(ec):
                 continue
-            claim = _mint(db, founder_id, ec, all_signals, seen, used_keys)
+            claim = _mint(
+                db,
+                founder_id,
+                ec,
+                all_signals,
+                seen,
+                used_keys,
+                attribution_confidence_by_signal_id,
+            )
             if claim:
                 minted += 1
                 touched.add(claim.id)
@@ -220,12 +271,25 @@ def run_claims_for_founder(db: Session, founder_id) -> dict:
             if target is not None:
                 for i in ec.supporting_signals:
                     if 0 <= i < len(new_signals) and _add_evidence(
-                        db, target.id, new_signals[i], stance, seen
+                        db,
+                        target.id,
+                        new_signals[i],
+                        stance,
+                        seen,
+                        attribution_confidence_by_signal_id.get(new_signals[i].id),
                     ):
                         attached += 1
                         touched.add(target.id)
             else:
-                claim = _mint(db, founder_id, ec, new_signals, seen, used_keys)
+                claim = _mint(
+                    db,
+                    founder_id,
+                    ec,
+                    new_signals,
+                    seen,
+                    used_keys,
+                    attribution_confidence_by_signal_id,
+                )
                 if claim:
                     minted += 1
                     touched.add(claim.id)
@@ -283,10 +347,10 @@ def pending_founder_ids(db: Session) -> list:
     """
     return (
         db.execute(
-            select(Signal.founder_id)
-            .join(Founder, Founder.id == Signal.founder_id)
+            select(founder_signal.c.founder_id)
+            .join(Signal, Signal.id == founder_signal.c.signal_id)
+            .join(Founder, Founder.id == founder_signal.c.founder_id)
             .where(
-                Signal.founder_id.isnot(None),
                 (Founder.last_claimed_at.is_(None))
                 | (Signal.ingested_at > Founder.last_claimed_at),
             )

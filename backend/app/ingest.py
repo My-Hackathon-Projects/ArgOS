@@ -12,15 +12,15 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.connectors.base import SignalEnvelope
-from app.models import Signal
+from app.models import Signal, founder_signal
 
 
 def earliest_signal_at(db: Session, founder_id: uuid.UUID) -> datetime | None:
     """When we first saw this founder — starts the signal→decision latency clock."""
     return db.execute(
-        select(func.min(func.coalesce(Signal.occurred_at, Signal.ingested_at))).where(
-            Signal.founder_id == founder_id
-        )
+        select(func.min(func.coalesce(Signal.occurred_at, Signal.ingested_at)))
+        .join(founder_signal, founder_signal.c.signal_id == Signal.id)
+        .where(founder_signal.c.founder_id == founder_id)
     ).scalar()
 
 

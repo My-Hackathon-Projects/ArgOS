@@ -13,7 +13,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, selectinload
 
 from app.entity_resolution import (
+    STRONG_IDENTITY_KINDS,
     FounderCandidate,
+    artifact_ids_by_founder,
     compact_person_name,
     is_person_name,
     resolve_candidates,
@@ -73,20 +75,6 @@ def _identity_values(founder: Founder, field: str) -> tuple[str, ...] | None:
     return values or None
 
 
-def _artifact_ids_by_founder(db: Session) -> dict[str, tuple[str, ...]]:
-    """Canonical URLs already attributed to each founder, for re-discovery matching."""
-    rows = db.execute(
-        select(founder_signal.c.founder_id, Signal.canonical_url).join(
-            Signal, Signal.id == founder_signal.c.signal_id
-        )
-    ).all()
-    by_founder: dict[str, list[str]] = {}
-    for founder_id, canonical_url in rows:
-        if canonical_url:
-            by_founder.setdefault(str(founder_id), []).append(canonical_url)
-    return {key: tuple(value) for key, value in by_founder.items()}
-
-
 def _resolve(
     db: Session, f: dict, artifact_ids: tuple[str, ...] = ()
 ) -> tuple[uuid.UUID | None, str | None, bool]:
@@ -100,7 +88,7 @@ def _resolve(
     """
     incoming = _incoming_candidate(f, artifact_ids)
     founders = db.execute(select(Founder).options(selectinload(Founder.identities))).scalars().all()
-    artifacts = _artifact_ids_by_founder(db)
+    artifacts = artifact_ids_by_founder(db)
     candidates = []
     for founder in founders:
         candidates.append(
@@ -122,7 +110,7 @@ def _resolve(
     if result.decision == "merge" and result.matched_id:
         method = (
             "exact_key"
-            if any(key in result.reasons for key in ("github", "linkedin", "twitter", "orcid"))
+            if any(key in result.reasons for key in STRONG_IDENTITY_KINDS)
             else "artifact"
             if "artifact" in result.reasons
             else "evidence"

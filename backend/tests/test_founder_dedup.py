@@ -79,6 +79,7 @@ def test_rediscovery_with_newly_found_identity_enriches_existing_founder() -> No
 
         assert _count(db, suffix) == 1, "a newly discovered identity must enrich, not duplicate"
         founder = db.scalar(select(Founder).where(Founder.display_name.contains(suffix)))
+        assert founder is not None
         stored = db.scalars(
             select(Identity.linkedin).where(Identity.founder_id == founder.id)
         ).all()

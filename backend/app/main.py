@@ -46,6 +46,7 @@ from app.models import (
     Signal,
     SourcingChannel,
     TraceStep,
+    founder_signal,
 )
 from app.outbound.draft import draft_outreach
 from app.screening.assemble import screen_opportunity
@@ -167,7 +168,9 @@ def list_founders(db: Session = Depends(get_db)) -> list[dict]:
     out = []
     for f in rows:
         n = db.execute(
-            select(func.count()).select_from(Signal).where(Signal.founder_id == f.id)
+            select(func.count())
+            .select_from(founder_signal)
+            .where(founder_signal.c.founder_id == f.id)
         ).scalar_one()
         out.append(
             {
@@ -201,15 +204,16 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     if f is None:
         raise HTTPException(status_code=404, detail="founder not found")
     identity = f.identities[0] if f.identities else None
-    signals = (
-        db.execute(
-            select(Signal)
-            .where(Signal.founder_id == f.id)
-            .order_by(Signal.occurred_at.asc().nullslast())
+    signal_rows = db.execute(
+        select(
+            Signal,
+            founder_signal.c.attribution_confidence,
+            founder_signal.c.attribution_method,
         )
-        .scalars()
-        .all()
-    )
+        .join(founder_signal, founder_signal.c.signal_id == Signal.id)
+        .where(founder_signal.c.founder_id == f.id)
+        .order_by(Signal.occurred_at.asc().nullslast())
+    ).all()
     claims = (
         db.execute(
             select(Claim)
@@ -239,17 +243,17 @@ def get_founder(founder_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
         },
         "signals": [
             {
-                "source": s.source,
-                "signal_type": s.signal_type,
-                "title": s.title,
-                "summary": s.summary,
-                "url": s.canonical_url,
-                "occurred_at": s.occurred_at,
-                "source_reliability": s.source_reliability,
-                "resolution_confidence": s.resolution_confidence,
-                "resolution_method": s.resolution_method,
+                "source": signal.source,
+                "signal_type": signal.signal_type,
+                "title": signal.title,
+                "summary": signal.summary,
+                "url": signal.canonical_url,
+                "occurred_at": signal.occurred_at,
+                "source_reliability": signal.source_reliability,
+                "resolution_confidence": attribution_confidence,
+                "resolution_method": attribution_method,
             }
-            for s in signals
+            for signal, attribution_confidence, attribution_method in signal_rows
         ],
         "claims": [
             {

@@ -18,6 +18,7 @@ from app.models import (
     ScoreHistory,
     Signal,
     TraceStep,
+    founder_signal,
 )
 from app.reconcile import merge_founders, reconcile_founders
 
@@ -267,6 +268,48 @@ def test_reconciliation_rebuilds_candidates_after_each_merge_in_a_cluster() -> N
         assert result["merge_count"] >= 2
         db.expire_all()
         assert sum(db.get(Founder, founder_id) is not None for founder_id in founder_ids) == 1
+    finally:
+        db.rollback()
+        db.close()
+
+
+def test_merge_preserves_attribution_provenance() -> None:
+    """Merging must not null attribution metadata: claim trust weights are computed from it."""
+    db = SessionLocal()
+    try:
+        suffix = uuid.uuid4().hex
+        canonical = Founder(display_name=f"Canon {suffix}")
+        duplicate = Founder(display_name=f"Dupe {suffix}")
+        signal = Signal(
+            source="web",
+            signal_type="profile",
+            external_id=f"ext-{suffix}",
+            canonical_url=f"https://example.test/{suffix}",
+        )
+        db.add_all([canonical, duplicate, signal])
+        db.flush()
+        db.execute(
+            founder_signal.insert().values(
+                founder_id=duplicate.id,
+                signal_id=signal.id,
+                attribution_confidence=0.9,
+                attribution_method="exact_key",
+            )
+        )
+        db.flush()
+
+        merge_founders(
+            db, canonical, duplicate, method="test", confidence=1.0, evidence={}, commit=False
+        )
+
+        row = db.execute(
+            select(
+                founder_signal.c.attribution_confidence,
+                founder_signal.c.attribution_method,
+            ).where(founder_signal.c.founder_id == canonical.id)
+        ).one()
+        assert row.attribution_confidence == 0.9
+        assert row.attribution_method == "exact_key"
     finally:
         db.rollback()
         db.close()

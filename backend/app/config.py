@@ -23,6 +23,14 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     tavily_api_key: str | None = None
+    # Tavily is temporarily disabled: the account's search budget is exhausted, so every call
+    # would fail and escalate to the paid fallback anyway. The integration is kept intact —
+    # set TAVILY_ENABLED=true to restore it as the primary provider when budget returns.
+    tavily_enabled: bool = False
+    # Hard ceiling on OpenAI Responses web searches per sourcing run. Without it, a provider
+    # outage or bad key turns one discovery run into an unbounded number of paid calls
+    # (candidates x research_rounds x network hop x every refresh cycle).
+    responses_search_max_calls: int = 150
     # Optional — native GitHub fetcher works keyless (10 req/min); token raises to 30.
     github_token: str | None = None
 

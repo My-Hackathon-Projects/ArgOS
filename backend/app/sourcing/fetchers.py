@@ -30,6 +30,7 @@ import httpx
 
 from app.config import settings
 from app.sourcing import tavily
+from app.sourcing.responses_search import responses_web_search
 
 Fetcher = Callable[[str, dict], list[dict]]
 _REGISTRY: dict[str, Fetcher] = {}
@@ -50,7 +51,9 @@ def get_fetcher(name: str | None) -> Fetcher:
 
 @register("tavily")
 def tavily_fetch(query: str, channel: dict) -> list[dict]:
-    """Default: neural web search scoped to the channel's domain, with full page content."""
+    """Default web search. Responses is primary while Tavily is disabled; contract is unchanged."""
+    if not settings.tavily_enabled:
+        return responses_web_search(query, channel)
     domains = [channel["domain"]] if channel.get("domain") else None
     try:
         res = tavily.tavily_search(
@@ -61,8 +64,17 @@ def tavily_fetch(query: str, channel: dict) -> list[dict]:
             search_depth="advanced",
             include_raw_content=True,
         )
+    except httpx.HTTPStatusError as exc:
+        # Rate limiting and provider outages are transient — degrade to Responses. A 401 (bad
+        # key) or 400 (malformed query) is our bug: crash rather than silently pay another
+        # provider for every query in the run.
+        if exc.response.status_code != 429 and exc.response.status_code < 500:
+            raise
+        return responses_web_search(query, channel)
     except httpx.HTTPError:
-        return []  # one flaky query must not sink the fan-out (narrow, not silent)
+        # Timeouts and connection errors. A normal Tavily zero-result response does not fall
+        # through: it is not a provider failure.
+        return responses_web_search(query, channel)
     return [
         {
             "channel": channel.get("name"),

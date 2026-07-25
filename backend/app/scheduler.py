@@ -23,17 +23,30 @@ from app.sourcing.jobs import discovery_job, refresh_job
 def build_scheduler() -> BackgroundScheduler:
     """Register all loop jobs ACTIVE: discovery + refresh + claims (signals → scores)."""
     sched = BackgroundScheduler()
+    now = datetime.now(UTC)
     sched.add_job(
-        discovery_job, "interval", minutes=settings.discovery_interval_min, id="discovery"
+        discovery_job,
+        "interval",
+        minutes=settings.discovery_interval_min,
+        id="discovery",
+        next_run_time=now + timedelta(minutes=settings.discovery_interval_min),
     )
-    sched.add_job(refresh_job, "interval", minutes=settings.refresh_interval_min, id="refresh")
+    # Refresh and discovery share the outbound-sourcing lock. Offset refresh as well, so the
+    # ordinary cadence does not make them contend every refresh interval.
+    sched.add_job(
+        refresh_job,
+        "interval",
+        minutes=settings.refresh_interval_min,
+        id="refresh",
+        next_run_time=now + timedelta(minutes=settings.refresh_interval_min + 10),
+    )
     sched.add_job(
         claims_job,
         "interval",
         minutes=settings.claims_interval_min,
         id="claims",
         # First pass ~2min after boot: score whatever discovery already ingested.
-        next_run_time=datetime.now(UTC) + timedelta(minutes=2),
+        next_run_time=now + timedelta(minutes=2),
     )
     return sched
 

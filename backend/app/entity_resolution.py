@@ -8,10 +8,45 @@ from json import dumps
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from rapidfuzz.fuzz import ratio
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.models import Signal, founder_signal
 from app.normalize import normalize_city
 
 IdentityValue = str | tuple[str, ...] | None
+
+# ── Resolution thresholds (single source of truth) ───────────────────────────
+# Name similarity is a rapidfuzz ratio over compacted first+last names, 0-100.
+NAME_MATCH_MIN = 96
+"""At or above this, two spellings are treated as the same person's name."""
+NAME_UNRELATED_MAX = 60
+"""Below this, names are too different to share a person-unique identifier: the handle
+belongs to an organisation or was mis-attributed, so a shared value is a conflict."""
+
+# Confidence is 0-1 and decides the action taken.
+MERGE_MIN_CONFIDENCE = 0.90
+"""At or above this, the incoming mention is the same person: merge automatically."""
+REVIEW_MIN_CONFIDENCE = 0.55
+"""At or above this (with a name match), attach to the matched person and flag for review."""
+
+CONFIDENCE_SHARED_IDENTITY = 0.99
+"""A shared public profile (github/linkedin/twitter/orcid) is person-unique."""
+CONFIDENCE_SHARED_ARTIFACT = 0.97
+"""The same canonical artifact under the same name: re-discovery of a known source."""
+CONFIDENCE_CONTEXT_ONLY = 0.89
+"""Ceiling for corroboration alone. Deliberately below MERGE_MIN_CONFIDENCE: city, company and
+education are not unique to a person, so they may never collapse two people on their own."""
+CONFIDENCE_CONFLICT = 0.0
+"""Contradicting identities. Scored lowest so a genuine match elsewhere always wins."""
+
+STRONG_IDENTITY_KINDS = ("github", "linkedin", "twitter", "orcid")
+"""Public profiles that uniquely identify a person. A website is deliberately NOT one: it may
+belong to a company, lab or event, so it corroborates but never proves identity."""
+
+NAME_SIMILARITY_WEIGHT = 0.7
+CONTEXT_MATCH_WEIGHT = 0.1
+"""Fallback scoring weights when no decisive evidence is present."""
 
 _HONORIFICS = {
     "prof",
@@ -181,7 +216,7 @@ def has_shared_strong_identity(left: FounderCandidate, right: FounderCandidate) 
     """Return whether two candidates share any normalized, person-level public identifier."""
     return any(
         _identity_values(getattr(left, kind), kind) & _identity_values(getattr(right, kind), kind)
-        for kind in ("github", "linkedin", "twitter", "orcid")
+        for kind in STRONG_IDENTITY_KINDS
     )
 
 
@@ -227,22 +262,23 @@ def resolve_candidates(
         reasons: list[str] = []
         conflicts: list[str] = []
         evidence: dict[str, object] = {}
-        for kind in ("github", "linkedin", "twitter", "orcid"):
+        name_similarity = ratio(incoming_name, compact_person_name(candidate.display_name))
+        for kind in STRONG_IDENTITY_KINDS:
             left = _identity_values(getattr(incoming, kind), kind)
             right = _identity_values(getattr(candidate, kind), kind)
             if left & right:
                 evidence[kind] = "shared"
-                if ratio(incoming_name, compact_person_name(candidate.display_name)) < 60:
+                if name_similarity < NAME_UNRELATED_MAX:
                     conflicts.append(kind)
                 else:
                     reasons.append(kind)
-            elif left and right:
-                # Both sides publish this identifier and they disagree. A public profile is
-                # person-unique, so this is evidence of two different people even under one name.
+            elif left and right and name_similarity >= NAME_MATCH_MIN:
+                # Same name, but both sides publish this identifier and they disagree. A public
+                # profile is person-unique, so these are two different people sharing a name.
+                # Scoped to a name match: unrelated people having different LinkedIns is normal.
                 evidence[kind] = "disjoint"
                 conflicts.append(kind)
-        name_similarity = ratio(incoming_name, compact_person_name(candidate.display_name))
-        if name_similarity >= 96:
+        if name_similarity >= NAME_MATCH_MIN:
             reasons.append("name")
         shared_artifacts = set(incoming.artifact_ids) & set(candidate.artifact_ids)
         if shared_artifacts:
@@ -255,19 +291,23 @@ def resolve_candidates(
         if conflicts:
             # Scored low so a genuinely matching candidate elsewhere in the list still wins;
             # the conflict is carried separately and decides the outcome only if nothing matched.
-            score = 0.0
-        elif any(key in reasons for key in ("github", "linkedin", "twitter", "orcid")):
-            score = 0.99
+            score = CONFIDENCE_CONFLICT
+        elif any(key in reasons for key in STRONG_IDENTITY_KINDS):
+            score = CONFIDENCE_SHARED_IDENTITY
         elif "artifact" in reasons:
             # The same canonical artifact already attributed to this person, under the same
             # normalized name, is decisive: re-discovery of a known source, not a new human.
-            score = 0.97
+            score = CONFIDENCE_SHARED_ARTIFACT
         elif "name" in reasons and sum(context.values()) >= 2:
             # City/company/education are corroboration, not unique public identifiers. Keep
             # strong context-only matches reviewable instead of silently collapsing people.
-            score = 0.89
+            score = CONFIDENCE_CONTEXT_ONLY
         else:
-            score = min(0.89, name_similarity / 100 * 0.7 + sum(context.values()) * 0.1)
+            score = min(
+                CONFIDENCE_CONTEXT_ONLY,
+                name_similarity / 100 * NAME_SIMILARITY_WEIGHT
+                + sum(context.values()) * CONTEXT_MATCH_WEIGHT,
+            )
         item = (
             score,
             candidate.founder_id,
@@ -282,7 +322,7 @@ def resolve_candidates(
         if best is None or item[0] > best[0]:
             best = item
     # A conflict only decides the outcome when no candidate matched on its own merits.
-    if best is None or best[0] < 0.55:
+    if best is None or best[0] < REVIEW_MIN_CONFIDENCE:
         best = conflicted or best
     if best is None:
         return ResolutionResult("new", 0.0)
@@ -291,11 +331,11 @@ def resolve_candidates(
         "review"
         if matched_conflicts
         else "merge"
-        if score >= 0.9
+        if score >= MERGE_MIN_CONFIDENCE
         # A review verdict attaches the mention to this person, so it demands a real name match.
         # Partial similarity alone (shared surname, common token) must stay a separate person.
         else "review"
-        if score >= 0.55 and "name" in matched_reasons
+        if score >= REVIEW_MIN_CONFIDENCE and "name" in matched_reasons
         else "new"
     )
     return ResolutionResult(
@@ -306,3 +346,21 @@ def resolve_candidates(
         matched_conflicts,
         evidence,
     )
+
+
+def artifact_ids_by_founder(db: Session) -> dict[str, tuple[str, ...]]:
+    """Canonical artifact URLs already attributed to each founder.
+
+    Shared by the ingest resolver and by reconciliation so both judge re-discovery on the same
+    evidence. Without it, reconciliation cannot see that two rows cite the identical source.
+    """
+    rows = db.execute(
+        select(founder_signal.c.founder_id, Signal.canonical_url).join(
+            Signal, Signal.id == founder_signal.c.signal_id
+        )
+    ).all()
+    by_founder: dict[str, list[str]] = {}
+    for founder_id, canonical_url in rows:
+        if canonical_url:
+            by_founder.setdefault(str(founder_id), []).append(canonical_url)
+    return {key: tuple(value) for key, value in by_founder.items()}

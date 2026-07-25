@@ -12,7 +12,7 @@ import sys
 from sqlalchemy import func, select
 
 from app.db import SessionLocal
-from app.models import Founder, InvestmentThesis, JobRun, Signal
+from app.models import Founder, InvestmentThesis, JobRun, Signal, founder_signal
 from app.sourcing.graph import build_discovery_graph
 from app.sourcing.persist import persist_delivery
 from app.sourcing.seed_data import sync_reference_data
@@ -58,7 +58,9 @@ def main() -> None:
             select(Founder).order_by(Founder.first_discovered_at.desc().nullslast())
         ).scalars():
             sc = db.execute(
-                select(func.count()).select_from(Signal).where(Signal.founder_id == f.id)
+                select(func.count())
+                .select_from(founder_signal)
+                .where(founder_signal.c.founder_id == f.id)
             ).scalar_one()
             print(
                 f"  - {f.display_name} [{f.status}] conf={f.discovery_confidence} "

@@ -107,10 +107,13 @@ def test_fallback_does_not_swallow_contract_bugs(monkeypatch):
 
 
 def test_tavily_provider_error_uses_responses_web_search(monkeypatch):
+    monkeypatch.setattr(fetchers.settings, "tavily_enabled", True)
     fallback = [{"url": "https://fallback.example/result"}]
 
+    response = httpx.Response(429, request=httpx.Request("GET", "https://api.tavily.com"))
+
     def quota_exhausted(*args, **kwargs):
-        raise httpx.HTTPStatusError("quota exhausted", request=None, response=None)
+        raise httpx.HTTPStatusError("quota exhausted", request=response.request, response=response)
 
     monkeypatch.setattr(fetchers.tavily, "tavily_search", quota_exhausted)
     monkeypatch.setattr(fetchers, "responses_web_search", lambda query, channel: fallback)
@@ -119,6 +122,7 @@ def test_tavily_provider_error_uses_responses_web_search(monkeypatch):
 
 
 def test_tavily_zero_results_does_not_use_responses(monkeypatch):
+    monkeypatch.setattr(fetchers.settings, "tavily_enabled", True)
     monkeypatch.setattr(fetchers.tavily, "tavily_search", lambda *args, **kwargs: {"results": []})
     monkeypatch.setattr(
         fetchers,
@@ -244,3 +248,36 @@ def test_clean_hn_text_unescapes_and_keeps_link_targets():
     assert "https://armalo.ai" in cleaned
     assert "<" not in cleaned and "&#x27;" not in cleaned
     assert "Second paragraph" in cleaned
+
+
+def test_disabled_tavily_routes_straight_to_responses(monkeypatch):
+    """Tavily budget is exhausted, so calling it would only waste a round trip before failing."""
+    monkeypatch.setattr(fetchers.settings, "tavily_enabled", False)
+    hits = [{"url": "https://responses.example/result"}]
+    monkeypatch.setattr(
+        fetchers.tavily,
+        "tavily_search",
+        lambda *args, **kwargs: pytest.fail("Tavily must not be called while disabled"),
+    )
+    monkeypatch.setattr(fetchers, "responses_web_search", lambda query, channel: hits)
+
+    assert fetchers.tavily_fetch("test query", CHANNEL) == hits
+
+
+def test_tavily_client_error_crashes_instead_of_paying_another_provider(monkeypatch):
+    """A 401/400 is our bug; silently escalating every query to OpenAI would hide it."""
+    monkeypatch.setattr(fetchers.settings, "tavily_enabled", True)
+    response = httpx.Response(401, request=httpx.Request("GET", "https://api.tavily.com"))
+
+    def bad_key(*args, **kwargs):
+        raise httpx.HTTPStatusError("unauthorized", request=response.request, response=response)
+
+    monkeypatch.setattr(fetchers.tavily, "tavily_search", bad_key)
+    monkeypatch.setattr(
+        fetchers,
+        "responses_web_search",
+        lambda *args, **kwargs: pytest.fail("must not fall back on a client error"),
+    )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        fetchers.tavily_fetch("test query", CHANNEL)

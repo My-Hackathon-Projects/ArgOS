@@ -23,6 +23,7 @@ from urllib.parse import urlsplit, urlunsplit
 import psycopg
 import pytest
 from dotenv import load_dotenv
+from psycopg import sql
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ROOT_ENV = BACKEND_DIR.parent / ".env"
@@ -56,7 +57,7 @@ def _create_test_database() -> None:
             "SELECT 1 FROM pg_database WHERE datname = %s", (TEST_DB_NAME,)
         ).fetchone()
         if not exists:
-            conn.execute(f'CREATE DATABASE "{TEST_DB_NAME}"')
+            conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(TEST_DB_NAME)))
 
 
 def _migrate() -> None:
