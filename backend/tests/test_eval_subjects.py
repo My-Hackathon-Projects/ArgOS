@@ -7,18 +7,15 @@ import uuid
 
 import pytest
 
-from app.db import SessionLocal
 from app.eval.subjects import FOUNDER_SUBJECTS, OPPORTUNITY_SUBJECTS, Subject, validate_subjects
 
 pytestmark = pytest.mark.dev_bed
 
 
 @pytest.fixture()
-def db():
-    s = SessionLocal()
-    yield s
-    s.rollback()
-    s.close()
+def db(dev_db):
+    """The bed validates live-sourced dev rows, so this is the read-only dev session."""
+    return dev_db
 
 
 def test_bed_resolves_with_coverage(db):
