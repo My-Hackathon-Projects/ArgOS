@@ -79,16 +79,41 @@ def _llm(schema, smart: bool = False):
     return ChatOpenAI(model=model, api_key=settings.openai_api_key).with_structured_output(schema)
 
 
+# Hosts whose paths are identifiers, not filesystem paths, and are case-insensitive. Kept as an
+# explicit allow-list: lowercasing paths in general would merge genuinely distinct pages, since
+# most servers ARE case-sensitive.
+_CASE_INSENSITIVE_PATH_HOSTS = frozenset(
+    {"x.com", "twitter.com", "github.com", "linkedin.com", "medium.com"}
+)
+
+# arXiv renders one paper as abs/, pdf/ and html/, with optional version suffixes. All of them
+# are the same artifact; the abs page is the canonical form.
+_ARXIV_ID = re.compile(r"^/(?:abs|pdf|html)/(\d{4}\.\d{4,5})(?:v\d+)?/?$", re.IGNORECASE)
+
+
 def _canonicalize(url: str) -> str:
+    """Global dedup key for an artifact. Every form it leaves distinct becomes a duplicate row.
+
+    Duplicates are not cosmetic here: claim trust is noisy-OR over evidence, so one artifact
+    stored twice reads as two independent corroborations (0.6 -> 0.84, corroboration_n 2). Ten
+    live claims were inflated by exactly the three cases handled below.
+    """
     if not url:
         return url
     parts = urlsplit(url.strip())
-    host = parts.netloc.lower()
-    if host.startswith("www."):
-        host = host[4:]
+    host = parts.netloc.lower().removeprefix("www.")
     q = sorted(kv for kv in parts.query.split("&") if kv and kv.split("=")[0] not in _TRACKING)
     path = parts.path.rstrip("/") or "/"
-    return urlunsplit((parts.scheme.lower() or "https", host, path, "&".join(q), ""))
+    if host in _CASE_INSENSITIVE_PATH_HOSTS:
+        path = path.lower()
+    # ar5iv is arXiv's own HTML renderer — same paper, different host.
+    if host == "ar5iv.labs.arxiv.org":
+        host = "arxiv.org"
+    if host == "arxiv.org" and (match := _ARXIV_ID.match(path)):
+        path = f"/abs/{match.group(1).lower()}"
+    # Scheme is normalized away entirely: http and https of one page are one page, and keeping
+    # both produced two signal rows for the same personal site.
+    return urlunsplit(("https", host, path, "&".join(q), ""))
 
 
 def _content_hash(title: str | None, summary: str | None) -> str | None:
