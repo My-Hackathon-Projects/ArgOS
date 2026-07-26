@@ -70,6 +70,7 @@ CHECKS: tuple[Check, ...] = (
         FROM (
             SELECT founder_id, 'github'   AS kind, github   AS value FROM identity
             UNION ALL SELECT founder_id, 'linkedin', linkedin FROM identity
+            UNION ALL SELECT founder_id, 'twitter',  twitter  FROM identity
             UNION ALL SELECT founder_id, 'orcid',    orcid    FROM identity
         ) x
         WHERE value IS NOT NULL AND btrim(value) <> ''
@@ -111,10 +112,67 @@ CHECKS: tuple[Check, ...] = (
     ),
     Check(
         "place: a gazetteer-resolved city always carries its place id",
-        "exact/alias/inferred mean the gazetteer matched, so the canonical id must be stored — "
-        "without it the record is back to string matching (the _new_founder regression)",
+        "exact/alias/inferred/prior mean the gazetteer matched, so the canonical id must be "
+        "stored — without it the record is back to string matching (the _new_founder regression)",
         "SELECT id, city, location_quality FROM founder "
-        "WHERE location_quality IN ('exact', 'alias', 'inferred') AND city_geonameid IS NULL",
+        "WHERE location_quality IN ('exact', 'alias', 'inferred', 'prior') "
+        "AND city_geonameid IS NULL",
+    ),
+    Check(
+        "place: country_only actually names a country",
+        "country_only with a NULL country_code is a label with no content, and one that reads as "
+        "more resolved than 'unknown' while carrying strictly less",
+        "SELECT id, raw_location FROM founder "
+        "WHERE location_quality = 'country_only' AND country_code IS NULL",
+    ),
+    Check(
+        "place: location_quality is a word the resolver can produce",
+        "quality is provenance — how the place was matched. A value app.normalize no longer "
+        "emits is a stale row nothing will ever correct",
+        "SELECT DISTINCT location_quality FROM founder WHERE location_quality IS NOT NULL "
+        "AND location_quality NOT IN "
+        "('exact', 'alias', 'inferred', 'prior', 'unverified', 'country_only', 'unknown')",
+    ),
+    Check(
+        "identity: one ORCID belongs to one researcher",
+        "an ORCID is issued per person, so two founders holding one is a fork or a bad extraction "
+        "— unlike a shared github, which is routinely an organisation account",
+        "SELECT lower(orcid), count(DISTINCT founder_id) FROM identity WHERE orcid IS NOT NULL "
+        "GROUP BY 1 HAVING count(DISTINCT founder_id) > 1",
+    ),
+    Check(
+        "identity: every stored value is already canonical",
+        "the resolver compares stored values literally, so a raw URL or a mixed-case handle is a "
+        "second identity for one person — the fork mechanism 0016 removed. A hit means some "
+        "writer bypassed app.identity",
+        # Cheap SQL restatement of app.identity's rules, deliberately narrower than the parsers:
+        # it looks for the shapes that are provably non-canonical rather than re-deriving the
+        # token. `app.identity` stays the single source of truth for what canonical IS.
+        """
+        SELECT founder_id, kind, value FROM (
+            SELECT founder_id, 'github'   AS kind, github   AS value FROM identity
+            UNION ALL SELECT founder_id, 'linkedin', linkedin FROM identity
+            UNION ALL SELECT founder_id, 'twitter',  twitter  FROM identity
+        ) x
+        WHERE value IS NOT NULL
+          AND (value <> lower(value) OR value LIKE '%/%' OR value LIKE '%.com%'
+               OR value LIKE '@%' OR btrim(value) <> value)
+        """,
+    ),
+    Check(
+        "founder_resolution_review: a recorded counterpart still exists",
+        "the counterpart is the person a mention was held APART from; a dangling id turns the "
+        "record of a fork into an unreadable one",
+        "SELECT r.id, r.counterpart_founder_id FROM founder_resolution_review r "
+        "LEFT JOIN founder f ON f.id = r.counterpart_founder_id "
+        "WHERE r.counterpart_founder_id IS NOT NULL AND f.id IS NULL",
+    ),
+    Check(
+        "founder_resolution_review: nobody is their own counterpart",
+        "merging the pair resolves the fork, so the review must stop naming one founder twice — "
+        "otherwise it reads as an open conflict that no longer exists",
+        "SELECT id, founder_id FROM founder_resolution_review "
+        "WHERE counterpart_founder_id = founder_id",
     ),
     Check(
         "company: name_key unique",

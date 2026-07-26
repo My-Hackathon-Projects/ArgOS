@@ -1,5 +1,6 @@
 """Safe, auditable reconciliation of duplicate founder rows."""
 
+import logging
 import uuid
 from itertools import combinations
 
@@ -33,7 +34,9 @@ from app.models import (
     TraceStep,
     founder_signal,
 )
-from app.normalize import normalize_location
+from app.places import apply_location, institution_country_index
+
+log = logging.getLogger(__name__)
 
 
 def _candidate(
@@ -440,35 +443,41 @@ def merge_founders(
 def reconcile_founders(db: Session, *, dry_run: bool = True) -> dict:
     founders = db.execute(select(Founder)).scalars().all()
     location_updates = []
+    # One index for the sweep instead of a query per founder.
+    institutions = institution_country_index(db)
+    _PLACE_COLUMNS = ("city", "city_key", "city_geonameid", "country_code", "location_quality")
     for founder in founders:
-        raw_location = founder.raw_location or founder.city
-        normalized = normalize_location(raw_location)
-        if (
-            founder.raw_location != normalized.raw_location
-            or founder.city != normalized.city
-            or founder.city_key != normalized.city_key
-            or founder.country_code != normalized.country_code
-            or founder.location_quality != normalized.quality
-            or founder.city_geonameid != normalized.geonameid
-        ):
-            location_updates.append(
-                {
-                    "founder_id": str(founder.id),
-                    "raw_location": normalized.raw_location,
-                    "city": normalized.city,
-                    "city_key": normalized.city_key,
-                    "city_geonameid": normalized.geonameid,
-                    "country_code": normalized.country_code,
-                    "quality": normalized.quality,
-                }
-            )
-            if not dry_run:
-                founder.raw_location = normalized.raw_location
-                founder.city = normalized.city
-                founder.city_key = normalized.city_key
-                founder.city_geonameid = normalized.geonameid
-                founder.country_code = normalized.country_code
-                founder.location_quality = normalized.quality
+        before = {column: getattr(founder, column) for column in _PLACE_COLUMNS}
+        # Written through the single writer even in a dry run, then rolled back below — there is
+        # no second implementation of the rule to drift from what a real run would do.
+        apply_location(db, founder, institutions=institutions)
+        after = {column: getattr(founder, column) for column in _PLACE_COLUMNS}
+        if before == after:
+            continue
+        location_updates.append(
+            {
+                "founder_id": str(founder.id),
+                "display_name": founder.display_name,
+                "raw_location": founder.raw_location,
+                # Both sides: a sweep that rewrites every founder's location and reports only the
+                # new value gives an operator no way to see what it destroyed.
+                "before": {
+                    key: str(value) if value is not None else None for key, value in before.items()
+                },
+                "after": {
+                    key: str(value) if value is not None else None for key, value in after.items()
+                },
+            }
+        )
+        if dry_run:
+            for column, value in before.items():
+                setattr(founder, column, value)
+    log.info(
+        "reconcile: %d/%d founders change location%s",
+        len(location_updates),
+        len(founders),
+        " (dry run)" if dry_run else "",
+    )
     merges = []
     reviews = []
 
@@ -527,7 +536,9 @@ def reconcile_founders(db: Session, *, dry_run: bool = True) -> dict:
         "location_update_count": len(location_updates),
         "merge_count": len(merges),
         "review_count": len(reviews),
-        "location_updates": location_updates if dry_run else [],
+        # Reported in BOTH modes. Returning them only in the dry run meant the run that actually
+        # rewrote every founder's place was the one that reported nothing.
+        "location_updates": location_updates,
         "merges": merges,
         "reviews": reviews,
     }

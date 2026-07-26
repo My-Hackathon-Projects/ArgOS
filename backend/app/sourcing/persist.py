@@ -34,7 +34,7 @@ from app.models import (
     TraceStep,
     founder_signal,
 )
-from app.normalize import normalize_location
+from app.places import apply_location
 
 log = logging.getLogger(__name__)
 
@@ -104,7 +104,20 @@ def _resolve(db: Session, f: dict, artifact_ids: tuple[str, ...] = ()) -> Resolu
     people (or a bad identity) and must stay separate — see `FounderResolutionReview`.
     """
     incoming = _incoming_candidate(f, artifact_ids)
-    founders = db.execute(select(Founder).options(selectinload(Founder.identities))).scalars().all()
+    # Ordered, not incidental: `resolve_candidates` breaks a tie with a strict `>`, so the first
+    # candidate handed to it wins. Unordered, that was whichever row the scan happened to return —
+    # free to change after any UPDATE or VACUUM — and the same mention would attach to a different
+    # human between runs, taking their Founder Score with it. Earliest discovery wins, the rule
+    # `find_merge_candidates` already uses.
+    founders = (
+        db.execute(
+            select(Founder)
+            .options(selectinload(Founder.identities))
+            .order_by(Founder.first_discovered_at.nullsfirst(), Founder.id)
+        )
+        .scalars()
+        .all()
+    )
     artifacts = artifact_ids_by_founder(db)
     candidates = []
     for founder in founders:
@@ -151,17 +164,10 @@ def _resolve(db: Session, f: dict, artifact_ids: tuple[str, ...] = ()) -> Resolu
 
 
 def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
-    location = normalize_location(f.get("city"))
     founder = Founder(
         display_name=f["display_name"],
         first_name=f.get("first_name"),
         last_name=f.get("last_name"),
-        city=location.city,
-        raw_location=location.raw_location,
-        city_key=location.city_key,
-        city_geonameid=location.geonameid,
-        country_code=location.country_code,
-        location_quality=location.quality,
         occupation=f.get("occupation"),
         current_company=f.get("current_company"),
         education=f.get("education"),
@@ -171,6 +177,9 @@ def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
         last_checked_at=datetime.now(UTC),
     )
     db.add(founder)
+    # After `education` is set: the place resolver reads the founder's affiliations to tell
+    # namesake cities apart.
+    apply_location(db, founder, f.get("city"))
     db.flush()
     db.add(Identity(founder_id=founder.id, **canonical_identity_fields(f)))
     # The session runs with autoflush=False, so without this the identity stays invisible to the
@@ -435,10 +444,14 @@ def persist_delivery(
                 founder.discovery_confidence = max(
                     founder.discovery_confidence or 0.0, f["discovery_confidence"]
                 )
-            for attr in ("city", "occupation", "current_company"):
+            if not founder.city and f.get("city"):
+                # Through the single writer: this path used to set `.city` alone and leave the
+                # place id, key, country and quality NULL — a founder who looks located and
+                # fails every place invariant in `maintenance.audit_identity`.
+                apply_location(db, founder, f["city"])
+            for attr in ("occupation", "current_company"):
                 if not getattr(founder, attr) and f.get(attr):
-                    val = normalize_location(f[attr]).city if attr == "city" else f[attr]
-                    setattr(founder, attr, val)
+                    setattr(founder, attr, f[attr])
 
         for signal, payload in attributed_signals:
             statement = insert(founder_signal).values(

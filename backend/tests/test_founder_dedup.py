@@ -6,6 +6,8 @@ second Founder row is minted. Founder Score is per-person and must never fragmen
 invariant under test is: re-discovering a known person NEVER increases the founder count.
 """
 
+from datetime import UTC, datetime
+
 from helpers import unique_suffix
 from sqlalchemy import func, select
 
@@ -148,6 +150,54 @@ def test_conflicting_strong_identities_never_merge_two_people() -> None:
         persist_delivery(db, [second], commit=False)
 
         assert _count(db, suffix) == 2, "conflicting identities must not collapse into one person"
+    finally:
+        db.rollback()
+        db.close()
+
+
+def test_a_tie_between_two_candidates_resolves_to_the_earliest_discovered_person() -> None:
+    """Which person a mention attaches to must not depend on Postgres' physical row order.
+
+    `resolve_candidates` breaks ties with a strict `>`, so the first candidate it is handed wins —
+    and the candidate query had no ORDER BY. Two equally-good matches would then resolve to
+    whichever row the scan returned first, which is free to change after any UPDATE or VACUUM: the
+    same input attaches to a different human on a later run, and Founder Score follows it there.
+    The rule is the same one `find_merge_candidates` already uses — the person we knew first.
+
+    The later-discovered row is inserted first here, so insertion order and discovery order
+    disagree and only an explicit ordering can satisfy this.
+    """
+    db = SessionLocal()
+    try:
+        suffix = unique_suffix()
+        name = f"Grace Hopper {suffix}"
+        later = Founder(
+            display_name=name,
+            city="Munich",
+            first_discovered_at=datetime(2026, 5, 1, tzinfo=UTC),
+        )
+        earlier = Founder(
+            display_name=name,
+            city="Munich",
+            first_discovered_at=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+        db.add_all([later, earlier])
+        db.flush()
+        earliest_id = earlier.id
+
+        persist_delivery(
+            db,
+            [_candidate(name, [_artifact(suffix, 1)], city="Munich")],
+            commit=False,
+        )
+
+        assert _count(db, suffix) == 2, "the mention must attach, not mint a third row"
+        owner = db.scalar(
+            select(founder_signal.c.founder_id).where(
+                founder_signal.c.founder_id.in_([later.id, earliest_id])
+            )
+        )
+        assert owner == earliest_id
     finally:
         db.rollback()
         db.close()
