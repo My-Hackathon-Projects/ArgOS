@@ -9,7 +9,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.db import engine
@@ -113,6 +113,18 @@ def _fake_extraction(*_args, **_kwargs):
             DeckClaim(category="team", statement="ex-Google founding team", source_page=2),
             DeckClaim(category="traction", statement="hallucinated page", source_page=99),
         ],
+        # Founder-first: a deck naming nobody is rejected outright, so every deck that is
+        # expected to open a deal must name a person.
+        founders=[DeckFounder(name="Rae Testadottir", role="CEO", linkedin="rae-test")],
+    )
+
+
+def _founderless_extraction(*_args, **_kwargs):
+    return DeckExtraction(
+        idea="TEST warehouse robots",
+        sector="robotics",
+        geo="EU",
+        claims=[DeckClaim(category="revenue", statement="$50K MRR", source_page=1)],
     )
 
 
@@ -155,6 +167,31 @@ def test_apply_attaches_founder(client, monkeypatch):
     founder = session.get(Founder, opp.founder_id)
     assert founder.display_name == fname
     assert founder.current_company == opp.company_name
+
+
+def test_apply_rejects_a_deck_naming_no_founder(client, monkeypatch):
+    """Founder-first at the intake boundary: no person, no deal — and no partial rows left."""
+    c, session = client
+    _no_default_thesis(session)
+    monkeypatch.setattr("app.inbound.service.extract_deck", _founderless_extraction)
+    monkeypatch.setattr(
+        "app.inbound.service.prescreen_llm",
+        lambda *_a, **_k: PreScreenResult(verdict="pass", reason="TEST viable"),
+    )
+
+    name = "TEST Nobodyco " + uuid.uuid4().hex
+    r = c.post(
+        "/apply",
+        files={"deck": ("deck.pdf", _pdf(["$50K MRR", "Team"]), "application/pdf")},
+        data={"company_name": name},
+    )
+    assert r.status_code == 422, r.text
+    assert "founder" in r.json()["detail"].lower()
+    # the deal was never opened
+    n = session.execute(
+        select(func.count()).select_from(Opportunity).where(Opportunity.company_name == name)
+    ).scalar_one()
+    assert n == 0
 
 
 def test_apply_round_trip(client, monkeypatch):

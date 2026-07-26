@@ -257,7 +257,9 @@ class ApplyResponse(BaseModel):
 
 # ── Opportunities (manual-dispatch entry for screening/memo) ─────────────────
 class OpportunityCreate(BaseModel):
-    founder_id: uuid.UUID | None = None
+    # Founder-first: a deal is a person plus what they are building. Required, not optional —
+    # a founderless deal has no founder axis and no Founder Score, so it cannot be decided.
+    founder_id: uuid.UUID
     company_name: str | None = None
     idea: str | None = None
     sector: str | None = None

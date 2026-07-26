@@ -23,19 +23,24 @@ def _opp_from_row(row: Opportunity) -> dict:
     }
 
 
-def run_market_analysis(db: Session, opp: dict | None = None, opportunity_id=None) -> dict:
-    """Analyze the market for an opportunity. Pass a dict (creates the opportunity) OR an
-    opportunity_id (re-runs against an existing row). Returns a structured result + persist summary.
-    """
-    if opportunity_id is not None:
-        row = db.get(Opportunity, opportunity_id)
-        if row is None:
-            raise ValueError(f"opportunity {opportunity_id} not found")
-        opp = _opp_from_row(row)
-    if opp is None:
-        raise ValueError("run_market_analysis needs either an opp dict or an opportunity_id")
+def run_market_analysis(db: Session, opportunity_id=None) -> dict:
+    """Analyze the market for an existing opportunity. Returns the result + persist summary.
 
-    subject = OpportunityInput(**opp)  # validates shape
+    Founder-first: the market path enriches a founder-backed deal and never creates a
+    company-first row. The old bare-dict mode (which did create one) is gone — it had no
+    production caller and is how the dev DB acquired a founderless deal.
+    See app/market/persist._require_opportunity.
+    """
+    if opportunity_id is None:
+        raise ValueError(
+            "run_market_analysis requires an opportunity_id: market research enriches an "
+            "existing founder-backed deal and never creates one"
+        )
+    row = db.get(Opportunity, opportunity_id)
+    if row is None:
+        raise ValueError(f"opportunity {opportunity_id} not found")
+
+    subject = OpportunityInput(**_opp_from_row(row))  # validates shape
     if not subject.has_subject():
         raise ValueError(
             "market research needs an idea or sector — pre-idea founders have no market to size"

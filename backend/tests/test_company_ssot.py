@@ -17,48 +17,15 @@ case IS expressible as a single-table CHECK, so it is one:
     CHECK (company_name IS NULL OR company_id IS NOT NULL)
 """
 
-import uuid
-
 import pytest
+from fastapi.testclient import TestClient
 from helpers import unique_suffix
 from sqlalchemy import func, select, text
 
 from app.companies import company_name_key, link_founder_company, resolve_company
 from app.db import SessionLocal
-from app.market.persist import persist_market
+from app.main import app
 from app.models import Company, Founder, FounderCompany, Opportunity
-
-
-def _market_analysis(founder_id: uuid.UUID | None, company_name: str, suffix: str) -> dict:
-    url = f"https://example.test/market/{suffix}"
-    return {
-        "opportunity": {
-            "founder_id": str(founder_id) if founder_id else None,
-            "company_name": company_name,
-            "idea": "agent orchestration",
-            "sector": "devtools",
-            "geo": "EU",
-        },
-        "hits_by_goal": {
-            "sizing": [{"url": url, "title": "Market report", "content": "TAM is large."}]
-        },
-        "sizing": {
-            "figures": [
-                {
-                    "metric": "TAM",
-                    "value": "$1B",
-                    "unit": "USD",
-                    "basis": "report",
-                    "citation_indices": [0],
-                    "confidence": 0.8,
-                }
-            ]
-        },
-        "synthesis": {
-            "axis": {"score": 70, "verdict": "bull", "rationale": "r", "confidence": 0.7},
-            "gaps": [],
-        },
-    }
 
 
 def test_company_name_key_ignores_case_spacing_and_legal_suffix() -> None:
@@ -151,30 +118,44 @@ def test_link_founder_company_is_idempotent() -> None:
         db.close()
 
 
-def test_market_writer_reuses_company_and_records_the_founder_link() -> None:
-    """Re-analysing a deal must not mint a second venture, and must record founder<->company."""
+def test_two_deals_for_one_venture_share_a_company_and_record_the_link() -> None:
+    """Two deals naming the same venture resolve to one company row, each recording its founder.
+
+    Company resolution lives at the deal-creating writers (the market path only enriches now),
+    so this exercises POST /opportunities — the path a second application for a venture we
+    already track actually takes.
+    """
     db = SessionLocal()
     try:
         suffix = unique_suffix()
-        name = f"Nimbus {suffix}"
-        founder = Founder(display_name=f"Grace Co {suffix}", status="candidate")
-        db.add(founder)
-        db.flush()
+        first = Founder(display_name=f"Grace Co {suffix}", status="candidate")
+        second = Founder(display_name=f"Alan Co {suffix}", status="candidate")
+        db.add_all([first, second])
+        db.commit()
+        ids = (str(first.id), str(second.id))
+    finally:
+        db.close()
 
-        persist_market(db, _market_analysis(founder.id, name, suffix))
-        persist_market(db, _market_analysis(founder.id, name, unique_suffix()))
+    name = f"Nimbus {suffix}"
+    with TestClient(app) as client:
+        for founder_id, written in zip(ids, (name, f"  {name.upper()}  GmbH "), strict=True):
+            r = client.post(
+                "/opportunities",
+                json={"founder_id": founder_id, "company_name": written, "idea": "edge ML"},
+            )
+            assert r.status_code == 201, r.text
 
+    db = SessionLocal()
+    try:
         key = company_name_key(name)
         companies = db.execute(select(Company).where(Company.name_key == key)).scalars().all()
-        assert len(companies) == 1, "second analysis minted a duplicate venture"
-
+        assert len(companies) == 1, "the second deal minted a duplicate venture"
         links = (
             db.execute(select(FounderCompany).where(FounderCompany.company_id == companies[0].id))
             .scalars()
             .all()
         )
-        assert len(links) == 1
-        assert links[0].founder_id == founder.id
+        assert {str(link.founder_id) for link in links} == set(ids)
     finally:
         db.close()
 
@@ -183,7 +164,17 @@ def test_named_opportunity_must_point_at_a_company() -> None:
     """The CHECK: a named venture with no company row is not representable."""
     db = SessionLocal()
     try:
-        db.add(Opportunity(company_name="Orphan Venture", idea="x", status="screening"))
+        founder = Founder(display_name=f"Ida Orphan {unique_suffix()}", status="candidate")
+        db.add(founder)
+        db.flush()
+        db.add(
+            Opportunity(
+                founder_id=founder.id,
+                company_name="Orphan Venture",
+                idea="x",
+                status="screening",
+            )
+        )
         with pytest.raises(Exception, match="ck_opportunity_named_company"):
             db.flush()
     finally:

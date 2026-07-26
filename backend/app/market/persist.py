@@ -21,8 +21,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.claims import trust as trust_mod
-from app.companies import link_founder_company, resolve_company
-from app.ingest import earliest_signal_at
 from app.market.graph import extractor_hits
 from app.models import (
     Claim,
@@ -50,43 +48,21 @@ def _uuid(v) -> uuid.UUID | None:
     return uuid.UUID(str(v))
 
 
-def _upsert_opportunity(db: Session, opp: dict, opportunity_id) -> Opportunity:
-    if opportunity_id:
-        row = db.get(Opportunity, _uuid(opportunity_id))
-        if row is None:
-            raise ValueError(f"opportunity {opportunity_id} not found")
-        return row
-    founder_id = _uuid(opp.get("founder_id"))
-    company_id = None
-    if opp.get("company_name"):
-        # Resolve, never mint: re-analysing a deal used to create a second row for the same
-        # venture (the dev DB held two "Nimbus Edge").
-        company = resolve_company(
-            db,
-            name=opp["company_name"],
-            website=opp.get("website"),
-            sector=opp.get("sector"),
-            geo=opp.get("geo"),
-            description=opp.get("idea"),
+def _require_opportunity(db: Session, opportunity_id) -> Opportunity:
+    """Market analysis enriches an existing deal — it never creates one.
+
+    Founder-first: a deal is a person plus what they are building. A company-first row minted
+    here would carry no founder, so no founder axis and no Founder Score, and could never be
+    decided. That path is how the dev DB acquired its founderless opportunities; it is gone.
+    """
+    if not opportunity_id:
+        raise ValueError(
+            "persist_market requires an opportunity_id: the market path enriches an existing "
+            "founder-backed deal and never creates one"
         )
-        company_id = company.id
-        if founder_id:
-            link_founder_company(db, founder_id, company_id)
-    row = Opportunity(
-        founder_id=founder_id,
-        company_id=company_id,
-        company_name=opp.get("company_name"),
-        idea=opp.get("idea"),
-        sector=opp.get("sector"),
-        geo=opp.get("geo"),
-        source="outbound",
-        status="diligence",
-        # Sourced deal: latency clock starts at the founder's earliest signal.
-        first_signal_at=(earliest_signal_at(db, founder_id) if founder_id else None)
-        or datetime.now(UTC),
-    )
-    db.add(row)
-    db.flush()
+    row = db.get(Opportunity, _uuid(opportunity_id))
+    if row is None:
+        raise ValueError(f"opportunity {opportunity_id} not found")
     return row
 
 
@@ -333,7 +309,7 @@ def persist_market(db: Session, analysis: dict, opportunity_id=None) -> dict:
     db.add(job)
     db.flush()
 
-    opp = _upsert_opportunity(db, analysis["opportunity"], opportunity_id)
+    opp = _require_opportunity(db, opportunity_id)
     canon_map = _mint_signals(db, analysis.get("hits_by_goal") or {})
     claim_ids, cited_urls = _persist_claims(db, opp.id, analysis, canon_map)
     axis_row = _upsert_axis(db, opp.id, analysis, claim_ids, cited_urls)

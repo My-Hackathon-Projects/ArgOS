@@ -118,10 +118,7 @@ def upsert_founder_axis(db: Session, opportunity_id: uuid.UUID) -> ThreeAxis:
     opp = db.get(Opportunity, opportunity_id)
     if opp is None:
         raise ValueError(f"opportunity {opportunity_id} not found")
-    if opp.founder_id is None:
-        raise ValueError(
-            f"opportunity {opportunity_id} has no founder — founder axis needs a person"
-        )
+    # No founderless check: opportunity.founder_id is NOT NULL, so the person always exists.
     founder = db.get(Founder, opp.founder_id)
     assert founder is not None  # FK guarantees the row
     claim_rows = db.execute(

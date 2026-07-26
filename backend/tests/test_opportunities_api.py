@@ -8,6 +8,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from helpers import unique_suffix
 from sqlalchemy.orm import Session
 
 from app.db import engine
@@ -36,9 +37,20 @@ def client():
         conn.close()
 
 
-def test_create_then_get_round_trip(client):
+@pytest.fixture()
+def founder_id(client):
+    """Founder-first: every opportunity needs a founder, so each test mints one."""
+    _c, session = client
+    f = Founder(display_name=f"Api Fixture {unique_suffix()}", status="candidate")
+    session.add(f)
+    session.flush()
+    return str(f.id)
+
+
+def test_create_then_get_round_trip(client, founder_id):
     c, _ = client
     payload = {
+        "founder_id": founder_id,
         "company_name": "Test Robotics",
         "idea": "TEST autonomous warehouse robots " + uuid.uuid4().hex,
         "sector": "robotics",
@@ -59,18 +71,21 @@ def test_create_then_get_round_trip(client):
     assert got["sector"] == "robotics"
 
 
-def test_create_missing_idea_and_sector_422(client):
+def test_create_missing_idea_and_sector_422(client, founder_id):
     c, _ = client
-    r = c.post("/opportunities", json={"company_name": "No Subject Inc", "geo": "US"})
+    r = c.post(
+        "/opportunities",
+        json={"founder_id": founder_id, "company_name": "No Subject Inc", "geo": "US"},
+    )
     assert r.status_code == 422
     # whitespace-only doesn't count as a subject either
-    r = c.post("/opportunities", json={"idea": "   ", "sector": ""})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "idea": "   ", "sector": ""})
     assert r.status_code == 422
 
 
-def test_create_sector_only_ok(client):
+def test_create_sector_only_ok(client, founder_id):
     c, _ = client
-    r = c.post("/opportunities", json={"sector": "fintech"})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "sector": "fintech"})
     assert r.status_code == 201
     assert r.json()["idea"] is None
 
@@ -98,9 +113,9 @@ def test_create_with_founder_and_list(client):
     assert opp_id in [o["id"] for o in r.json()]
 
 
-def test_get_includes_axes_summary(client):
+def test_get_includes_axes_summary(client, founder_id):
     c, session = client
-    r = c.post("/opportunities", json={"idea": "TEST with axis"})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "idea": "TEST with axis"})
     opp_id = r.json()["id"]
 
     session.add(
@@ -125,9 +140,9 @@ def test_get_includes_axes_summary(client):
     assert axes[0]["trend"] == "stable"
 
 
-def test_get_missing_memo_for_existing_opportunity_returns_null(client):
+def test_get_missing_memo_for_existing_opportunity_returns_null(client, founder_id):
     c, _ = client
-    r = c.post("/opportunities", json={"idea": "TEST memo pending"})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "idea": "TEST memo pending"})
     opp_id = r.json()["id"]
 
     r = c.get(f"/opportunities/{opp_id}/memo")
@@ -176,9 +191,9 @@ def test_decide_pursue_stamps_latency(client):
     assert decided["signal_to_decision_seconds"] >= 0
 
 
-def test_decide_pursue_unscreened_409(client):
+def test_decide_pursue_unscreened_409(client, founder_id):
     c, _ = client
-    r = c.post("/opportunities", json={"idea": "TEST pursue unscreened"})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "idea": "TEST pursue unscreened"})
     opp_id = r.json()["id"]
     # pursue on an opportunity with zero axes is a decision on nothing — must fail-fast.
     r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "pursue"})
@@ -186,31 +201,15 @@ def test_decide_pursue_unscreened_409(client):
     assert "screen" in r.json()["detail"].lower()
 
 
-def test_decide_pursue_no_founder_409(client):
-    c, session = client
-    # Screened but founderless: ArgOS is founder-first — no Founder Score, no pursue.
-    r = c.post("/opportunities", json={"idea": "TEST pursue no founder"})
-    opp_id = r.json()["id"]
-    session.add(
-        ThreeAxis(
-            opportunity_id=uuid.UUID(opp_id),
-            axis="market",
-            score=61.0,
-            verdict="neutral",
-            trend="stable",
-            confidence=0.7,
-            rationale="TEST",
-        )
-    )
-    session.flush()
-    r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "pursue"})
-    assert r.status_code == 409, r.text
-    assert "founder" in r.json()["detail"].lower()
+# test_decide_pursue_no_founder_409 was removed with the guard it covered: founder_id is NOT NULL,
+# so a screened-but-founderless opportunity is no longer representable and the 409 was
+# unreachable. The rule it protected is now enforced at the schema, not at the decision point —
+# see tests/test_founder_first.py.
 
 
-def test_decide_pass_rejects(client):
+def test_decide_pass_rejects(client, founder_id):
     c, _ = client
-    r = c.post("/opportunities", json={"idea": "TEST decide pass"})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "idea": "TEST decide pass"})
     opp_id = r.json()["id"]
     r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "pass"})
     assert r.status_code == 200
@@ -218,9 +217,9 @@ def test_decide_pass_rejects(client):
     assert r.json()["decision"] == "pass"
 
 
-def test_decide_invalid_verdict_422(client):
+def test_decide_invalid_verdict_422(client, founder_id):
     c, _ = client
-    r = c.post("/opportunities", json={"idea": "TEST decide invalid"})
+    r = c.post("/opportunities", json={"founder_id": founder_id, "idea": "TEST decide invalid"})
     opp_id = r.json()["id"]
     r = c.post(f"/opportunities/{opp_id}/decision", json={"decision": "maybe"})
     assert r.status_code == 422

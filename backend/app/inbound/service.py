@@ -13,6 +13,7 @@ reason lands in a trace_step row (provenance). Full 3-axis screening stays manua
 (POST /opportunities/{id}/screen), same as the outbound track.
 """
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -118,10 +119,45 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
     # we already track attaches to that company rather than minting a second one.
     company = resolve_company(db, name=name)
 
+    # The deal's id is minted up front but the row is NOT created yet: founder_id is NOT NULL,
+    # and the founder is only knowable after the deck is parsed and extracted. Deck signals key
+    # off this id (external_id only — no FK), so nothing needs the row to exist first.
+    opp_id = uuid.uuid4()
+    envelopes = parse_deck(deck_bytes, name, opp_id)  # raises on empty/text-free PDFs
+    pages = [(env.raw["page"], env.raw["text"]) for env in envelopes]
+    extraction = extract_deck(name, pages)
+
+    # Founder-first: a deck we cannot attribute to a person is not a deal. Rejecting here is the
+    # point — a founderless opportunity has no founder axis and no Founder Score, so it could
+    # never be screened or decided. Reuses the sourcing resolver, so an already-known founder
+    # links to their existing record rather than forking a second one.
+    if not extraction.founders:
+        raise ValueError(
+            f"deck for '{name}' names no founder: ArgOS is founder-first, so a deal cannot be "
+            "opened without a person to attribute it to"
+        )
+    primary = extraction.founders[0]
+    founder_id, _method = resolve_or_create_founder(
+        db,
+        {
+            "display_name": primary.name,
+            "occupation": primary.role,
+            "current_company": name,
+            "identity": {"linkedin": primary.linkedin},
+            "status": "candidate",
+        },
+    )
+    founder_name = primary.name
+
     # The application itself is the first signal — latency clock starts now.
     opp = Opportunity(
+        id=opp_id,
+        founder_id=founder_id,
         company_id=company.id,
         company_name=name,
+        idea=extraction.idea,
+        sector=extraction.sector,
+        geo=extraction.geo,
         source="inbound",
         status="screening",
         first_signal_at=datetime.now(UTC),
@@ -129,50 +165,24 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
     db.add(opp)
     db.flush()
 
-    envelopes = parse_deck(deck_bytes, name, opp.id)  # raises on empty/text-free PDFs
+    # The founder provably belongs to this venture — record it, so the Founder Score can follow
+    # them to whatever they build next.
+    link_founder_company(db, founder_id, company.id)
+
     signal_by_page: dict[int, Signal] = {}
     for env in envelopes:
         sig, _created = upsert_signal(db, env)
         signal_by_page[env.raw["page"]] = sig
-    pages = [(env.raw["page"], env.raw["text"]) for env in envelopes]
-
-    extraction = extract_deck(name, pages)
-    opp.idea = extraction.idea
-    opp.sector = extraction.sector
-    opp.geo = extraction.geo
-
-    # Founder-first: resolve/attach the primary founder from the deck so the opportunity has a
-    # person (and, once profiled, a Founder Score) — a founderless inbound opp can't be decided.
-    # Reuses the sourcing resolver so an already-known founder links to their existing record.
-    founder_name: str | None = None
-    if extraction.founders:
-        primary = extraction.founders[0]
-        founder_id, _method = resolve_or_create_founder(
-            db,
-            {
-                "display_name": primary.name,
-                "occupation": primary.role,
-                "current_company": name,
-                "identity": {"linkedin": primary.linkedin},
-                "status": "candidate",
-            },
-        )
-        opp.founder_id = founder_id
-        for signal in signal_by_page.values():
-            db.execute(
-                insert(founder_signal)
-                .values(
-                    founder_id=founder_id,
-                    signal_id=signal.id,
-                    attribution_confidence=0.7,
-                    attribution_method="deck_primary_founder",
-                )
-                .on_conflict_do_nothing(index_elements=["founder_id", "signal_id"])
+        db.execute(
+            insert(founder_signal)
+            .values(
+                founder_id=founder_id,
+                signal_id=sig.id,
+                attribution_confidence=0.7,
+                attribution_method="deck_primary_founder",
             )
-        # The founder now provably belongs to this venture — record it, so the Founder Score
-        # can follow them to whatever they build next.
-        link_founder_company(db, founder_id, company.id)
-        founder_name = primary.name
+            .on_conflict_do_nothing(index_elements=["founder_id", "signal_id"])
+        )
 
     thesis = (
         db.execute(select(InvestmentThesis).where(InvestmentThesis.is_default.is_(True)))

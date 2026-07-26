@@ -359,9 +359,14 @@ class FounderCompany(Base):
 class Opportunity(Base):
     """The investment opportunity — the diligence/decision unit.
 
-    founder_id and company_id are BOTH nullable: an idea-stage deal is a founder + idea with no
-    company row; an inbound deck may arrive before founder resolution. `idea`/`sector`/`geo` are
-    denormalized so a company-less opportunity is self-contained enough to research a market for.
+    Founder-first: `founder_id` is REQUIRED. A deal is a person plus what they are building; a
+    founderless row has no founder axis and no Founder Score, so it can never be decided. The FK
+    is RESTRICT rather than SET NULL — under NOT NULL, nulling on delete would be impossible, so
+    removing a founder who still has deals must fail loudly instead of silently orphaning them.
+
+    `company_id` stays nullable: an idea-stage deal is a founder + idea with no company yet. A
+    *named* venture must point at a company row (ck_opportunity_named_company). `idea`/`sector`/
+    `geo` are denormalized so a company-less opportunity is self-contained enough to research.
     """
 
     __tablename__ = "opportunity"
@@ -380,9 +385,7 @@ class Opportunity(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    founder_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("founder.id", ondelete="SET NULL")
-    )
+    founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="RESTRICT"))
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("company.id", ondelete="SET NULL")
     )

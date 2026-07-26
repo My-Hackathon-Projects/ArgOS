@@ -227,17 +227,9 @@ def test_upsert_founder_axis_real_db():
         db.close()
 
 
-def test_upsert_founder_axis_founderless_opportunity_fails():
-    db = SessionLocal()
-    try:
-        opp = Opportunity(founder_id=None, idea="TEST no founder", sector="ai")
-        db.add(opp)
-        db.flush()
-        with pytest.raises(ValueError, match="no founder"):
-            upsert_founder_axis(db, opp.id)
-    finally:
-        db.rollback()
-        db.close()
+# test_upsert_founder_axis_founderless_opportunity_fails was removed with the guard it covered:
+# opportunity.founder_id is NOT NULL, so the founderless case it constructed cannot be inserted
+# and the ValueError was unreachable. See tests/test_founder_first.py for the rule itself.
 
 
 def test_upsert_founder_axis_unknown_opportunity_fails():

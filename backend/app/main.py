@@ -385,10 +385,10 @@ def _opportunity_dict(opp: Opportunity) -> dict:
 
 @app.post("/opportunities", response_model=OpportunityDetail, status_code=201)
 def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -> dict:
-    if body.founder_id is not None and db.get(Founder, body.founder_id) is None:
+    if db.get(Founder, body.founder_id) is None:
         raise HTTPException(status_code=404, detail="founder not found")
     # Latency clock: earliest signal we ever saw for this founder; manual deal → creation.
-    first_signal_at = earliest_signal_at(db, body.founder_id) if body.founder_id else None
+    first_signal_at = earliest_signal_at(db, body.founder_id)
     # A named venture resolves to exactly one company row; an idea-stage deal has none.
     company = (
         resolve_company(db, name=body.company_name, sector=body.sector, geo=body.geo)
@@ -405,7 +405,7 @@ def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -
         first_signal_at=first_signal_at or datetime.now(UTC),
     )
     db.add(opp)
-    if company is not None and body.founder_id is not None:
+    if company is not None:
         link_founder_company(db, body.founder_id, company.id)
     db.commit()
     db.refresh(opp)
@@ -492,12 +492,8 @@ def decide(opportunity_id: uuid.UUID, body: DecisionRequest, db: Session = Depen
                 status_code=409,
                 detail="cannot pursue an unscreened opportunity — run /screen first",
             )
-        if opp.founder_id is None:
-            raise HTTPException(
-                status_code=409,
-                detail="cannot pursue an opportunity with no founder — ArgOS is founder-first; "
-                "a Founder Score is required to decide, so map a founder first",
-            )
+    # No founderless check here: opportunity.founder_id is NOT NULL, so a deal without a
+    # founder cannot exist to be decided on. The rule moved from a runtime guard to the schema.
     opp.decision = body.decision
     opp.status = _DECISION_STATUS[body.decision]
     opp.decided_at = datetime.now(UTC)
