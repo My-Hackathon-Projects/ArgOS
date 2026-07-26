@@ -319,3 +319,34 @@ def test_merge_preserves_attribution_provenance() -> None:
     finally:
         db.rollback()
         db.close()
+
+
+def test_reconcile_does_not_merge_distinct_people_on_a_shared_org_handle():
+    """The live case: openhelix-team was on 6 different researchers' profiles.
+
+    reconcile compares pairs, so a pool-local view of "is this handle identifying?" sees one
+    claimant per comparison and merges. The question has to be answered against the whole
+    population, or a dry run proposes collapsing three distinct people into one.
+    """
+    db = SessionLocal()
+    try:
+        suffix = uuid.uuid4().hex
+        org = f"openhelix-team-{suffix}"
+        people = ["Xinyang Tong", "Pengxiang Ding", "Wenxuan Song"]
+        for name in people:
+            founder = Founder(display_name=f"{name} {suffix}", city="Munich")
+            db.add(founder)
+            db.flush()
+            db.add(Identity(founder_id=founder.id, github=org))
+        db.flush()
+
+        result = reconcile_founders(db, dry_run=True)
+        merged = [
+            m
+            for m in result.get("merges", [])
+            if suffix in (m.get("left_name") or "") or suffix in (m.get("right_name") or "")
+        ]
+        assert not merged, f"proposed merging distinct people on an org handle: {merged}"
+    finally:
+        db.rollback()
+        db.close()

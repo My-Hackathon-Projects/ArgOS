@@ -256,8 +256,14 @@ def _context_matches(left: FounderCandidate, right: FounderCandidate) -> dict[st
     return matches
 
 
-def _non_identifying_handles(existing: list[FounderCandidate]) -> dict[str, frozenset[str]]:
+def non_identifying_handles(population: list[FounderCandidate]) -> dict[str, frozenset[str]]:
     """Handles claimed by more than one known person — those identify nobody.
+
+    Pass the WHOLE known population, not the pair being compared. "Is this handle identifying?"
+    is a property of everyone we know, and a pairwise caller (reconcile compares combinations of
+    two) sees one claimant per comparison and would merge on an org account. `resolve_candidates`
+    derives this from `existing` when the caller does not supply it, which is correct only
+    because discovery passes every founder as the candidate pool.
 
     A public profile is person-unique in principle, but an organisation account is published on
     every co-founder's profile: github:TheRobotStudio appeared on two different founders of the
@@ -268,24 +274,38 @@ def _non_identifying_handles(existing: list[FounderCandidate]) -> dict[str, froz
     and it is the signal a human reviewer needs. Only its use as identity is withdrawn. A handle
     with a single claimant is untouched, so the strong-identity tier and the conflict/review path
     behave exactly as before.
+
+    Claimants are counted by NAME, not by row. Several rows of one person sharing a handle is
+    the duplicate case the handle exists to resolve — withdrawing it there would block the very
+    merge it is for. It stops identifying only when the claimants are demonstrably different
+    people, which is what disagreeing names mean.
     """
     withdrawn: dict[str, frozenset[str]] = {}
     for kind in STRONG_IDENTITY_KINDS:
         owners: dict[str, set[str]] = {}
-        for index, candidate in enumerate(existing):
-            owner = candidate.founder_id or f"_anon{index}"
+        for candidate in population:
+            name = compact_person_name(candidate.display_name)
             for value in _identity_values(getattr(candidate, kind), kind):
-                owners.setdefault(value, set()).add(owner)
-        withdrawn[kind] = frozenset(v for v, ids in owners.items() if len(ids) > 1)
+                owners.setdefault(value, set()).add(name)
+        withdrawn[kind] = frozenset(v for v, names in owners.items() if len(names) > 1)
     return withdrawn
 
 
 def resolve_candidates(
-    incoming: FounderCandidate, existing: list[FounderCandidate]
+    incoming: FounderCandidate,
+    existing: list[FounderCandidate],
+    *,
+    non_identifying: dict[str, frozenset[str]] | None = None,
 ) -> ResolutionResult:
-    """Return the best safe action for one incoming person against existing candidates."""
+    """Return the best safe action for one incoming person against existing candidates.
+
+    `non_identifying` must be supplied by any caller whose `existing` is a subset of the known
+    population — a pairwise sweep cannot see that a handle is shared. Defaulting to `existing`
+    is correct only when it *is* the whole population.
+    """
     incoming_name = compact_person_name(incoming.display_name)
-    non_identifying = _non_identifying_handles(existing)
+    if non_identifying is None:
+        non_identifying = non_identifying_handles(existing)
     best: tuple[float, str | None, tuple[str, ...], tuple[str, ...], dict] | None = None
     conflicted: tuple[float, str | None, tuple[str, ...], tuple[str, ...], dict] | None = None
     for candidate in existing:

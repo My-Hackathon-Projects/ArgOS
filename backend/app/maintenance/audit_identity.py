@@ -110,6 +110,13 @@ CHECKS: tuple[Check, ...] = (
         "SELECT id, city FROM founder WHERE city_geonameid IS NOT NULL AND country_code IS NULL",
     ),
     Check(
+        "place: a gazetteer-resolved city always carries its place id",
+        "exact/alias/inferred mean the gazetteer matched, so the canonical id must be stored — "
+        "without it the record is back to string matching (the _new_founder regression)",
+        "SELECT id, city, location_quality FROM founder "
+        "WHERE location_quality IN ('exact', 'alias', 'inferred') AND city_geonameid IS NULL",
+    ),
+    Check(
         "company: name_key unique",
         "one venture, one row — the Nimbus Edge duplicate shape",
         "SELECT name_key, count(*) FROM company WHERE name_key IS NOT NULL "

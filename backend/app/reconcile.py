@@ -13,6 +13,7 @@ from app.entity_resolution import (
     artifact_ids_by_founder,
     compact_person_name,
     has_shared_strong_identity,
+    non_identifying_handles,
     resolve_candidates,
 )
 from app.models import (
@@ -71,6 +72,10 @@ def find_merge_candidates(db: Session) -> list[tuple[Founder, Founder, Resolutio
     # Fetched once for the whole sweep, not per pair: this is O(N^2) over founders already.
     artifacts = artifact_ids_by_founder(db)
     candidates = {str(founder.id): _candidate(founder, artifacts) for founder in founders}
+    # Computed over EVERY founder, not per pair: a pairwise view sees one claimant per
+    # comparison and would merge distinct people on a shared organisation account
+    # (openhelix-team sat on six different researchers).
+    non_identifying = non_identifying_handles(list(candidates.values()))
     for left, right in combinations(founders, 2):
         left_candidate = candidates[str(left.id)]
         right_candidate = candidates[str(right.id)]
@@ -82,7 +87,9 @@ def find_merge_candidates(db: Session) -> list[tuple[Founder, Founder, Resolutio
         shared_identity = has_shared_strong_identity(left_candidate, right_candidate)
         if not same_name and not shared_identity:
             continue
-        result = resolve_candidates(left_candidate, [right_candidate])
+        result = resolve_candidates(
+            left_candidate, [right_candidate], non_identifying=non_identifying
+        )
         if result.decision in {"merge", "review"}:
             results.append((left, right, result))
     return results

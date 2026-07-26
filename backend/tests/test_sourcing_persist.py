@@ -134,3 +134,37 @@ def test_outbound_resolves_identity_and_shares_one_artifact_between_founders() -
     finally:
         db.rollback()
         db.close()
+
+
+def test_a_new_founder_stores_the_resolved_place_id() -> None:
+    """Discovery must persist the canonical place id, not just the derived name/key.
+
+    Regression: _new_founder wrote city/city_key/country_code/location_quality but dropped
+    geonameid, so every founder created by discovery carried a resolved-looking location with
+    no place identity — exactly the string-matching the id exists to replace. reconcile filled
+    it in later, which hid the gap until a real intake run.
+    """
+    db = SessionLocal()
+    try:
+        suffix = unique_suffix()
+        result = persist_delivery(
+            db,
+            [
+                {
+                    "display_name": f"Ada Place {suffix}",
+                    "city": "München",
+                    "status": "candidate",
+                    "discovery_confidence": 0.6,
+                    "signals": [_signal(suffix)],
+                }
+            ],
+        )
+        assert result["new_founders"] == 1
+        founder = db.execute(
+            select(Founder).where(Founder.display_name == f"Ada Place {suffix}")
+        ).scalar_one()
+        assert founder.city == "Munich"
+        assert founder.country_code == "DE"
+        assert founder.city_geonameid == 2867714
+    finally:
+        db.close()

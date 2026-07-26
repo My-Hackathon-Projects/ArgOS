@@ -133,6 +133,7 @@ def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
         city=location.city,
         raw_location=location.raw_location,
         city_key=location.city_key,
+        city_geonameid=location.geonameid,
         country_code=location.country_code,
         location_quality=location.quality,
         occupation=f.get("occupation"),
