@@ -94,6 +94,26 @@ def _city_index() -> dict[str, tuple[dict[str, Any], ...]]:
 # the alias layer cannot invent a merge, only resolve an unambiguous endonym/exonym.
 _MIN_ALIAS_KEY_LEN = 4
 
+# How much larger the leading candidate must be before population alone decides a namesake.
+# Measured over real inputs: the places a writer obviously means dominate by a wide margin
+# (New York 904x, Berlin 196x, Roma 64x, Paris 30x, Dublin 18x, Boston 16x), while genuinely
+# ambiguous namesakes sit near parity (Stanford 2.1x, Springfield 1.1x, Cambridge 1.1x). Below
+# this the name is left unresolved rather than guessed — "Stanford" resolved to Stanford-le-Hope
+# in Essex on a 2.1x edge, silently relocating the person.
+_DOMINANT_POPULATION_RATIO = 10
+
+# Explicit, stated domain prior — NOT a hidden bias. The thesis sources founders in Europe, so
+# when two real namesakes are too close in size to separate, a European one is preferred over a
+# non-European one: "Heidelberg" is Baden-Württemberg (143k) not Gauteng (86k, 1.7x), "Valencia"
+# is Spain not Venezuela (which is 2x larger), "Cambridge" is England not Ontario. It only ever
+# breaks a tie the population rule already declined to call, and never overrides a stated
+# country. Purely non-European ties (24 US Springfields) stay unresolved. EU/EEA/UK/CH + Western
+# Balkans; empty this set to disable the prior entirely.
+_EUROPE = frozenset(
+    """AL AD AT BA BE BG BY CH CY CZ DE DK EE ES FI FR GB GR HR HU IE IS IT LI LT LU LV MC MD
+    ME MK MT NL NO PL PT RO RS SE SI SK SM UA VA XK""".split()
+)
+
 
 @cache
 def _by_geonameid() -> dict[int, dict[str, Any]]:
@@ -160,8 +180,42 @@ def _matching(key: str, country_code: str | None) -> tuple[dict[str, Any], ...]:
     )
 
 
+def _population(row: dict[str, Any]) -> int:
+    return int(row.get("population", 0) or 0)
+
+
 def _dominant(rows: tuple[dict[str, Any], ...]) -> dict[str, Any]:
-    return max(rows, key=lambda row: row.get("population", 0))
+    return max(rows, key=_population)
+
+
+def _decisive(rows: list[dict[str, Any]], *, prefer_europe: bool = False) -> dict[str, Any] | None:
+    """The clear winner by population, or None when the field is too close to call.
+
+    Guessing between real namesakes of comparable size relocates people: "Stanford" resolved to
+    Stanford-le-Hope in Essex on a 2.1x edge.
+    """
+    if not rows:
+        return None
+    if len(rows) == 1:
+        return rows[0]
+    ranked = sorted(rows, key=_population, reverse=True)
+    if _population(ranked[0]) >= _DOMINANT_POPULATION_RATIO * max(_population(ranked[1]), 1):
+        return ranked[0]
+    # Too close on size alone. Fall back to the stated Europe-first prior, and only if it
+    # actually narrows the field — a tie between two European places is still a tie.
+    # Applied to official-name candidates only: over the alias-inflated pool it let
+    # Stanford-le-Hope (Essex) outrank the exact-name match Stanford, US.
+    if not prefer_europe:
+        return None
+    european = [row for row in ranked if row.get("countrycode") in _EUROPE]
+    if european and len(european) < len(ranked):
+        if len(european) == 1:
+            return european[0]
+        if _population(european[0]) >= _DOMINANT_POPULATION_RATIO * max(
+            _population(european[1]), 1
+        ):
+            return european[0]
+    return None
 
 
 def _resolve_place(head: str, country_hint: str | None) -> tuple[dict[str, Any] | None, str]:
@@ -176,41 +230,71 @@ def _resolve_place(head: str, country_hint: str | None) -> tuple[dict[str, Any] 
         return None, "unknown"
     key = _ALIASES.get(key, key)
 
-    rows = _matching(key, country_hint)
-    if rows:
-        return (rows[0], "exact") if len(rows) == 1 else (_dominant(rows), "inferred")
-
-    def _from_alias(alias_key: str) -> dict[str, Any] | None:
-        """A place named by this alias, but only when the answer is not a guess.
-
-        One owner -> unambiguous, accept. Several owners -> accept only if the stated country
-        leaves exactly one; otherwise refuse, because picking the biggest would be inventing a
-        merge between genuinely different places.
-        """
-        ids = _alias_index().get(alias_key)
-        if not ids:
-            return None
+    def _alias_rows(alias_key: str) -> tuple[dict[str, Any], ...]:
+        ids = _alias_index().get(alias_key) or ()
         rows = tuple(_by_geonameid()[i] for i in ids)
         if country_hint:
             rows = tuple(r for r in rows if r.get("countrycode") == country_hint)
-        return rows[0] if len(rows) == 1 else None
+        return rows
 
-    place = _from_alias(key)
+    def _decide(alias_key: str) -> tuple[dict[str, Any] | None, str]:
+        """Pool official names and the gazetteer's alias cluster, then choose.
+
+        Consulting official names *first* let a namesake win outright: "Roma" is a 25k town in
+        Lesotho and the endonym for Rome (2.8M), and the Lesotho row was returned. Pooling both
+        candidate sets and taking the dominant place fixes that, and also resolves cities whose
+        official name nobody writes ("New York" -> "New York City").
+
+        A country hint has already filtered both sets, so an explicit country still beats
+        population.
+        """
+        primary = _matching(alias_key, country_hint)
+        pool: dict[int, dict[str, Any]] = {int(r["geonameid"]): r for r in primary}
+        pool.update({int(r["geonameid"]): r for r in _alias_rows(alias_key)})
+        if not pool:
+            # The name is known, just not in the country the source stated ("Paris, Germany").
+            # Distinguished from "never heard of it" so the caller can drop the bogus country
+            # instead of recording the person in a Paris that does not exist.
+            known_elsewhere = bool(_city_index().get(alias_key) or _alias_index().get(alias_key))
+            return None, "contradicted" if (country_hint and known_elsewhere) else "unverified"
+        # An official name is stronger evidence than an alternatename, which is why the two are
+        # weighed apart: GeoNames lists "Rome" as an alternatename of Lomé (2.19M), which nearly
+        # ties Rome (2.32M) and would block the decision if pooled naively.
+        named = [r for r in pool.values() if _city_key(str(r["name"])) == alias_key]
+        best_named = _decisive(named, prefer_europe=True)
+        best_pool = _decisive(list(pool.values()))
+        # An alias candidate only overrules an exact name match by dominating it outright —
+        # "Roma" is a 14k town in Lesotho and the endonym of Rome, 163x larger.
+        if (
+            best_pool is not None
+            and best_named is not None
+            and _population(best_pool)
+            >= _DOMINANT_POPULATION_RATIO * max(_population(best_named), 1)
+        ):
+            return best_pool, "inferred"
+        if best_named is not None:
+            return best_named, "exact" if best_named in primary else "alias"
+        if best_pool is not None:
+            return best_pool, "inferred"
+        # Real namesakes of comparable size. Guessing relocates people; leave it to a country
+        # hint or a human.
+        return None, "unverified"
+
+    place, quality = _decide(key)
     if place is not None:
-        return place, "alias"
+        return place, quality
+    unresolved = quality  # "contradicted" or "unverified" — must survive the fallthrough
 
     alt = _detransliterate(key)
     if alt != key:
-        alt = _ALIASES.get(alt, alt)
-        rows = _matching(alt, country_hint)
-        if rows:
-            return (rows[0] if len(rows) == 1 else _dominant(rows)), "alias"
-        place = _from_alias(alt)
+        place, quality = _decide(_ALIASES.get(alt, alt))
         if place is not None:
-            return place, "alias"
+            return place, quality
+        if quality == "contradicted":
+            unresolved = quality
     # Either nothing names this place, or the name exists only in a country the source
     # contradicts ("Paris, Germany"). Keep the raw string rather than relocating the person.
-    return None, "unverified"
+    return None, unresolved
 
 
 def normalize_location(raw: str | None) -> NormalizedLocation:
@@ -238,6 +322,11 @@ def normalize_location(raw: str | None) -> NormalizedLocation:
         country_code = country_code or countries[head_key]
 
     place, quality = _resolve_place(head, country_code)
+    if place is None and quality == "contradicted":
+        # The city and the country disagree. Keeping the stated country would assert a place
+        # that does not exist; the full original string survives in raw_location either way.
+        country_code = None
+        quality = "unverified"
     if place is not None:
         # Canonical storage: the place's own name and id, never the source spelling. This is
         # what makes "Zürich"/"Zurich"/"Zuerich" one record instead of three similar strings.

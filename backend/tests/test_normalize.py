@@ -105,12 +105,29 @@ def test_ambiguous_city_resolves_to_the_dominant_place_and_says_so():
     """ "Berlin" alone used to be quality=unknown while "Springfield, USA" was exact."""
     berlin = normalize_location("Berlin")
     assert berlin.country_code == "DE"
-    assert berlin.quality == "inferred"
+    assert berlin.geonameid == 2950159
+    # A decisive official-name match (196x the runner-up) — resolved, not a guess and not
+    # "unknown". "Roma" reaches Rome the same way but through the alias cluster, so it is
+    # labelled "inferred".
+    assert berlin.quality == "exact"
+    assert normalize_location("Roma").quality == "inferred"
 
 
-def test_a_population_guess_is_never_labelled_exact():
+def test_comparable_namesakes_are_left_unresolved_rather_than_guessed():
+    """24 US Springfields, the top two within 1.1x. Picking one would relocate people."""
     springfield = normalize_location("Springfield, USA")
-    assert springfield.quality == "inferred"
+    assert springfield.geonameid is None
+    assert springfield.quality == "unverified"
+    assert springfield.city == "Springfield"  # the claim is kept, just not resolved
+
+    # Cambridge GB 145k vs Cambridge CA 130k is also within 1.1x, but one of them is European,
+    # so the stated Europe-first prior breaks that tie (see _EUROPE).
+    assert normalize_location("Cambridge").country_code == "GB"
+    # ...and it cannot resurrect a tie that is entirely non-European
+    assert normalize_location("Cambridge, USA").geonameid is None
+    # "Stanford" must not become Stanford-le-Hope in Essex: the prior applies to official-name
+    # candidates only, never to the alias pool.
+    assert normalize_location("Stanford").geonameid is None
 
 
 def test_unresolved_text_is_labelled_unverified_not_unknown():
@@ -125,22 +142,35 @@ def test_context_disambiguates_a_name_two_places_share():
     """The Munster/Muenster trap — where naive string similarity gets it wrong.
 
     "Muenster" is itself a real town in Texas, so it is not merely a transliteration of
-    "Münster". A stated country is what separates them; without one, the exact official name
-    wins and the two stay distinct rather than being guessed together.
+    "Münster". A stated country separates them outright; without one, dominance decides —
+    Münster (300k) over a Texas town of ~1.5k, the same rule that sends "Roma" to Rome.
     """
     assert (
         normalize_location("Muenster, Germany").geonameid == normalize_location("Münster").geonameid
     )
-    assert normalize_location("Muenster, Germany").quality == "alias"
-    assert place_key("Muenster") != place_key("Münster")
-    assert normalize_location("Muenster").country_code == "US"
+    assert normalize_location("Muenster, Germany").quality == "inferred"
+    assert normalize_location("Muenster").country_code == "DE"
+    # an explicit country still overrules dominance
+    assert normalize_location("Muenster, USA").country_code == "US"
+    assert normalize_location("Muenster, USA").geonameid == 4713351
 
 
 def test_a_contradictory_country_is_refused_not_relocated():
-    """ "Paris, Germany" must not silently move the person to a Paris that exists."""
+    """ "Paris, Germany" must not silently move the person to a Paris that exists.
+
+    The bogus country is dropped too: asserting cc=DE beside city="Paris" would record a place
+    that does not exist. The full string survives in raw_location.
+    """
     paris_de = normalize_location("Paris, Germany")
     assert paris_de.geonameid is None
     assert paris_de.quality == "unverified"
+    assert paris_de.country_code is None
+    assert paris_de.raw_location == "Paris, Germany"
+
+    # a genuinely unknown village keeps its stated country: nothing contradicts it
+    village = normalize_location("Kleinkleckersdorf, Germany")
+    assert village.geonameid is None
+    assert village.country_code == "DE"
 
 
 def test_place_key_is_the_identity_equality_should_use():
@@ -252,3 +282,47 @@ def test_known_us_and_european_cities_have_stable_keys():
     for raw, pair in expected.items():
         location = normalize_location(raw)
         assert (location.city, location.city_key) == pair
+
+
+def test_an_official_name_elsewhere_does_not_beat_the_place_meant():
+    """ "Roma" is a tiny town in Lesotho and the endonym for Rome (2.8M).
+
+    Consulting official names before the alias cluster let the Lesotho town win outright. The
+    two candidate sets are now pooled and the dominant place chosen, so the endonym resolves.
+    """
+    roma = normalize_location("Roma")
+    assert roma.country_code == "IT", f"resolved to {roma.city}, {roma.country_code}"
+    assert roma.geonameid == normalize_location("Rome").geonameid
+    # an explicit country still wins over population
+    assert normalize_location("Roma, Lesotho").country_code == "LS"
+
+
+def test_a_city_known_by_a_shorter_name_resolves():
+    """GeoNames calls it "New York City"; nobody writes that."""
+    ny = normalize_location("New York")
+    assert ny.geonameid is not None
+    assert ny.country_code == "US"
+    assert ny.geonameid == normalize_location("New York City").geonameid
+
+
+def test_europe_first_prior_is_explicit_and_bounded():
+    """The thesis is Europe-first, so a stated prior breaks ties — but only ties.
+
+    It never overrides a country in the source, never overrides a decisive population gap, and
+    never resolves a tie with no European candidate.
+    """
+    # breaks real ties toward Europe
+    assert normalize_location("Heidelberg").country_code == "DE"  # 143k DE vs 86k ZA
+    assert normalize_location("Valencia").country_code == "ES"  # ES chosen over a larger VE
+    assert normalize_location("Forest").country_code == "BE"
+
+    # a stated country always wins over the prior
+    assert normalize_location("Valencia, Venezuela").country_code == "VE"
+
+    # a decisive gap is settled before the prior is ever consulted
+    assert normalize_location("Boston").country_code == "US"
+    assert normalize_location("Toronto").country_code == "CA"
+    assert normalize_location("New York").country_code == "US"
+
+    # no European candidate -> still unresolved, never forced
+    assert normalize_location("Springfield, USA").geonameid is None

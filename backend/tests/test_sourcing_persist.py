@@ -103,12 +103,15 @@ def test_outbound_resolves_identity_and_shares_one_artifact_between_founders() -
     db = SessionLocal()
     try:
         suffix = unique_suffix()
-        existing = Founder(display_name=f"Existing {suffix}")
+        # A spelling variant, not a different human: the name gate (MERGE_NAME_MIN) is the
+        # first-order check, so a shared personal handle resolves identity *within* a name that
+        # still matches. Two unrelated names sharing a handle is an org account, not a person.
+        existing = Founder(display_name=f"Existing {suffix} Persson")
         db.add(existing)
         db.flush()
         db.add(Identity(founder_id=existing.id, github=f"existing-{suffix}"))
         artifact = _signal(suffix)
-        resolved = _founder(f"Updated name {suffix}", [artifact])
+        resolved = _founder(f"Existing {suffix} Person", [artifact])
         resolved["identity"] = {"github": f"existing-{suffix}"}
 
         result = persist_delivery(

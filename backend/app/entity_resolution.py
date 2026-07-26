@@ -20,9 +20,19 @@ IdentityValue = str | tuple[str, ...] | None
 # Name similarity is a rapidfuzz ratio over compacted first+last names, 0-100.
 NAME_MATCH_MIN = 96
 """At or above this, two spellings are treated as the same person's name."""
-NAME_UNRELATED_MAX = 60
-"""Below this, names are too different to share a person-unique identifier: the handle
-belongs to an organisation or was mis-attributed, so a shared value is a conflict."""
+MERGE_NAME_MIN = 90
+"""First-order gate. No evidence merges two people whose names disagree by more than this.
+
+An identifier tells you *which* person a profile belongs to; it cannot establish that two
+obviously different names are one human. This was NAME_UNRELATED_MAX = 60, and rapidfuzz scores
+unrelated names far higher than intuition suggests on shared n-grams: "Xinyang Tong" vs
+"Pengxiang Ding" is 61.5, which cleared 60 and let reconcile propose collapsing three distinct
+researchers who happened to share an organisation's GitHub account.
+
+90 sits in the empty band between the two populations actually observed: genuine spelling
+variants score 100 ("Ada Lovelace"/"Ada King Lovelace", a "Dr." prefix, "Jose"/"José"), while
+different people cluster around 60. Initials ("W. Song" vs "Wenxuan Song", 66.7) fall below the
+gate on purpose — that lands in review, which is the safe direction to fail."""
 
 # Confidence is 0-1 and decides the action taken.
 MERGE_MIN_CONFIDENCE = 0.90
@@ -318,7 +328,9 @@ def resolve_candidates(
             right = _identity_values(getattr(candidate, kind), kind) - non_identifying[kind]
             if left & right:
                 evidence[kind] = "shared"
-                if name_similarity < NAME_UNRELATED_MAX:
+                if name_similarity < MERGE_NAME_MIN:
+                    # Name gate first. A shared handle under names this different is an
+                    # organisation account or a mis-attribution, never proof of one person.
                     conflicts.append(kind)
                 else:
                     reasons.append(kind)

@@ -61,3 +61,38 @@ def test_a_singly_claimed_handle_under_a_different_name_is_still_a_conflict() ->
     result = resolve_candidates(incoming, existing)
     assert result.decision == "review"
     assert "github" in result.conflicts
+
+
+# ── name is the first-order gate ─────────────────────────────────────────────
+# A shared identifier is only evidence about *which* person; it cannot establish that two
+# obviously different names are one human. The strong-identity branch was the single merge path
+# not gated on the name (artifact and context both require >= NAME_MATCH_MIN), and its bar sat at
+# NAME_UNRELATED_MAX = 60. Two unrelated Chinese names score 61.5 on shared n-grams, so
+# reconcile proposed collapsing three distinct researchers who shared an org account.
+
+
+def test_obviously_different_names_never_merge_however_strong_the_identifier() -> None:
+    """Live case: these scored 61.5 and cleared a threshold of 60."""
+    for a, b in [
+        ("Xinyang Tong", "Pengxiang Ding"),
+        ("Wenxuan Song", "Pengxiang Ding"),
+        ("Alex Rohregger", "Pasha Rizali"),
+    ]:
+        existing = [_person("1", b, github="shared-handle")]
+        incoming = FounderCandidate(display_name=a, github="shared-handle")
+        result = resolve_candidates(incoming, existing)
+        assert result.decision != "merge", f"{a} merged into {b}"
+
+
+def test_spelling_variants_of_one_name_still_merge_on_a_personal_handle() -> None:
+    """The other half of the rule: a real variant plus a personal handle must still merge."""
+    for a, b in [
+        ("Ada Lovelace", "Ada King Lovelace"),
+        ("Dr. Ada Lovelace", "Ada Lovelace"),
+        ("Jose Garcia", "José García"),
+    ]:
+        existing = [_person("1", b, github="ada-personal")]
+        incoming = FounderCandidate(display_name=a, github="ada-personal")
+        result = resolve_candidates(incoming, existing)
+        assert result.decision == "merge", f"{a} failed to merge with {b}"
+        assert result.matched_id == "1"
