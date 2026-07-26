@@ -26,8 +26,9 @@ def test_bed_resolves_with_coverage(db):
     assert any(f["cold_start"] for f in summary["founders"])
     assert any(not f["cold_start"] for f in summary["founders"])
     assert all(f["n_claims"] > 0 for f in summary["founders"])
-    assert any(o["founder_id"] is not None for o in summary["opportunities"])
-    assert any(o["founder_id"] is None for o in summary["opportunities"])
+    # Founder-first: every deal has a person. The bed used to assert the opposite — that a
+    # founderless opportunity existed — which is now an unrepresentable state.
+    assert all(o["founder_id"] is not None for o in summary["opportunities"])
     assert all(
         (o["idea"] or "").strip() or (o["sector"] or "").strip() for o in summary["opportunities"]
     )

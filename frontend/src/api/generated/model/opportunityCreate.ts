@@ -6,7 +6,7 @@
  */
 
 export interface OpportunityCreate {
-  founder_id?: string | null;
+  founder_id: string;
   company_name?: string | null;
   idea?: string | null;
   sector?: string | null;

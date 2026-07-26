@@ -62,13 +62,10 @@ OPPORTUNITY_SUBJECTS: tuple[Subject, ...] = (
         "cold-start-founder-linked (Tanmay): devtools idea on thin evidence — exercises "
         "uncertainty handling end-to-end",
     ),
-    Subject(
-        uuid.UUID("a8450afa-6742-4abb-a11b-592c775e1c09"),
-        "Nimbus Edge",
-        "founderless with 20 opportunity-anchored market claims + a persisted market axis — "
-        "exercises the market/memo path and the no-founder edge",
-    ),
 )
+# The founderless "Nimbus Edge" subject was retired when opportunity.founder_id became NOT NULL:
+# the "no-founder edge" it covered is no longer a representable state. Its other half — the
+# market/memo path — moved to Ipanaque Labs, which carries a real founder AND a market axis.
 
 # Keep the bed small so generate+judge rounds stay cheap (PRD: 2-3 each).
 assert 2 <= len(FOUNDER_SUBJECTS) <= 3 and 2 <= len(OPPORTUNITY_SUBJECTS) <= 3

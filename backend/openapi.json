@@ -2341,15 +2341,8 @@
       "OpportunityCreate": {
         "properties": {
           "founder_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "format": "uuid",
             "title": "Founder Id"
           },
           "company_name": {
@@ -2398,6 +2391,9 @@
           }
         },
         "type": "object",
+        "required": [
+          "founder_id"
+        ],
         "title": "OpportunityCreate"
       },
       "OpportunityDetail": {
