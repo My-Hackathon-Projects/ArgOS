@@ -428,6 +428,18 @@ def merge_founders(
             evidence=evidence,
         )
     )
+    # A person's row is about to be deleted and their whole history reattributed. `entity_merge`
+    # records it in the database; this records it where an operator watching the cron will see it.
+    log.info(
+        "merge: %s (%s) <- %s (%s) via %s conf=%.2f evidence=%s",
+        canonical.display_name,
+        canonical.id,
+        duplicate.display_name,
+        duplicate.id,
+        method,
+        confidence,
+        evidence,
+    )
     # Flush all FK moves before deleting the duplicate. Using a SQL delete avoids SQLAlchemy
     # relationship synchronization setting moved claims back to NULL.
     db.flush()
@@ -531,6 +543,13 @@ def reconcile_founders(db: Session, *, dry_run: bool = True) -> dict:
                 reviews.append(item_for(left, right, result))
     if not dry_run:
         db.commit()
+    log.info(
+        "reconcile: %d merges, %d reviews over %d founders%s",
+        len(merges),
+        len(reviews),
+        len(founders),
+        " (dry run)" if dry_run else "",
+    )
     return {
         "dry_run": dry_run,
         "location_update_count": len(location_updates),

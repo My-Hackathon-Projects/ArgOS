@@ -9,11 +9,15 @@ invariant under test is: re-discovering a known person NEVER increases the found
 from datetime import UTC, datetime
 
 from helpers import unique_suffix
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.db import SessionLocal
 from app.models import Founder, Identity, founder_signal
-from app.sourcing.persist import persist_delivery
+from app.sourcing.persist import (
+    _FOUNDER_WRITER_LOCK,
+    persist_delivery,
+    resolve_or_create_founder,
+)
 
 
 def _artifact(suffix: str, n: int = 1) -> dict:
@@ -198,6 +202,31 @@ def test_a_tie_between_two_candidates_resolves_to_the_earliest_discovered_person
             )
         )
         assert owner == earliest_id
+    finally:
+        db.rollback()
+        db.close()
+
+
+def test_resolving_a_founder_takes_the_writer_lock_itself() -> None:
+    """Two processes that both read "nobody matches" both create the person.
+
+    The guard used to sit on the discovery cron, which left the inbound deck intake — same
+    resolver, called from a request handler — racing it with no lock at all. Owning the lock in
+    the writer is what makes every caller safe, including ones not written yet.
+    """
+    db = SessionLocal()
+    try:
+        suffix = unique_suffix()
+        resolve_or_create_founder(db, {"display_name": f"Radia Perlman {suffix}"})
+
+        held = db.scalar(
+            text(
+                "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' "
+                "AND objid = :lock_id AND pid = pg_backend_pid() AND granted"
+            ),
+            {"lock_id": _FOUNDER_WRITER_LOCK},
+        )
+        assert held == 1
     finally:
         db.rollback()
         db.close()

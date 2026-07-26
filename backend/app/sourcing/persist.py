@@ -11,7 +11,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, selectinload
 
@@ -278,6 +278,25 @@ def _record_review(
         db.flush()
 
 
+_FOUNDER_WRITER_LOCK = 437_117
+
+
+def _lock_founder_writes(db: Session) -> None:
+    """Serialize founder resolution across processes, in the writer rather than at one caller.
+
+    Resolution reads every founder and then decides whether to create one, so two processes
+    doing it concurrently can both conclude "new" for the same person and mint the duplicate the
+    resolver exists to prevent. Guarding the discovery cron alone was not enough — the inbound
+    deck intake calls this same function with no lock at all, from a request handler, so the two
+    funnels could race each other. The lock belongs to the write, not to one of its callers.
+
+    Transaction-scoped and BLOCKING: a second writer must wait its turn and then see the first
+    one's rows, not skip the person. Released by the caller's commit or rollback. Re-taking it
+    per candidate in a delivery loop is free — Postgres reference-counts a lock already held.
+    """
+    db.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": _FOUNDER_WRITER_LOCK})
+
+
 def resolve_or_create_founder(
     db: Session, f: dict, artifact_ids: tuple[str, ...] = ()
 ) -> tuple[uuid.UUID, str]:
@@ -288,6 +307,7 @@ def resolve_or_create_founder(
     the one resolver (_resolve) — ArgOS is founder-first, every opportunity needs a person.
     Flushes; the caller commits.
     """
+    _lock_founder_writes(db)
     resolution = _resolve(db, f, artifact_ids)
     if resolution.founder_id is not None:
         founder = db.get(Founder, resolution.founder_id)
@@ -507,6 +527,21 @@ def persist_delivery(
         db.commit()
     else:
         db.flush()
+    # This runs unattended under cron and mutates person records. Without a line per run there is
+    # no way to tell a quiet night from a resolver that stopped resolving.
+    log.info(
+        "persist[%s]: %d candidates -> %d new, %d resolved, %d signals | dropped "
+        "no_evidence=%d non_person=%d identity=%s | rerouted %d",
+        source,
+        len(founders),
+        new_founders,
+        resolved,
+        new_signals,
+        dropped_no_evidence,
+        dropped_non_person,
+        dict(dropped_identity) or "-",
+        rerouted_identity,
+    )
     return {
         "new_founders": new_founders,
         "resolved_to_existing": resolved,
