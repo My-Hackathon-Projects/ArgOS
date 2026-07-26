@@ -121,6 +121,28 @@ def test_unresolved_text_is_labelled_unverified_not_unknown():
     assert normalize_location("TUM").quality == "unknown"
 
 
+def test_context_disambiguates_a_name_two_places_share():
+    """The Munster/Muenster trap — where naive string similarity gets it wrong.
+
+    "Muenster" is itself a real town in Texas, so it is not merely a transliteration of
+    "Münster". A stated country is what separates them; without one, the exact official name
+    wins and the two stay distinct rather than being guessed together.
+    """
+    assert (
+        normalize_location("Muenster, Germany").geonameid == normalize_location("Münster").geonameid
+    )
+    assert normalize_location("Muenster, Germany").quality == "alias"
+    assert place_key("Muenster") != place_key("Münster")
+    assert normalize_location("Muenster").country_code == "US"
+
+
+def test_a_contradictory_country_is_refused_not_relocated():
+    """ "Paris, Germany" must not silently move the person to a Paris that exists."""
+    paris_de = normalize_location("Paris, Germany")
+    assert paris_de.geonameid is None
+    assert paris_de.quality == "unverified"
+
+
 def test_place_key_is_the_identity_equality_should_use():
     """What entity_resolution compares. Display names are for humans, not for matching."""
     assert place_key("Zürich") == place_key("Zurich") == place_key("Zuerich")

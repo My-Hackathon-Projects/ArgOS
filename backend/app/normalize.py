@@ -96,27 +96,36 @@ _MIN_ALIAS_KEY_LEN = 4
 
 
 @cache
-def _alias_index() -> dict[str, dict[str, Any]]:
-    """Endonym/exonym -> the single place that owns it (Wien->Vienna, Praha->Prague).
-
-    ~5s and ~15MB, so it is built only after the primary index misses. The common path
-    (an official name, or one of _ALIASES) never pays for it.
-    """
-    owners: dict[str, set[int]] = {}
-    for row in _geonames().get_cities().values():
-        for alt in cast(dict[str, Any], row).get("alternatenames") or []:
-            key = _city_key(str(alt))
-            if len(key) >= _MIN_ALIAS_KEY_LEN:
-                owners.setdefault(key, set()).add(int(row["geonameid"]))
-    primary = _city_index()
-    by_id = {
+def _by_geonameid() -> dict[int, dict[str, Any]]:
+    return {
         int(row["geonameid"]): cast(dict[str, Any], row)
         for row in _geonames().get_cities().values()
     }
+
+
+@cache
+def _alias_index() -> dict[str, tuple[int, ...]]:
+    """Endonym/exonym -> the place ids that claim it (Wien->Vienna, Praha->Prague).
+
+    Ids rather than rows to keep this cheap; ~5s to build, so it is only consulted after the
+    primary index fails. The common path (an official name, or one of _ALIASES) never pays it.
+
+    Ambiguous keys are kept, not dropped: "muenster" is claimed by both Münster (DE) and
+    Muenster (TX), and a stated country is exactly what tells them apart. `_from_alias` accepts
+    a multi-owner key only when context narrows it to one, so the layer still cannot guess.
+    """
+    # Lists, not sets: the overwhelming majority of alias keys name exactly one place, so the
+    # per-key set allocation dominated the build. Duplicates are collapsed only where they occur.
+    owners: dict[str, list[int]] = {}
+    for row in _geonames().get_cities().values():
+        gid = int(row["geonameid"])
+        for alt in cast(dict[str, Any], row).get("alternatenames") or []:
+            key = _city_key(str(alt))
+            if len(key) >= _MIN_ALIAS_KEY_LEN:
+                owners.setdefault(key, []).append(gid)
     return {
-        key: by_id[next(iter(ids))]
+        key: (tuple(ids) if len(ids) == 1 else tuple(dict.fromkeys(ids)))
         for key, ids in owners.items()
-        if len(ids) == 1 and key not in primary
     }
 
 
@@ -170,19 +179,25 @@ def _resolve_place(head: str, country_hint: str | None) -> tuple[dict[str, Any] 
     rows = _matching(key, country_hint)
     if rows:
         return (rows[0], "exact") if len(rows) == 1 else (_dominant(rows), "inferred")
-    if _city_index().get(key):
-        # The name exists but not in the stated country ("Paris, Germany"). Contradictory
-        # input — refuse rather than silently relocating the person.
-        return None, "unverified"
 
-    def _accept(row: dict[str, Any] | None) -> tuple[dict[str, Any] | None, str]:
-        if row is None or (country_hint and row.get("countrycode") != country_hint):
-            return None, "unverified"
-        return row, "alias"
+    def _from_alias(alias_key: str) -> dict[str, Any] | None:
+        """A place named by this alias, but only when the answer is not a guess.
 
-    alias = _alias_index().get(key)
-    if alias is not None:
-        return _accept(alias)
+        One owner -> unambiguous, accept. Several owners -> accept only if the stated country
+        leaves exactly one; otherwise refuse, because picking the biggest would be inventing a
+        merge between genuinely different places.
+        """
+        ids = _alias_index().get(alias_key)
+        if not ids:
+            return None
+        rows = tuple(_by_geonameid()[i] for i in ids)
+        if country_hint:
+            rows = tuple(r for r in rows if r.get("countrycode") == country_hint)
+        return rows[0] if len(rows) == 1 else None
+
+    place = _from_alias(key)
+    if place is not None:
+        return place, "alias"
 
     alt = _detransliterate(key)
     if alt != key:
@@ -190,7 +205,11 @@ def _resolve_place(head: str, country_hint: str | None) -> tuple[dict[str, Any] 
         rows = _matching(alt, country_hint)
         if rows:
             return (rows[0] if len(rows) == 1 else _dominant(rows)), "alias"
-        return _accept(_alias_index().get(alt))
+        place = _from_alias(alt)
+        if place is not None:
+            return place, "alias"
+    # Either nothing names this place, or the name exists only in a country the source
+    # contradicts ("Paris, Germany"). Keep the raw string rather than relocating the person.
     return None, "unverified"
 
 
