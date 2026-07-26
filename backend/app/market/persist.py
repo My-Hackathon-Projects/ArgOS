@@ -21,13 +21,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.claims import trust as trust_mod
+from app.companies import link_founder_company, resolve_company
 from app.ingest import earliest_signal_at
 from app.market.graph import extractor_hits
 from app.models import (
     Claim,
     ClaimEvidence,
-    Company,
-    FounderCompany,
     JobRun,
     Opportunity,
     Signal,
@@ -60,17 +59,19 @@ def _upsert_opportunity(db: Session, opp: dict, opportunity_id) -> Opportunity:
     founder_id = _uuid(opp.get("founder_id"))
     company_id = None
     if opp.get("company_name"):
-        company = Company(
+        # Resolve, never mint: re-analysing a deal used to create a second row for the same
+        # venture (the dev DB held two "Nimbus Edge").
+        company = resolve_company(
+            db,
             name=opp["company_name"],
+            website=opp.get("website"),
             sector=opp.get("sector"),
             geo=opp.get("geo"),
             description=opp.get("idea"),
         )
-        db.add(company)
-        db.flush()
         company_id = company.id
         if founder_id:
-            db.add(FounderCompany(founder_id=founder_id, company_id=company_id, role="founder"))
+            link_founder_company(db, founder_id, company_id)
     row = Opportunity(
         founder_id=founder_id,
         company_id=company_id,

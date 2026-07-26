@@ -29,6 +29,7 @@ from app.api_schemas import (
     ThesisUpdate,
     TraceStepItem,
 )
+from app.companies import link_founder_company, resolve_company
 from app.config import settings
 from app.connectors.base import SignalEnvelope
 from app.db import SessionLocal, get_db
@@ -388,15 +389,24 @@ def create_opportunity(body: OpportunityCreate, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=404, detail="founder not found")
     # Latency clock: earliest signal we ever saw for this founder; manual deal → creation.
     first_signal_at = earliest_signal_at(db, body.founder_id) if body.founder_id else None
+    # A named venture resolves to exactly one company row; an idea-stage deal has none.
+    company = (
+        resolve_company(db, name=body.company_name, sector=body.sector, geo=body.geo)
+        if (body.company_name or "").strip()
+        else None
+    )
     opp = Opportunity(
         founder_id=body.founder_id,
-        company_name=body.company_name,
+        company_id=company.id if company else None,
+        company_name=company.name if company else None,
         idea=(body.idea or "").strip() or None,
         sector=(body.sector or "").strip() or None,
         geo=body.geo,
         first_signal_at=first_signal_at or datetime.now(UTC),
     )
     db.add(opp)
+    if company is not None and body.founder_id is not None:
+        link_founder_company(db, body.founder_id, company.id)
     db.commit()
     db.refresh(opp)
     return _opportunity_dict(opp)

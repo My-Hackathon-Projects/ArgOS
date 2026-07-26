@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.claims import trust as trust_mod
+from app.companies import link_founder_company, resolve_company
 from app.inbound.deck import DECK_SOURCE_RELIABILITY, parse_deck
 from app.inbound.extract import DeckClaim, PreScreenResult, extract_deck, prescreen_llm
 from app.ingest import upsert_signal
@@ -113,8 +114,13 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
     if not name:
         raise ValueError("company_name is empty")
 
+    # The venture is resolved before the deal exists, so an inbound application for a company
+    # we already track attaches to that company rather than minting a second one.
+    company = resolve_company(db, name=name)
+
     # The application itself is the first signal — latency clock starts now.
     opp = Opportunity(
+        company_id=company.id,
         company_name=name,
         source="inbound",
         status="screening",
@@ -141,7 +147,7 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
     founder_name: str | None = None
     if extraction.founders:
         primary = extraction.founders[0]
-        opp.founder_id, _method = resolve_or_create_founder(
+        founder_id, _method = resolve_or_create_founder(
             db,
             {
                 "display_name": primary.name,
@@ -151,17 +157,21 @@ def run_inbound_application(db: Session, *, company_name: str, deck_bytes: bytes
                 "status": "candidate",
             },
         )
+        opp.founder_id = founder_id
         for signal in signal_by_page.values():
             db.execute(
                 insert(founder_signal)
                 .values(
-                    founder_id=opp.founder_id,
+                    founder_id=founder_id,
                     signal_id=signal.id,
                     attribution_confidence=0.7,
                     attribution_method="deck_primary_founder",
                 )
                 .on_conflict_do_nothing(index_elements=["founder_id", "signal_id"])
             )
+        # The founder now provably belongs to this venture — record it, so the Founder Score
+        # can follow them to whatever they build next.
+        link_founder_company(db, founder_id, company.id)
         founder_name = primary.name
 
     thesis = (

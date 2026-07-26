@@ -331,6 +331,10 @@ class Company(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str | None]
+    # Dedup keys — see app/companies.py. Both unique where present, so one venture cannot hold
+    # two rows. `domain` is the stronger identity; `name_key` carries name-only ventures.
+    name_key: Mapped[str | None]
+    domain: Mapped[str | None]
     website: Mapped[str | None]
     sector: Mapped[str | None]
     geo: Mapped[str | None]
@@ -365,6 +369,13 @@ class Opportunity(Base):
         CheckConstraint(
             "status IN ('screening', 'diligence', 'decided', 'rejected')",
             name="ck_opportunity_status",
+        ),
+        # A *named* venture must point at its company row. Idea-stage deals (no name yet) are
+        # still legal — forcing a company on those would mint nameless placeholder rows and
+        # pollute the table this rule exists to protect.
+        CheckConstraint(
+            "company_name IS NULL OR company_id IS NOT NULL",
+            name="ck_opportunity_named_company",
         ),
     )
 
