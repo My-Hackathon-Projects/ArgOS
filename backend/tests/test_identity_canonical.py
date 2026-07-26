@@ -10,6 +10,7 @@ import pytest
 
 from app.entity_resolution import FounderCandidate, resolve_candidates
 from app.identity import canonical_identity, orcid_checksum_ok, parse_identity, profile_url
+from app.sourcing.graph import _derive_identity
 
 
 class TestCanonicalToken:
@@ -139,3 +140,42 @@ class TestResolverNoLongerForks:
         )
         assert result.conflicts == ("linkedin",)
         assert result.decision == "review"
+
+
+class TestExtractorAgreesWithWriter:
+    """The discovery graph derives handles; `persist` stores them. One definition, or drift.
+
+    graph.py carried its own regexes and two divergent reserved-path lists — one knew "sponsors"
+    was not a person, the other did not. An extractor that disagrees with the writer about what an
+    identifier IS hands over values the writer must throw away, or silently accepts junk.
+    """
+
+    def test_a_signal_url_yields_the_canonical_token_not_the_url(self):
+        ident = _derive_identity(
+            {"display_name": "Ada Lovelace"},
+            [{"canonical_url": "https://github.com/Ada-Lovelace"}],
+        )
+        assert ident["github"] == "ada-lovelace"
+
+    def test_a_reserved_path_is_not_a_person(self):
+        ident = _derive_identity(
+            {"display_name": "Ada Lovelace"},
+            [
+                {"canonical_url": "https://github.com/sponsors/someone"},
+                {"canonical_url": "https://github.com/ada-lovelace"},
+            ],
+        )
+        assert ident["github"] == "ada-lovelace"
+
+    def test_an_llm_supplied_profile_url_is_canonicalized_like_any_other(self):
+        ident = _derive_identity(
+            {"display_name": "Ada Lovelace", "linkedin": "https://www.linkedin.com/in/AdaL/"}, []
+        )
+        assert ident["linkedin"] == "adal"
+
+    def test_a_linkedin_post_is_not_an_identifier(self):
+        ident = _derive_identity(
+            {"display_name": "Ada Lovelace"},
+            [{"canonical_url": "https://www.linkedin.com/posts/adal_activity-123"}],
+        )
+        assert ident["linkedin"] is None

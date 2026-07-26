@@ -17,6 +17,7 @@ import operator
 import re
 import unicodedata
 import uuid
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Annotated, TypedDict
@@ -28,6 +29,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.config import settings
 from app.entity_resolution import is_person_name
+from app.identity import canonical_identity
 from app.sourcing import tavily
 from app.sourcing.fetchers import get_fetcher, tavily_fetch
 from app.sourcing.schemas import CandidateList, CandidateResearch, SearchPlan
@@ -140,32 +142,37 @@ def _infer_source(url: str) -> str:
     return "web"
 
 
-def _handle(value: str | None, host: str) -> str | None:
-    if not value:
-        return value
-    m = re.search(host + r"/([A-Za-z0-9_.-]+)", value)
-    return (m.group(1) if m else value).lstrip("@")
+# Any profile-ish reference inside free page text: a full URL, or a bare host/path.
+_URL_IN_TEXT = re.compile(
+    r"https?://[^\s\"'<>)\]}]+|(?:www\.)?(?:github|linkedin|twitter|x)\.com/[^\s\"'<>)\]}]+",
+    re.IGNORECASE,
+)
+
+_DERIVED_KINDS = ("github", "linkedin", "twitter", "orcid")
+
+
+def _first_identity(kind: str, candidates: Iterable[str]) -> str | None:
+    """First value `app.identity` accepts as this kind's identifier, in canonical form.
+
+    This module used to carry its own regexes and its own reserved-path lists, in two copies that
+    had drifted apart (one knew "sponsors" was not a person, the other did not) — and a third
+    definition lived in the resolver. An extractor that disagrees with the writer about what an
+    identifier IS produces handles the writer then has to throw away, or worse, accepts. One
+    definition, used by whoever needs it.
+    """
+    for value in candidates:
+        if token := canonical_identity(kind, value):
+            return token
+    return None
 
 
 def _derive_identity(cand: dict, signals: list[dict]) -> dict:
     ident = {k: cand.get(k) for k in ("github", "twitter", "linkedin", "website", "orcid")}
-    for s in signals:
-        url = s["canonical_url"]
-        low = url.lower()
-        if not ident["github"] and "github.com/" in low:
-            m = re.search(r"github\.com/([A-Za-z0-9_.-]+)", url)
-            if m and m.group(1).lower() not in ("orgs", "topics", "search", "about"):
-                ident["github"] = m.group(1)
-        if not ident["linkedin"] and "linkedin.com/in/" in low:
-            m = re.search(r"linkedin\.com/in/([A-Za-z0-9%-]+)", url)
-            if m:
-                ident["linkedin"] = f"https://www.linkedin.com/in/{m.group(1)}"
-        if not ident["twitter"] and ("twitter.com/" in low or "x.com/" in low):
-            m = re.search(r"(?:twitter|x)\.com/([A-Za-z0-9_]+)", url)
-            if m and m.group(1).lower() not in ("i", "home", "search", "share"):
-                ident["twitter"] = m.group(1)
-    ident["github"] = _handle(ident["github"], "github.com")
-    ident["twitter"] = _handle(ident["twitter"], r"(?:twitter|x)\.com")
+    urls = [s["canonical_url"] for s in signals]
+    for kind in _DERIVED_KINDS:
+        # An already-extracted value is still run through the parser: the LLM emits profile URLs
+        # as readily as handles, and the two must not reach the writer as different identifiers.
+        ident[kind] = _first_identity(kind, [v for v in (ident.get(kind), *urls) if v])
     return ident
 
 
@@ -474,18 +481,10 @@ def _enrich_from_website(cand: dict) -> None:
     except httpx.HTTPError:
         return
     text = " ".join(r.get("raw_content", "") or "" for r in data.get("results", []))
-    if not cand.get("github"):
-        m = re.search(r"github\.com/([A-Za-z0-9_.-]+)", text)
-        if m and m.group(1).lower() not in ("orgs", "topics", "search", "about", "sponsors"):
-            cand["github"] = m.group(1)
-    if not cand.get("twitter"):
-        m = re.search(r"(?:twitter|x)\.com/([A-Za-z0-9_]+)", text)
-        if m and m.group(1).lower() not in ("i", "home", "search", "share", "intent"):
-            cand["twitter"] = m.group(1)
-    if not cand.get("linkedin"):
-        m = re.search(r"linkedin\.com/in/([A-Za-z0-9%-]+)", text)
-        if m:
-            cand["linkedin"] = f"https://www.linkedin.com/in/{m.group(1)}"
+    links = _URL_IN_TEXT.findall(text)
+    for kind in _DERIVED_KINDS:
+        if not cand.get(kind):
+            cand[kind] = _first_identity(kind, links)
 
 
 def _profile_one(cand: dict, thesis: dict) -> dict:
