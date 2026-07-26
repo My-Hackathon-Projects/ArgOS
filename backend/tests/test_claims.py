@@ -80,6 +80,7 @@ def test_mint_drops_colliding_dedup_key():
         s = Signal(
             source="web",
             signal_type="profile",
+            kind="founder",
             external_id="t:" + uuid.uuid4().hex,
             canonical_url="https://t/" + uuid.uuid4().hex,
             source_reliability=0.6,

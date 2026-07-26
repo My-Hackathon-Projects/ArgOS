@@ -256,10 +256,17 @@ def persist_delivery(
             signals_by_hash.get(content_hash) if content_hash else None
         )
         if existing is not None:
+            # Dual use is legitimate — one URL can be evidence about a founder AND about a
+            # market, and (source, external_id) is unique so both uses share this row. Promote
+            # it: a market artifact about to gain founder attribution must not stay 'market',
+            # or it would sit in the founder pipeline while claiming otherwise.
+            if existing.kind == "market":
+                existing.kind = "founder"
             return existing, False
         signal = Signal(
             source=payload["source"],
             signal_type=payload["signal_type"],
+            kind="founder",
             external_id=canon,
             canonical_url=canon,
             content_hash=content_hash,

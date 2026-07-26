@@ -37,6 +37,7 @@ def test_merge_moves_founder_owned_records_and_keeps_deleted_uuid_in_audit() -> 
         signal = Signal(
             source="test",
             signal_type="profile",
+            kind="founder",
             external_id=f"signal-{suffix}",
         )
         duplicate.signals.append(signal)
@@ -191,7 +192,12 @@ def test_merge_keeps_a_refutation_when_duplicate_claim_evidence_conflicts() -> N
         duplicate = Founder(display_name=f"Duplicate {suffix}")
         db.add_all([canonical, duplicate])
         db.flush()
-        signal = Signal(source="test", signal_type="profile", external_id=f"signal-{suffix}")
+        signal = Signal(
+            source="test",
+            signal_type="profile",
+            kind="founder",
+            external_id=f"signal-{suffix}",
+        )
         canonical_claim = Claim(
             founder_id=canonical.id,
             category="achievement",
@@ -282,6 +288,7 @@ def test_merge_preserves_attribution_provenance() -> None:
         signal = Signal(
             source="web",
             signal_type="profile",
+            kind="founder",
             external_id=f"ext-{suffix}",
             canonical_url=f"https://example.test/{suffix}",
         )

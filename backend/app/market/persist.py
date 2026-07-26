@@ -111,6 +111,7 @@ def _mint_signals(db: Session, hits_by_goal: dict) -> dict:
             sig = Signal(
                 source=src,
                 signal_type=_SIGNAL_TYPE.get(sg, "market"),
+                kind="market",  # never attributed in founder_signal -> out of the founder pipeline
                 external_id=canon,
                 canonical_url=canon,
                 content_hash=None,  # canonical_url dedup suffices; avoids hash-unique clashes

@@ -33,6 +33,11 @@ def upsert_signal(db: Session, env: SignalEnvelope) -> tuple[Signal, bool]:
             id=new_id,
             source=env.source,
             signal_type=env.signal_type,
+            # Every envelope connector (github/arxiv/hn/inbound deck) produces founder evidence;
+            # the market writer is the only market-artifact producer and builds Signal directly.
+            # Stamped here rather than added to SignalEnvelope so the shared connector seam is
+            # untouched — if a market-kind connector ever lands, the envelope gains the field then.
+            kind="founder",
             external_id=env.external_id,
             entity_hint=env.entity_hint,
             url=env.url,

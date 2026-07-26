@@ -246,6 +246,7 @@ def test_first_signal_at_uses_earliest_founder_signal(client):
         Signal(
             source="synthetic",
             signal_type="post",
+            kind="founder",
             external_id="TEST-" + uuid.uuid4().hex,
             occurred_at=old,
         )

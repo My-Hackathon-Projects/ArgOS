@@ -127,11 +127,21 @@ class Signal(Base):
     """One polymorphic table for every source. (source, external_id) unique → idempotent poll."""
 
     __tablename__ = "signal"
-    __table_args__ = (UniqueConstraint("source", "external_id", name="uq_signal_source_external"),)
+    __table_args__ = (
+        UniqueConstraint("source", "external_id", name="uq_signal_source_external"),
+        CheckConstraint("kind IN ('founder', 'market')", name="ck_signal_kind"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     source: Mapped[str]  # github|arxiv|devpost|producthunt|hn|web|synthetic|inbound
     signal_type: Mapped[str]  # commit|repo|paper|launch|hackathon|profile|post|deck
+    # Which writer minted this artifact. Founder-facing readers filter kind='founder'; the market
+    # writer's web citations are kind='market' and must never enter the founder-claim pipeline.
+    # A market artifact later attributed to a founder is *promoted* to 'founder' at the writer —
+    # the rule is cross-table, so no CHECK can hold it (see tests/test_signal_kind.py).
+    # Deliberately no server_default: a writer that forgets `kind` must crash, not silently
+    # mislabel market evidence as a founder artifact.
+    kind: Mapped[str]
     external_id: Mapped[str]  # source-native id (web signals use canonical_url)
     entity_hint: Mapped[str | None]  # raw handle/name pre-resolution ("github:torvalds")
     url: Mapped[str | None]

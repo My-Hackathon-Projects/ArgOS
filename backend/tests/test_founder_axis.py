@@ -167,6 +167,7 @@ def test_upsert_founder_axis_real_db():
         sig = Signal(
             source="github",
             signal_type="repo",
+            kind="founder",
             external_id="TEST-" + uuid.uuid4().hex,
             url="https://github.com/test/repo",
         )
