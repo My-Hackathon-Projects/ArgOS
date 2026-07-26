@@ -9,6 +9,7 @@ figures, and surface all of it in a live product UI.
 
 Design docs: `docs/public/Technical Design Document.md` (system design),
 `docs/claims-layer.md` (claims and scoring), `docs/market-layer.md` (market research agent),
+`docs/personal-data.md` (what personal data is held, and why erasure is not built yet),
 `docs/demo.md` (how to record the demo).
 
 ---
