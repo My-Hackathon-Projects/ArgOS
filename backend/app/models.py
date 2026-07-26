@@ -327,6 +327,50 @@ class ClaimEvidence(Base):
 # idea/sector; its claims + 3-axis 'market' row hang on the opportunity.
 
 
+class Institution(Base):
+    """A university or research organisation, identified by its ROR id.
+
+    Affiliations arrive as free text and the same organisation appears under many strings: the
+    dev DB held "Technical University of Munich", "Technische Universität München", "Technical
+    University of Munich (TUM)" and "Technische Universität München (TUM)" — 71 founders, four
+    rows' worth of string. ROR (Research Organization Registry) is the canonical registry, so
+    `ror_id` plays the same role here that `geonameid` plays for places: names are for humans,
+    identifiers are for joins.
+    """
+
+    __tablename__ = "institution"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ror_id: Mapped[str] = mapped_column(unique=True)  # bare ROR id, e.g. "02kkvpp62"
+    name: Mapped[str]  # ROR's display name — the canonical label
+    country_code: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+
+class InstitutionAlias(Base):
+    """Every affiliation string we have seen, and what it resolved to — including failures.
+
+    Doubles as the resolution cache: a string is sent to ROR at most once, ever. A row with
+    institution_id NULL is a negative cache (ROR had no confident match), which keeps the
+    unresolved queue visible for review instead of silently re-querying it forever.
+    """
+
+    __tablename__ = "institution_alias"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    alias_key: Mapped[str] = mapped_column(unique=True)  # normalized form, see app/institutions.py
+    raw_name: Mapped[str]  # first spelling seen, kept for audit
+    institution_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("institution.id", ondelete="CASCADE")
+    )
+    match_score: Mapped[float | None]  # ROR's own confidence for the accepted match
+    resolved_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+
 class Company(Base):
     """The venture — optional; created only when a real startup exists."""
 

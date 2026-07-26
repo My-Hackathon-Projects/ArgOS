@@ -84,6 +84,10 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# The suite must not depend on a third-party API being up. Run the ROR contract check
+# deliberately with `uv run pytest -m live_ror`.
+addopts = "-m 'not live_ror'"
 markers = [
     "dev_bed: needs the shared dev DB with live-sourced eval-bed rows; deselected in CI (-m 'not dev_bed')",
+    "live_ror: hits the public ROR API; deselected by default (-m 'not live_ror')",
 ]
