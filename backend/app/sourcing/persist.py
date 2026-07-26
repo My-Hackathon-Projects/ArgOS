@@ -163,7 +163,9 @@ def _resolve(db: Session, f: dict, artifact_ids: tuple[str, ...] = ()) -> Resolu
     return Resolution(None, None)
 
 
-def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
+def _new_founder(
+    db: Session, f: dict, *, status: str = "candidate", withheld: list[str]
+) -> Founder:
     founder = Founder(
         display_name=f["display_name"],
         first_name=f.get("first_name"),
@@ -181,7 +183,9 @@ def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
     # namesake cities apart.
     apply_location(db, founder, f.get("city"))
     db.flush()
-    db.add(Identity(founder_id=founder.id, **canonical_identity_fields(f)))
+    fields, held_back = withhold_claimed_identity(db, canonical_identity_fields(f))
+    withheld.extend(held_back)
+    db.add(Identity(founder_id=founder.id, **fields))
     # The session runs with autoflush=False, so without this the identity stays invisible to the
     # next candidate in the same delivery and the same person resolves twice.
     db.flush()
@@ -197,6 +201,45 @@ def canonical_identity_fields(f: dict) -> dict[str, str | None]:
     """
     incoming = f.get("identity") or {}
     return {kind: parse_identity(kind, incoming.get(kind)).value for kind in ALL_KINDS}
+
+
+# Kinds carrying a GLOBAL uniqueness guarantee in the schema. A github login can legitimately sit
+# on six co-founders (an organisation account); an ORCID cannot sit on two researchers.
+_EXCLUSIVE_KINDS = ("orcid",)
+
+
+def withhold_claimed_identity(
+    db: Session, fields: dict[str, str | None], *, founder_id: uuid.UUID | None = None
+) -> tuple[dict[str, str | None], list[str]]:
+    """Drop values a *different* founder already holds under a global unique index.
+
+    Handing the database a value it is about to reject is not a validation failure, it is a lost
+    run: `persist_delivery` writes one transaction, so a single `uq_identity_orcid` violation
+    rolls back every founder and signal in the delivery. That happened live — the extractor put
+    one invented ORCID on two different people in one batch and 40+ founders were lost with it.
+
+    Two people publishing one ORCID means one of the two records is wrong, so the value is not
+    evidence about either and is withdrawn from the second, exactly as `non_identifying_handles`
+    withdraws a shared organisation handle from merge evidence. It is returned as a reason so the
+    operator sees a count instead of a silent drop.
+    """
+    kept, withheld = dict(fields), []
+    for kind in _EXCLUSIVE_KINDS:
+        value = fields.get(kind)
+        if value is None:
+            continue
+        column = getattr(Identity, kind)
+        query = select(Identity.founder_id).where(func.lower(column) == value.lower())
+        if founder_id is not None:
+            query = query.where(Identity.founder_id != founder_id)
+        holder = db.scalar(query)
+        if holder is not None:
+            kept[kind] = None
+            withheld.append(kind)
+            log.warning(
+                "identity.withheld kind=%s value=%s already held by founder=%s", kind, value, holder
+            )
+    return kept, withheld
 
 
 def identity_artifact_payloads(f: dict) -> list[dict]:
@@ -228,7 +271,7 @@ def identity_artifact_payloads(f: dict) -> list[dict]:
 _IDENTITY_FIELDS = ("github", "twitter", "linkedin", "website", "orcid")
 
 
-def _enrich_identity(db: Session, founder: Founder, f: dict) -> None:
+def _enrich_identity(db: Session, founder: Founder, f: dict, withheld: list[str]) -> None:
     """Persist newly discovered handles onto an already-known founder.
 
     Research rounds surface a person's LinkedIn/GitHub non-deterministically. Discarding a handle
@@ -241,10 +284,12 @@ def _enrich_identity(db: Session, founder: Founder, f: dict) -> None:
     }
     # Compare canonical against canonical: the same profile arriving as a URL after being stored
     # as a bare handle used to look "fresh" and inserted a second row for one account.
+    incoming, held_back = withhold_claimed_identity(
+        db, canonical_identity_fields(f), founder_id=founder.id
+    )
+    withheld.extend(held_back)
     fresh = {
-        field: value
-        for field, value in canonical_identity_fields(f).items()
-        if value and value not in known[field]
+        field: value for field, value in incoming.items() if value and value not in known[field]
     }
     if not fresh:
         return
@@ -298,20 +343,29 @@ def _lock_founder_writes(db: Session) -> None:
 
 
 def resolve_or_create_founder(
-    db: Session, f: dict, artifact_ids: tuple[str, ...] = ()
+    db: Session,
+    f: dict,
+    artifact_ids: tuple[str, ...] = (),
+    *,
+    withheld: list[str] | None = None,
 ) -> tuple[uuid.UUID, str]:
     """Resolve a founder dict to an existing founder, or create one. Returns (founder_id, method).
 
     method in {"exact_key", "artifact", "evidence", "review", "conflict", "created"}. Shared by the
     discovery persist path and the inbound intake so BOTH funnels attach the same person through
     the one resolver (_resolve) — ArgOS is founder-first, every opportunity needs a person.
+    `withheld` collects the identity kinds this call refused to store because another founder
+    already holds them under a global unique index. Optional: a caller that does not want the
+    count still gets the protection, since the refusal happens in the writer.
+
     Flushes; the caller commits.
     """
     _lock_founder_writes(db)
+    withheld = withheld if withheld is not None else []
     resolution = _resolve(db, f, artifact_ids)
     if resolution.founder_id is not None:
         founder = db.get(Founder, resolution.founder_id)
-        _enrich_identity(db, founder, f)
+        _enrich_identity(db, founder, f, withheld)
         if resolution.needs_review:
             founder.status = "needs_review"
             _record_review(db, f, artifact_ids, resolution.founder_id)
@@ -320,6 +374,7 @@ def resolve_or_create_founder(
         db,
         f,
         status="needs_review" if resolution.needs_review else f.get("status", "candidate"),
+        withheld=withheld,
     )
     if resolution.needs_review:
         _record_review(
@@ -452,7 +507,12 @@ def persist_delivery(
         artifact_ids = tuple(
             signal.canonical_url for signal, _ in attributed_signals if signal.canonical_url
         )
-        fid, method = resolve_or_create_founder(db, f, artifact_ids)
+        withheld: list[str] = []
+        fid, method = resolve_or_create_founder(db, f, artifact_ids, withheld=withheld)
+        for kind in withheld:
+            # Same counter as a rejected value: in both cases the value reached the writer and
+            # did not become an identity, and the operator needs the number either way.
+            dropped_identity[f"{kind}:claimed"] += 1
         if method in {"created", "conflict"}:
             founder = db.get(Founder, fid)
             new_founders += 1

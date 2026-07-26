@@ -171,3 +171,35 @@ def test_a_new_founder_stores_the_resolved_place_id() -> None:
         assert founder.city_geonameid == 2867714
     finally:
         db.close()
+
+
+def test_two_people_claiming_one_orcid_does_not_abort_the_delivery() -> None:
+    """The live failure: one bad value rolled back an entire discovery run.
+
+    An ORCID identifies one researcher, so `uq_identity_orcid` is global — and the extractor put
+    a single (invented) ORCID on two different people in one batch. The second INSERT violated
+    the index, nothing caught it, and every founder and signal in the run was lost. A value the
+    writer knows the database will reject must never be handed to the database: it is withdrawn
+    from the second person and counted, exactly like any other non-identifying value.
+    """
+    db = SessionLocal()
+    try:
+        # Distinct suffixes: a shared one is a shared name token, and the resolver would then
+        # merge the two on the ORCID instead of forking them, which is not the case under test.
+        suffix, other = unique_suffix(), unique_suffix()
+        # Real ORCID shape and a valid check digit, so only the collision is under test.
+        shared = "0000-0002-1825-0097"
+        first = _founder(f"Ada Lovelace {suffix}", [_signal(f"{suffix}-a")])
+        second = _founder(f"Grace Hopper {other}", [_signal(f"{other}-b")])
+        first["identity"] = {"orcid": shared}
+        second["identity"] = {"orcid": shared}
+
+        result = persist_delivery(db, [first, second], commit=False)
+
+        assert result["new_founders"] == 2, "both people are still persisted"
+        holders = db.scalars(select(Identity.founder_id).where(Identity.orcid == shared)).all()
+        assert len(holders) == 1, "the person-unique key stays on exactly one founder"
+        assert result["dropped_identity"].get("orcid:claimed") == 1
+    finally:
+        db.rollback()
+        db.close()

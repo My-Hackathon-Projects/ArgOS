@@ -179,3 +179,23 @@ class TestExtractorAgreesWithWriter:
             [{"canonical_url": "https://www.linkedin.com/posts/adal_activity-123"}],
         )
         assert ident["linkedin"] is None
+
+
+class TestOrcidIsAnAssignedIdentifier:
+    """A checksum admits 1 random string in 11. The assigned block is what makes it an identifier.
+
+    Live failure: the extractor invented `7340-6671-6787-4375`, which passes mod-11-2, and handed
+    it to two different people in one delivery. Every ORCID ever issued comes from the ISNI block
+    reserved for ORCID, so the prefix is checkable and a hallucination is provably rejectable —
+    which is the whole reason the checksum was added.
+    """
+
+    def test_a_checksum_valid_number_outside_the_orcid_block_is_not_an_orcid(self):
+        assert orcid_checksum_ok("7340667167874375"), "precondition: the checksum does pass"
+        assert parse_identity("orcid", "7340-6671-6787-4375").rejected == "not_assigned"
+
+    @pytest.mark.parametrize(
+        "value", ["0000-0002-1825-0097", "0000-0001-5000-0007", "0000-0003-2746-6110"]
+    )
+    def test_real_orcids_survive(self, value):
+        assert canonical_identity("orcid", value) == value

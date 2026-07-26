@@ -58,6 +58,11 @@ _GITHUB_LOGIN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$
 _TWITTER_HANDLE = re.compile(r"^[A-Za-z0-9_]{1,15}$")
 _LINKEDIN_SLUG = re.compile(r"^[\w\-%.]{3,100}$", re.UNICODE)
 _ORCID_DIGITS = re.compile(r"(\d{4})-?(\d{4})-?(\d{4})-?(\d{3}[\dXx])")
+# ORCID iDs are issued from the ISNI block reserved for ORCID — 0000-0001-… onwards — so every
+# real one starts 0000-000 with a non-zero eighth digit. Deliberately fail-closed: if ORCID ever
+# issues outside the block this rejects a valid id, which is a counted miss (`not_assigned`),
+# where accepting an invented one is a wrong merge on a person-unique key.
+_ORCID_ASSIGNED_BLOCK = re.compile(r"^0000000[1-9]")
 
 _TRACKING_PREFIX = "trk"
 
@@ -155,6 +160,14 @@ def _parse_orcid(raw: str) -> ParsedIdentity:
         # An ORCID carries its own check digit, so this is a transcription error or an invention,
         # never a valid identifier we merely failed to recognise.
         return ParsedIdentity("orcid", raw, rejected="checksum")
+    if not _ORCID_ASSIGNED_BLOCK.match(digits):
+        # The checksum admits roughly one random 16-digit string in eleven, which is not a
+        # rounding error when an LLM is the source: the extractor invented
+        # `7340-6671-6787-4375` — mod-11-2 valid — and put it on two different people in one
+        # delivery. An ORCID iD is issued from the ISNI block reserved for ORCID, so every real
+        # one begins 0000-000. Checking the block is what makes an invention rejectable, which
+        # is what the checksum was added to do.
+        return ParsedIdentity("orcid", raw, rejected="not_assigned")
     return ParsedIdentity("orcid", raw, value="-".join(digits[i : i + 4] for i in range(0, 16, 4)))
 
 
