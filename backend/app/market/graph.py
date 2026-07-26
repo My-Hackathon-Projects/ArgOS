@@ -29,6 +29,7 @@ from app.market.schemas import (
     MarketSynthesis,
 )
 from app.sourcing import tavily
+from app.sourcing.responses_search import responses_web_search
 
 # Comparables precision bias — funding-news outlets Tavily can see (paywalled DBs it can't).
 FUNDING_NEWS_DOMAINS = [
@@ -89,29 +90,53 @@ def plan_research(state: MarketState) -> dict:
 
 # ── ② run_searches (parallel Tavily, tagged by sub-goal) ─────────────────────
 def _search_one(q: dict) -> list[dict]:
-    if q.get("domain"):
-        domains = [q["domain"]]
-    elif q.get("subgoal") == "comparables":
-        domains = FUNDING_NEWS_DOMAINS  # bias comps toward funding-news outlets
+    """One planned query -> hits, using the same provider policy as sourcing.
+
+    This used to call Tavily directly and turn every httpx error into an empty list. With Tavily
+    disabled that silently emptied the whole run, and the graph published the result as a real
+    finding: a market axis whose figures were all gaps. A dead provider must not be
+    indistinguishable from a market with no evidence.
+    """
+    subgoal = q.get("subgoal")
+    channel = {"name": subgoal, "domain": q.get("domain")}
+
+    def _via_responses() -> list[dict]:
+        return responses_web_search(q["query"], channel)
+
+    if not settings.tavily_enabled:
+        hits = _via_responses()
     else:
-        domains = None
-    try:
-        res = tavily.tavily_search(
-            q["query"],
-            settings.tavily_api_key,
-            max_results=settings.market_max_results,
-            include_domains=domains,
-        )
-    except httpx.HTTPError:
-        return []  # one flaky query must not sink the fan-out (narrow, not silent)
+        if q.get("domain"):
+            domains = [q["domain"]]
+        elif subgoal == "comparables":
+            domains = FUNDING_NEWS_DOMAINS  # bias comps toward funding-news outlets
+        else:
+            domains = None
+        try:
+            res = tavily.tavily_search(
+                q["query"],
+                settings.tavily_api_key,
+                max_results=settings.market_max_results,
+                include_domains=domains,
+            )
+            hits = res.get("results", [])
+        except httpx.HTTPStatusError as exc:
+            # Same split as app/sourcing/fetchers: rate limits and provider outages are
+            # transient and degrade; a 401/400 is our bug and must surface.
+            if exc.response.status_code != 429 and exc.response.status_code < 500:
+                raise
+            hits = _via_responses()
+        except httpx.HTTPError:
+            hits = _via_responses()  # timeouts / connection resets
+
     return [
         {
-            "subgoal": q.get("subgoal"),
-            "title": r.get("title"),
-            "url": r.get("url"),
-            "content": (r.get("content") or "")[:1500],
+            "subgoal": subgoal,
+            "title": h.get("title"),
+            "url": h.get("url"),
+            "content": (h.get("content") or "")[:1500],
         }
-        for r in res.get("results", [])
+        for h in hits
     ]
 
 
