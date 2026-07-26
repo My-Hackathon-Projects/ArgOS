@@ -199,3 +199,14 @@ class TestOrcidIsAnAssignedIdentifier:
     )
     def test_real_orcids_survive(self, value):
         assert canonical_identity("orcid", value) == value
+
+
+@pytest.mark.parametrize("kind", ["github", "twitter"])
+@pytest.mark.parametrize("value", ["https", "http", "www", "en", "HTTPS"])
+def test_url_debris_is_not_a_handle(kind, value):
+    """`https` and `en` were both stored as live Twitter handles.
+
+    A bare token is accepted as a handle because that is how sources that strip a URL to its last
+    segment deliver one — which means the leftovers of a failed parse arrive looking like a login.
+    """
+    assert parse_identity(kind, value).rejected == "reserved"

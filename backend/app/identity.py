@@ -54,6 +54,13 @@ _TWITTER_RESERVED = frozenset(
 # Kept rather than dropped: a post IS evidence, it just is not an identifier.
 _LINKEDIN_ARTIFACT_PREFIXES = ("posts", "feed", "pulse", "company", "school", "groups", "jobs")
 
+# URL syntax that survived a failed parse. `_segments` accepts a bare token as a handle, because
+# that is how sources that strip a URL to its last segment deliver one — so debris arrives looking
+# exactly like a login. Live: `https` and `en` were stored as Twitter handles. Only tokens that
+# are never a person are listed; `author` and `scientist` also turned up but x.com may really
+# serve them, and a handle two people claim is already withdrawn from merge evidence.
+_URL_DEBRIS = frozenset({"http", "https", "www", "en"})
+
 _GITHUB_LOGIN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$")
 _TWITTER_HANDLE = re.compile(r"^[A-Za-z0-9_]{1,15}$")
 _LINKEDIN_SLUG = re.compile(r"^[\w\-%.]{3,100}$", re.UNICODE)
@@ -178,7 +185,7 @@ def _parse_github(raw: str) -> ParsedIdentity:
     if not segments:
         return ParsedIdentity("github", raw, rejected="malformed")
     login = segments[0]
-    if login.casefold() in _GITHUB_RESERVED:
+    if login.casefold() in _GITHUB_RESERVED or login.casefold() in _URL_DEBRIS:
         return ParsedIdentity("github", raw, rejected="reserved")
     if not _GITHUB_LOGIN.match(login):
         return ParsedIdentity("github", raw, rejected="malformed")
@@ -195,7 +202,7 @@ def _parse_twitter(raw: str) -> ParsedIdentity:
     if len(segments) >= 2 and segments[1].casefold() == "status":
         return ParsedIdentity("twitter", raw, artifact_url=_artifact_url(raw))
     handle = segments[0]
-    if handle.casefold() in _TWITTER_RESERVED:
+    if handle.casefold() in _TWITTER_RESERVED or handle.casefold() in _URL_DEBRIS:
         return ParsedIdentity("twitter", raw, rejected="reserved")
     if not _TWITTER_HANDLE.match(handle):
         return ParsedIdentity("twitter", raw, rejected="malformed")
