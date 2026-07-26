@@ -256,11 +256,36 @@ def _context_matches(left: FounderCandidate, right: FounderCandidate) -> dict[st
     return matches
 
 
+def _non_identifying_handles(existing: list[FounderCandidate]) -> dict[str, frozenset[str]]:
+    """Handles claimed by more than one known person — those identify nobody.
+
+    A public profile is person-unique in principle, but an organisation account is published on
+    every co-founder's profile: github:TheRobotStudio appeared on two different founders of the
+    same startup. Once two known people claim a handle it has stopped distinguishing them, so it
+    is withdrawn from merge evidence *and* from disjointness conflicts.
+
+    The handle itself is deliberately not deleted anywhere — it is genuinely on both profiles,
+    and it is the signal a human reviewer needs. Only its use as identity is withdrawn. A handle
+    with a single claimant is untouched, so the strong-identity tier and the conflict/review path
+    behave exactly as before.
+    """
+    withdrawn: dict[str, frozenset[str]] = {}
+    for kind in STRONG_IDENTITY_KINDS:
+        owners: dict[str, set[str]] = {}
+        for index, candidate in enumerate(existing):
+            owner = candidate.founder_id or f"_anon{index}"
+            for value in _identity_values(getattr(candidate, kind), kind):
+                owners.setdefault(value, set()).add(owner)
+        withdrawn[kind] = frozenset(v for v, ids in owners.items() if len(ids) > 1)
+    return withdrawn
+
+
 def resolve_candidates(
     incoming: FounderCandidate, existing: list[FounderCandidate]
 ) -> ResolutionResult:
     """Return the best safe action for one incoming person against existing candidates."""
     incoming_name = compact_person_name(incoming.display_name)
+    non_identifying = _non_identifying_handles(existing)
     best: tuple[float, str | None, tuple[str, ...], tuple[str, ...], dict] | None = None
     conflicted: tuple[float, str | None, tuple[str, ...], tuple[str, ...], dict] | None = None
     for candidate in existing:
@@ -269,8 +294,8 @@ def resolve_candidates(
         evidence: dict[str, object] = {}
         name_similarity = ratio(incoming_name, compact_person_name(candidate.display_name))
         for kind in STRONG_IDENTITY_KINDS:
-            left = _identity_values(getattr(incoming, kind), kind)
-            right = _identity_values(getattr(candidate, kind), kind)
+            left = _identity_values(getattr(incoming, kind), kind) - non_identifying[kind]
+            right = _identity_values(getattr(candidate, kind), kind) - non_identifying[kind]
             if left & right:
                 evidence[kind] = "shared"
                 if name_similarity < NAME_UNRELATED_MAX:

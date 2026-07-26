@@ -33,7 +33,11 @@ def test_replaying_an_unresolved_identity_conflict_reuses_the_review_founder() -
         # A shared handle under two different names is a conflict: the people stay separate,
         # but replaying the same mention must reuse the row it already created.
         assert first_method == "conflict"
-        assert second_method in {"conflict", "exact_key"}
+        # On the replay the handle is claimed by BOTH rows, so it no longer identifies anyone
+        # and is withdrawn from identity evidence (_non_identifying_handles). The match then
+        # rests on name + context, which is uncertain by design -> "review". The property this
+        # test exists for is unchanged: the same row is reused and only one review is recorded.
+        assert second_method in {"conflict", "exact_key", "review"}
         assert second_id == first_id
         assert db.scalar(select(func.count()).select_from(FounderResolutionReview)) == 1
     finally:
