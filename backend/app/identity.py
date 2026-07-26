@@ -93,8 +93,23 @@ class ParsedIdentity:
 _HOSTS = {
     "github": ("github.com",),
     "twitter": ("twitter.com", "x.com"),
-    "linkedin": ("linkedin.",),
+    # LinkedIn serves country domains (linkedin.cn) and localized subdomains (de.linkedin.com).
+    "linkedin": ("linkedin.com", "linkedin."),
 }
+
+
+def _host_matches(host: str, known: str) -> bool:
+    """Whether `host` IS `known` or a subdomain of it — never merely contains it.
+
+    Substring containment put another site's URL structure into a person-unique column:
+    `catalyzex.com` contains `x.com`, so `catalyzex.com/author/<name>` parsed as the Twitter
+    handle `author` and landed on five different founders. `adscientificindex.com` did the same
+    with `scientist`. Every junk handle in the dev DB came from this one comparison.
+    """
+    if known.endswith("."):
+        # A prefix pattern for country domains: linkedin.cn, linkedin.de.
+        return host.startswith(known) or host.endswith(f".{known.rstrip('.')}.com")
+    return host == known or host.endswith(f".{known}")
 
 
 def _segments(kind: str, raw: str) -> list[str] | None:
@@ -110,7 +125,7 @@ def _segments(kind: str, raw: str) -> list[str] | None:
     if "://" in value or any(host in value.casefold() for host in hosts):
         parsed = urlsplit(value if "://" in value else f"https://{value}")
         host = parsed.netloc.casefold().removeprefix("www.").split(":")[0]
-        if not any(known in host for known in hosts):
+        if not any(_host_matches(host, known) for known in hosts):
             return None
         return [segment for segment in parsed.path.split("/") if segment]
     return [segment for segment in value.lstrip("@").strip("/").split("/") if segment]

@@ -210,3 +210,41 @@ def test_url_debris_is_not_a_handle(kind, value):
     segment deliver one — which means the leftovers of a failed parse arrive looking like a login.
     """
     assert parse_identity(kind, value).rejected == "reserved"
+
+
+class TestHostMatchingIsNotSubstringMatching:
+    """`catalyzex.com` contains `x.com`, so an unrelated site parsed as a Twitter profile.
+
+    Live: every junk handle in the dev DB came from this one bug —
+    catalyzex.com/author/<name> became twitter `author` on five founders, and
+    adscientificindex.com/scientist/<name> became `scientist` on two. That is a wrong
+    ASSIGNMENT, not just a bad value: it puts another site's URL structure into the column the
+    resolver treats as person-unique evidence.
+    """
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://catalyzex.com/author/Felix%20Brakel",
+            "https://adscientificindex.com/scientist/zhenghai-xue/6102612",
+            "https://notx.com/someone",
+            "https://mygithub.com/someone",
+            "https://fakelinkedin.com/in/someone",
+        ],
+    )
+    @pytest.mark.parametrize("kind", ["github", "twitter", "linkedin"])
+    def test_a_lookalike_host_identifies_nobody(self, kind, url):
+        assert parse_identity(kind, url).value is None
+
+    @pytest.mark.parametrize(
+        "kind,url,expected",
+        [
+            ("twitter", "https://x.com/ada", "ada"),
+            ("twitter", "https://mobile.twitter.com/ada", "ada"),
+            ("github", "https://github.com/ada", "ada"),
+            ("linkedin", "https://de.linkedin.com/in/ada", "ada"),
+            ("linkedin", "https://linkedin.cn/in/ada", "ada"),
+        ],
+    )
+    def test_real_hosts_and_their_subdomains_still_resolve(self, kind, url, expected):
+        assert canonical_identity(kind, url) == expected
