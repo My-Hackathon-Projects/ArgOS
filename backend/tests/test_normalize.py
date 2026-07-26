@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.normalize import normalize_city, normalize_location
+from app.normalize import normalize_city, normalize_location, place_key
 
 
 @pytest.mark.parametrize(
@@ -39,13 +39,113 @@ def test_munich_variants_collapse_to_one_bucket():
 
 def test_distinct_cities_stay_distinct():
     assert normalize_city("Berlin") != normalize_city("Munich")
-    assert normalize_city("Zurich") == "Zurich"
+    # Canonical, not the source spelling: "Zurich" resolves to the place whose GeoNames name is
+    # "Zürich", which is what puts both spellings in one record.
+    assert normalize_city("Zurich") == "Zürich"
+    assert normalize_location("Zurich").geonameid == normalize_location("Zürich").geonameid
 
 
 def test_institution_is_not_silently_converted_to_city():
     location = normalize_location("TUM")
     assert location.city is None
     assert location.quality == "unknown"
+
+
+def test_every_spelling_resolves_to_one_place_id():
+    """The point of the pipeline: variants are one place record, not similar strings.
+
+    Display name, bucket key and canonical id must all agree, so downstream can compare on the
+    id rather than hoping two spellings render identically.
+    """
+    variants = [
+        "Munich",
+        "München",
+        "Muenchen",
+        "MUENCHEN",
+        "  münchen ",
+        "Munich, Germany",
+        "München, Bayern, Germany",
+    ]
+    resolved = [normalize_location(v) for v in variants]
+    assert len({r.geonameid for r in resolved}) == 1, [
+        (v, r.geonameid) for v, r in zip(variants, resolved, strict=True)
+    ]
+    assert len({r.city for r in resolved}) == 1
+    assert len({r.city_key for r in resolved}) == 1
+    assert resolved[0].geonameid == 2867714  # GeoNames id for Munich
+
+
+def test_diacritic_variants_share_the_display_name_not_just_the_key():
+    """Regression: city_key collapsed but `city` kept the source spelling.
+
+    entity_resolution compared the *display* name, so "Zürich" and "Zurich" — same key, same
+    place — did not match each other.
+    """
+    for a, b in [("Zürich", "Zurich"), ("Nürnberg", "Nurnberg"), ("Düsseldorf", "Dusseldorf")]:
+        left, right = normalize_location(a), normalize_location(b)
+        assert left.city == right.city, f"{a} vs {b} render differently"
+        assert left.geonameid == right.geonameid
+
+
+def test_country_is_populated_from_the_resolved_place():
+    """A bare city name still yields a country — the sources rarely state one."""
+    assert normalize_location("Munich").country_code == "DE"
+    assert normalize_location("Zurich").country_code == "CH"
+    assert normalize_location("Tübingen").country_code == "DE"
+    assert normalize_location("Seattle").country_code == "US"
+
+
+def test_endonyms_resolve_through_the_gazetteer_alias_cluster():
+    """Exonym/endonym pairs come from GeoNames alternatenames, not a hand-kept list."""
+    for endonym, expected in [("Wien", "Vienna"), ("Praha", "Prague"), ("Lisboa", "Lisbon")]:
+        assert normalize_location(endonym).city == expected
+
+
+def test_ambiguous_city_resolves_to_the_dominant_place_and_says_so():
+    """ "Berlin" alone used to be quality=unknown while "Springfield, USA" was exact."""
+    berlin = normalize_location("Berlin")
+    assert berlin.country_code == "DE"
+    assert berlin.quality == "inferred"
+
+
+def test_a_population_guess_is_never_labelled_exact():
+    springfield = normalize_location("Springfield, USA")
+    assert springfield.quality == "inferred"
+
+
+def test_unresolved_text_is_labelled_unverified_not_unknown():
+    """A kept-but-unverified string must be distinguishable from "nothing parseable"."""
+    kept = normalize_location("Nowhereville")
+    assert kept.city == "Nowhereville" and kept.geonameid is None
+    assert kept.quality == "unverified"
+    assert normalize_location("TUM").quality == "unknown"
+
+
+def test_place_key_is_the_identity_equality_should_use():
+    """What entity_resolution compares. Display names are for humans, not for matching."""
+    assert place_key("Zürich") == place_key("Zurich") == place_key("Zuerich")
+    assert place_key("Wien") == place_key("Vienna")
+    assert place_key("München") == place_key("Muenchen") == place_key("Munich")
+    assert place_key("Munich") != place_key("Berlin")
+    # unresolved free text still compares, on the folded name
+    assert place_key("Nowhereville") == "nowhereville"
+    assert place_key(None) is None
+
+
+def test_founder_matching_uses_the_place_not_the_spelling():
+    """The regression this whole layer exists for, asserted at the matcher."""
+    from app.entity_resolution import FounderCandidate, _context_matches
+
+    for a, b in [("Zürich", "Zurich"), ("Nürnberg", "Nurnberg"), ("Wien", "Vienna")]:
+        left = FounderCandidate(display_name="Ada Lovelace", city=a)
+        right = FounderCandidate(display_name="Ada Lovelace", city=b)
+        assert _context_matches(left, right).get("city") is True, f"{a} vs {b}"
+
+    far = _context_matches(
+        FounderCandidate(display_name="Ada Lovelace", city="Munich"),
+        FounderCandidate(display_name="Ada Lovelace", city="Berlin"),
+    )
+    assert far.get("city") is False
 
 
 def test_city_states_are_not_erased_by_the_country_lookup():

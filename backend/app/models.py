@@ -81,6 +81,9 @@ class Founder(Base):
     city: Mapped[str | None]
     raw_location: Mapped[str | None]
     city_key: Mapped[str | None]
+    # Canonical place identifier (GeoNames). city/city_key are derived display+bucket; this is
+    # the stable id two spellings of the same place share. NULL = free text we could not resolve.
+    city_geonameid: Mapped[int | None]
     country_code: Mapped[str | None]
     location_quality: Mapped[str | None]
     occupation: Mapped[str | None]

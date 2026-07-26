@@ -290,6 +290,7 @@ def reconcile_founders(db: Session, *, dry_run: bool = True) -> dict:
             or founder.city_key != normalized.city_key
             or founder.country_code != normalized.country_code
             or founder.location_quality != normalized.quality
+            or founder.city_geonameid != normalized.geonameid
         ):
             location_updates.append(
                 {
@@ -297,6 +298,7 @@ def reconcile_founders(db: Session, *, dry_run: bool = True) -> dict:
                     "raw_location": normalized.raw_location,
                     "city": normalized.city,
                     "city_key": normalized.city_key,
+                    "city_geonameid": normalized.geonameid,
                     "country_code": normalized.country_code,
                     "quality": normalized.quality,
                 }
@@ -305,6 +307,7 @@ def reconcile_founders(db: Session, *, dry_run: bool = True) -> dict:
                 founder.raw_location = normalized.raw_location
                 founder.city = normalized.city
                 founder.city_key = normalized.city_key
+                founder.city_geonameid = normalized.geonameid
                 founder.country_code = normalized.country_code
                 founder.location_quality = normalized.quality
     merges = []

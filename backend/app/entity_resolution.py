@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Signal, founder_signal
-from app.normalize import normalize_city
+from app.normalize import place_key
 
 IdentityValue = str | tuple[str, ...] | None
 
@@ -224,7 +224,9 @@ def review_fingerprint(candidate: FounderCandidate) -> str:
     """Stable key for replaying the same unresolved person mention without creating another row."""
     payload = {
         "name": normalize_person_name(candidate.display_name),
-        "city": normalize_city(candidate.city),
+        # Place identity, not display name: the same mention spelled "Zürich" and "Zurich" must
+        # produce one fingerprint, or it is recorded for review twice.
+        "city": place_key(candidate.city),
         "company": normalize_comparison_text(candidate.current_company),
         "github": sorted(_identity_values(candidate.github, "github")),
         "linkedin": sorted(_identity_values(candidate.linkedin, "linkedin")),
@@ -236,10 +238,13 @@ def review_fingerprint(candidate: FounderCandidate) -> str:
 
 def _context_matches(left: FounderCandidate, right: FounderCandidate) -> dict[str, bool]:
     matches: dict[str, bool] = {}
-    left_city = normalize_city(left.city)
-    right_city = normalize_city(right.city)
+    # Compare the resolved place, never the rendered string. city_key already collapsed
+    # diacritics, but this compared `city`, so "Zürich" vs "Zurich" — identical key, identical
+    # GeoNames id — counted as a city mismatch and weakened the match score.
+    left_city = place_key(left.city)
+    right_city = place_key(right.city)
     if left_city and right_city:
-        matches["city"] = left_city.casefold() == right_city.casefold()
+        matches["city"] = left_city == right_city
     if left.current_company and right.current_company:
         matches["company"] = normalize_comparison_text(
             left.current_company
