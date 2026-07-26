@@ -5,12 +5,12 @@ import unicodedata
 from dataclasses import dataclass, field
 from hashlib import sha256
 from json import dumps
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from rapidfuzz.fuzz import ratio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.identity import STRONG_KINDS, canonical_identity
 from app.models import Signal, founder_signal
 from app.normalize import place_key
 
@@ -50,9 +50,9 @@ education are not unique to a person, so they may never collapse two people on t
 CONFIDENCE_CONFLICT = 0.0
 """Contradicting identities. Scored lowest so a genuine match elsewhere always wins."""
 
-STRONG_IDENTITY_KINDS = ("github", "linkedin", "twitter", "orcid")
-"""Public profiles that uniquely identify a person. A website is deliberately NOT one: it may
-belong to a company, lab or event, so it corroborates but never proves identity."""
+STRONG_IDENTITY_KINDS = STRONG_KINDS
+"""Public profiles that uniquely identify a person. Defined in `app.identity`, which also owns the
+canonical form of each — the writer and the comparison must agree on what an identifier IS."""
 
 NAME_SIMILARITY_WEIGHT = 0.7
 CONTEXT_MATCH_WEIGHT = 0.1
@@ -199,27 +199,17 @@ def compact_person_name(value: str | None) -> str:
     return " ".join((tokens[0], tokens[-1])) if len(tokens) > 1 else " ".join(tokens)
 
 
-def _normalize_url(value: str | None) -> str | None:
-    if not value:
-        return None
-    parsed = urlsplit(value.strip() if "://" in value else f"https://{value.strip()}")
-    host = parsed.netloc.casefold().removeprefix("www.")
-    path = parsed.path.rstrip("/")
-    query = urlencode(sorted((k, v) for k, v in parse_qsl(parsed.query) if not k.startswith("trk")))
-    return urlunsplit(("https", host, path, query, ""))
-
-
-def _identity(value: str | None, kind: str) -> str | None:
-    if not value:
-        return None
-    if kind in {"linkedin", "website", "orcid"} or "://" in value:
-        return _normalize_url(value)
-    return value.strip().casefold().lstrip("@").rstrip("/")
-
-
 def _identity_values(value: IdentityValue, kind: str) -> set[str]:
+    """Canonical tokens for one kind, dropping anything that does not identify a person.
+
+    Canonicalization lives in `app.identity` and is applied at the write boundary too, so this is
+    the same token the database stores. It used to route on `"://" in value` and casefold only a
+    URL's netloc, which left `0000-0002-1825-0097` and `https://orcid.org/0000-0002-1825-0097` —
+    one researcher's ORCID — as two different identifiers, and the disjoint rule below then read
+    that as proof of two different people.
+    """
     values = (value,) if isinstance(value, str) else value or ()
-    return {normalized for item in values if (normalized := _identity(item, kind))}
+    return {token for item in values if (token := canonical_identity(kind, item))}
 
 
 def has_shared_strong_identity(left: FounderCandidate, right: FounderCandidate) -> bool:
@@ -323,23 +313,35 @@ def resolve_candidates(
         conflicts: list[str] = []
         evidence: dict[str, object] = {}
         name_similarity = ratio(incoming_name, compact_person_name(candidate.display_name))
+        shared_kinds: list[str] = []
+        disjoint_kinds: list[str] = []
         for kind in STRONG_IDENTITY_KINDS:
             left = _identity_values(getattr(incoming, kind), kind) - non_identifying[kind]
             right = _identity_values(getattr(candidate, kind), kind) - non_identifying[kind]
             if left & right:
                 evidence[kind] = "shared"
-                if name_similarity < MERGE_NAME_MIN:
-                    # Name gate first. A shared handle under names this different is an
-                    # organisation account or a mis-attribution, never proof of one person.
-                    conflicts.append(kind)
-                else:
-                    reasons.append(kind)
+                shared_kinds.append(kind)
             elif left and right and name_similarity >= NAME_MATCH_MIN:
-                # Same name, but both sides publish this identifier and they disagree. A public
-                # profile is person-unique, so these are two different people sharing a name.
-                # Scoped to a name match: unrelated people having different LinkedIns is normal.
-                evidence[kind] = "disjoint"
-                conflicts.append(kind)
+                # Same name, but both sides publish this identifier and the canonical values
+                # disagree. Scoped to a name match: unrelated people having different LinkedIns
+                # is normal, not evidence.
+                disjoint_kinds.append(kind)
+        if name_similarity < MERGE_NAME_MIN:
+            # Name gate first. A shared handle under names this different is an organisation
+            # account or a mis-attribution, never proof of one person.
+            conflicts.extend(shared_kinds)
+        else:
+            reasons.extend(shared_kinds)
+        if shared_kinds and name_similarity >= MERGE_NAME_MIN:
+            # A shared person-unique handle is the strongest evidence available, so it decides;
+            # a disagreement on some OTHER kind is recorded but does not veto it. People do hold
+            # two LinkedIn accounts (an old vanity URL and a numeric one), and `_enrich_identity`
+            # deliberately accumulates several handles per kind — so treating "these sets do not
+            # intersect" as proof of two humans contradicted the writer and forked one person.
+            evidence.update({kind: "disjoint_noted" for kind in disjoint_kinds})
+        else:
+            evidence.update({kind: "disjoint" for kind in disjoint_kinds})
+            conflicts.extend(disjoint_kinds)
         if name_similarity >= NAME_MATCH_MIN:
             reasons.append("name")
         shared_artifacts = set(incoming.artifact_ids) & set(candidate.artifact_ids)

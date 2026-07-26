@@ -5,7 +5,10 @@ Fuzzy/LLM tiers are additive later; strong-id + normalized-name keeps re-runs id
 without false-merging on a bare shared name.
 """
 
+import logging
 import uuid
+from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -21,6 +24,7 @@ from app.entity_resolution import (
     resolve_candidates,
     review_fingerprint,
 )
+from app.identity import ALL_KINDS, parse_identity
 from app.models import (
     Founder,
     FounderResolutionReview,
@@ -31,6 +35,8 @@ from app.models import (
     founder_signal,
 )
 from app.normalize import normalize_location
+
+log = logging.getLogger(__name__)
 
 
 def _norm_name(s: str | None) -> str:
@@ -75,16 +81,27 @@ def _identity_values(founder: Founder, field: str) -> tuple[str, ...] | None:
     return values or None
 
 
-def _resolve(
-    db: Session, f: dict, artifact_ids: tuple[str, ...] = ()
-) -> tuple[uuid.UUID | None, str | None, bool]:
-    """Resolve one incoming person. Returns (founder_id, method, needs_review).
+@dataclass(frozen=True)
+class Resolution:
+    """Outcome of resolving one incoming mention against the known population."""
+
+    founder_id: uuid.UUID | None
+    method: str | None
+    needs_review: bool = False
+    # The person this mention contradicted, when it is being kept apart from them. Recorded so a
+    # fork is a visible, reviewable pair rather than two unrelated-looking rows.
+    counterpart_id: uuid.UUID | None = None
+    conflict_kinds: tuple[str, ...] = ()
+
+
+def _resolve(db: Session, f: dict, artifact_ids: tuple[str, ...] = ()) -> Resolution:
+    """Resolve one incoming person against every known founder.
 
     A ``review`` verdict deliberately returns the MATCHED founder rather than nothing. Minting a
     fresh Founder row for an unresolved mention is what fragmented the Founder Score into 12
     duplicate pairs; an uncertain match is recorded on the person we already have, not as a new
     human. The one exception is a strong-identity conflict, which signals genuinely distinct
-    people (or a bad identity) and must stay separate.
+    people (or a bad identity) and must stay separate — see `FounderResolutionReview`.
     """
     incoming = _incoming_candidate(f, artifact_ids)
     founders = db.execute(select(Founder).options(selectinload(Founder.identities))).scalars().all()
@@ -115,13 +132,22 @@ def _resolve(
             if "artifact" in result.reasons
             else "evidence"
         )
-        return uuid.UUID(result.matched_id), method, False
+        return Resolution(uuid.UUID(result.matched_id), method)
     if result.decision == "review" and result.matched_id and not result.conflicts:
-        return uuid.UUID(result.matched_id), "review", True
+        return Resolution(uuid.UUID(result.matched_id), "review", needs_review=True)
     if result.decision == "review":
-        # Conflicting strong identities: keep the people apart, but flag for a human.
-        return None, "conflict", True
-    return None, None, False
+        # Conflicting strong identities. The two are kept apart — attaching one human's evidence
+        # to another is undetectable and has no undo, while a fork is found by
+        # find_merge_candidates and reversed by merge_founders — but the pair is recorded so the
+        # split is reviewable instead of silent.
+        return Resolution(
+            None,
+            "conflict",
+            needs_review=True,
+            counterpart_id=uuid.UUID(result.matched_id) if result.matched_id else None,
+            conflict_kinds=result.conflicts,
+        )
+    return Resolution(None, None)
 
 
 def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
@@ -146,21 +172,48 @@ def _new_founder(db: Session, f: dict, *, status: str = "candidate") -> Founder:
     )
     db.add(founder)
     db.flush()
-    ident = f.get("identity") or {}
-    db.add(
-        Identity(
-            founder_id=founder.id,
-            github=ident.get("github"),
-            twitter=ident.get("twitter"),
-            linkedin=ident.get("linkedin"),
-            website=ident.get("website"),
-            orcid=ident.get("orcid"),
-        )
-    )
+    db.add(Identity(founder_id=founder.id, **canonical_identity_fields(f)))
     # The session runs with autoflush=False, so without this the identity stays invisible to the
     # next candidate in the same delivery and the same person resolves twice.
     db.flush()
     return founder
+
+
+def canonical_identity_fields(f: dict) -> dict[str, str | None]:
+    """The identity columns to store: canonical tokens only, never a raw URL or a non-profile page.
+
+    Canonicalizing at the write boundary rather than at each comparison is what makes the stored
+    value BE the identity — the resolver, the review fingerprint and the unique indexes then all
+    agree without each re-deriving it.
+    """
+    incoming = f.get("identity") or {}
+    return {kind: parse_identity(kind, incoming.get(kind)).value for kind in ALL_KINDS}
+
+
+def identity_artifact_payloads(f: dict) -> list[dict]:
+    """Signal payloads for identity values that are real artifacts but identify nobody.
+
+    A LinkedIn post or company page is genuine evidence about this founder; it simply is not their
+    identifier. Keeping it as one made two people's post URLs read as proof they were two people.
+    """
+    incoming = f.get("identity") or {}
+    payloads = []
+    for kind in ALL_KINDS:
+        parsed = parse_identity(kind, incoming.get(kind))
+        if parsed.artifact_url:
+            payloads.append(
+                {
+                    "source": "linkedin" if kind == "linkedin" else kind,
+                    "signal_type": "profile_activity",
+                    "canonical_url": parsed.artifact_url,
+                    "url": parsed.raw,
+                    "title": None,
+                    "summary": None,
+                    "source_reliability": 0.55,
+                    "sources_seen": [kind],
+                }
+            )
+    return payloads
 
 
 _IDENTITY_FIELDS = ("github", "twitter", "linkedin", "website", "orcid")
@@ -173,15 +226,16 @@ def _enrich_identity(db: Session, founder: Founder, f: dict) -> None:
     found on a later pass kept the strong-identity tier permanently unable to fire, which is why
     re-discovery fell through to a duplicate.
     """
-    incoming = f.get("identity") or {}
     known = {
         field: {getattr(identity, field) for identity in founder.identities} - {None}
         for field in _IDENTITY_FIELDS
     }
+    # Compare canonical against canonical: the same profile arriving as a URL after being stored
+    # as a bare handle used to look "fresh" and inserted a second row for one account.
     fresh = {
         field: value
-        for field in _IDENTITY_FIELDS
-        if (value := incoming.get(field)) and value not in known[field]
+        for field, value in canonical_identity_fields(f).items()
+        if value and value not in known[field]
     }
     if not fresh:
         return
@@ -189,14 +243,29 @@ def _enrich_identity(db: Session, founder: Founder, f: dict) -> None:
     db.flush()
 
 
-def _record_review(db: Session, f: dict, artifact_ids: tuple[str, ...], founder_id) -> None:
+def _record_review(
+    db: Session,
+    f: dict,
+    artifact_ids: tuple[str, ...],
+    founder_id,
+    *,
+    counterpart_id: uuid.UUID | None = None,
+    conflict_kinds: tuple[str, ...] = (),
+) -> None:
     """Record an unresolved mention against the founder it was attached to, once per fingerprint."""
     fingerprint = review_fingerprint(_incoming_candidate(f, artifact_ids))
     exists = db.scalar(
         select(FounderResolutionReview.id).where(FounderResolutionReview.fingerprint == fingerprint)
     )
     if exists is None:
-        db.add(FounderResolutionReview(fingerprint=fingerprint, founder_id=founder_id))
+        db.add(
+            FounderResolutionReview(
+                fingerprint=fingerprint,
+                founder_id=founder_id,
+                counterpart_founder_id=counterpart_id,
+                conflict_kinds=",".join(conflict_kinds) or None,
+            )
+        )
         db.flush()
 
 
@@ -210,22 +279,40 @@ def resolve_or_create_founder(
     the one resolver (_resolve) — ArgOS is founder-first, every opportunity needs a person.
     Flushes; the caller commits.
     """
-    fid, method, needs_review = _resolve(db, f, artifact_ids)
-    if fid is not None:
-        founder = db.get(Founder, fid)
+    resolution = _resolve(db, f, artifact_ids)
+    if resolution.founder_id is not None:
+        founder = db.get(Founder, resolution.founder_id)
         _enrich_identity(db, founder, f)
-        if needs_review:
+        if resolution.needs_review:
             founder.status = "needs_review"
-            _record_review(db, f, artifact_ids, fid)
-        return fid, method or "evidence"
+            _record_review(db, f, artifact_ids, resolution.founder_id)
+        return resolution.founder_id, resolution.method or "evidence"
     founder = _new_founder(
         db,
         f,
-        status="needs_review" if needs_review else f.get("status", "candidate"),
+        status="needs_review" if resolution.needs_review else f.get("status", "candidate"),
     )
-    if needs_review:
-        _record_review(db, f, artifact_ids, founder.id)
-    return founder.id, "conflict" if method == "conflict" else "created"
+    if resolution.needs_review:
+        _record_review(
+            db,
+            f,
+            artifact_ids,
+            founder.id,
+            counterpart_id=resolution.counterpart_id,
+            conflict_kinds=resolution.conflict_kinds,
+        )
+        if resolution.counterpart_id is not None:
+            # Both rows are flagged: whichever the reviewer opens, the open question is visible.
+            counterpart = db.get(Founder, resolution.counterpart_id)
+            if counterpart is not None:
+                counterpart.status = "needs_review"
+            log.info(
+                "resolution.fork founder=%s counterpart=%s conflicts=%s",
+                founder.id,
+                resolution.counterpart_id,
+                ",".join(resolution.conflict_kinds),
+            )
+    return founder.id, "conflict" if resolution.method == "conflict" else "created"
 
 
 def persist_delivery(
@@ -293,6 +380,10 @@ def persist_delivery(
     resolved = 0
     dropped_no_evidence = 0
     dropped_non_person = 0
+    # Identity values that named no person, by reason. Reported rather than silently discarded so
+    # a change in what the extractor emits is visible instead of quietly shrinking the evidence.
+    dropped_identity: Counter[str] = Counter()
+    rerouted_identity = 0
 
     for f in founders:
         # Personhood is decided at the single writer, so no caller can put an event or an
@@ -305,7 +396,16 @@ def persist_delivery(
         attributed_signals: list[tuple[Signal, dict]] = []
         created_signal_ids: list[str] = []
         seen_signal_ids: set[uuid.UUID] = set()
-        for payload in f.get("signals", []):
+        incoming_identity = f.get("identity") or {}
+        for kind in ALL_KINDS:
+            parsed = parse_identity(kind, incoming_identity.get(kind))
+            if parsed.rejected and parsed.rejected != "empty":
+                dropped_identity[f"{kind}:{parsed.rejected}"] += 1
+        # A post/company page keeps its evidentiary value as an artifact; it is only its use as
+        # an identifier that is withdrawn.
+        identity_artifacts = identity_artifact_payloads(f)
+        rerouted_identity += len(identity_artifacts)
+        for payload in [*f.get("signals", []), *identity_artifacts]:
             signal, created = materialize_signal(payload)
             if signal is None or signal.id in seen_signal_ids:
                 continue
@@ -402,5 +502,9 @@ def persist_delivery(
         # of thin-footprint (cold-start) founders is visible to the operator.
         "dropped_no_evidence": dropped_no_evidence,
         "dropped_non_person": dropped_non_person,
+        # Identity values that identified nobody: rejected outright (by reason), or kept as
+        # evidence but withdrawn as an identifier.
+        "dropped_identity": dict(dropped_identity),
+        "rerouted_identity_artifacts": rerouted_identity,
         "job_run_id": str(job.id),
     }

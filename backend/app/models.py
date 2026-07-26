@@ -20,6 +20,7 @@ from sqlalchemy import (
     Date,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Table,
@@ -109,9 +110,49 @@ class Founder(Base):
 
 
 class Identity(Base):
-    """One founder → many source handles. Columns act as unique resolution keys."""
+    """One founder → many source handles, each stored in the canonical form `app.identity` defines.
+
+    Values are canonical tokens, not URLs: `ada-lovelace`, not `https://github.com/ada-lovelace`.
+    The display URL is derived (`app.identity.profile_url`) so there is one source of truth.
+
+    Deliberately NOT globally unique per handle. An organisation account is published on every
+    co-founder's profile — `openhelix-team` is on six founders in the dev DB — which is legitimate
+    and is why `non_identifying_handles` withdraws such a handle from merge evidence rather than
+    treating it as a duplicate. A global unique index would make that documented-legal state a hard
+    error. ORCID is the exception: it identifies one researcher by construction, so it can carry a
+    real uniqueness guarantee.
+    """
 
     __tablename__ = "identity"
+    __table_args__ = (
+        Index(
+            "uq_identity_orcid",
+            text("lower(orcid)"),
+            unique=True,
+            postgresql_where=text("orcid IS NOT NULL"),
+        ),
+        Index(
+            "uq_identity_founder_github",
+            "founder_id",
+            "github",
+            unique=True,
+            postgresql_where=text("github IS NOT NULL"),
+        ),
+        Index(
+            "uq_identity_founder_linkedin",
+            "founder_id",
+            "linkedin",
+            unique=True,
+            postgresql_where=text("linkedin IS NOT NULL"),
+        ),
+        Index(
+            "uq_identity_founder_twitter",
+            "founder_id",
+            "twitter",
+            unique=True,
+            postgresql_where=text("twitter IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
@@ -429,6 +470,17 @@ class Opportunity(Base):
             "company_name IS NULL OR company_id IS NOT NULL",
             name="ck_opportunity_named_company",
         ),
+        # The same person and the same venture is one deal. audit_identity has asserted this since
+        # it was written, with nothing in the database behind it — so `merge_founders`, which
+        # blind-UPDATEs founder_id onto the canonical row, produced two deals for one pair and
+        # violated it. Partial: company-less idea-stage deals may legitimately repeat.
+        Index(
+            "uq_opportunity_founder_company",
+            "founder_id",
+            "company_id",
+            unique=True,
+            postgresql_where=text("company_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -600,9 +652,14 @@ class EntityMerge(Base):
     __tablename__ = "entity_merge"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    canonical_founder_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("founder.id", ondelete="CASCADE")
+    # Both sides are SET NULL + an immutable ref column. CASCADE on the canonical side deleted a
+    # founder's entire merge history the moment that founder was itself merged into someone else
+    # — which is the steady state for an iterative deduper, and exactly the history a provenance
+    # product must keep. Merge history is append-only.
+    canonical_founder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("founder.id", ondelete="SET NULL")
     )
+    canonical_founder_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     merged_founder_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("founder.id", ondelete="SET NULL")
     )
@@ -618,13 +675,28 @@ class EntityMerge(Base):
 
 
 class FounderResolutionReview(Base):
-    """Stable record for an unresolved incoming person mention."""
+    """Stable record for an unresolved incoming person mention.
+
+    `counterpart_founder_id` is set when the mention was kept as a SEPARATE founder because its
+    strong identifiers contradicted an otherwise-matching person. Both directions of that decision
+    can be wrong, but only one of them is recoverable: a fork is discoverable by
+    `find_merge_candidates` and reversible by `merge_founders` with an audit trail, whereas
+    attaching one human's evidence to another is discovered by nothing and has no split operation.
+    So the resolver forks — and records the pair here, rather than leaving it to be re-derived.
+    """
 
     __tablename__ = "founder_resolution_review"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     fingerprint: Mapped[str] = mapped_column(unique=True)
     founder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("founder.id", ondelete="CASCADE"))
+    # The person this mention contradicted. SET NULL, not CASCADE: merging the counterpart away
+    # must not delete the record of why the two were ever held apart.
+    counterpart_founder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("founder.id", ondelete="SET NULL")
+    )
+    # Which identifier kinds disagreed, e.g. "linkedin". Null for an ordinary low-confidence review.
+    conflict_kinds: Mapped[str | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )

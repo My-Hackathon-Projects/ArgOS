@@ -16,6 +16,7 @@ from app.entity_resolution import (
     non_identifying_handles,
     resolve_candidates,
 )
+from app.identity import ALL_KINDS
 from app.models import (
     Claim,
     ClaimEvidence,
@@ -23,9 +24,12 @@ from app.models import (
     Founder,
     FounderAlias,
     FounderCompany,
+    FounderResolutionReview,
     Identity,
+    Memo,
     Opportunity,
     ScoreHistory,
+    ThreeAxis,
     TraceStep,
     founder_signal,
 )
@@ -132,8 +136,20 @@ def _move_claims(db: Session, canonical_id: uuid.UUID, duplicate_id: uuid.UUID) 
                         evidence.extraction_conf or 0.0,
                     )
                 db.delete(evidence)
-            else:
-                evidence.claim_id = existing.id
+        # Reassigning `evidence.claim_id` in Python does NOT move the row: the relationship is
+        # cascade="all, delete-orphan", so the ORM still holds these objects in the deleted claim's
+        # collection and cascades them away on flush — destroying the citations the merge exists to
+        # combine, the strongest as readily as the weakest. Move them in SQL, then expire the
+        # collection so the cascade reloads it (now empty) instead of trusting a stale copy. Same
+        # trap, same fix as the founder delete below.
+        db.flush()
+        db.execute(
+            update(ClaimEvidence)
+            .where(ClaimEvidence.claim_id == claim.id)
+            .values(claim_id=existing.id)
+            .execution_options(synchronize_session=False)
+        )
+        db.expire(claim, ["evidence"])
         db.delete(claim)
 
 
@@ -152,6 +168,127 @@ def _move_founder_companies(db: Session, canonical_id: uuid.UUID, duplicate_id: 
             db.delete(link)
         else:
             link.founder_id = canonical_id
+
+
+def _move_identities(db: Session, canonical_id: uuid.UUID, duplicate_id: uuid.UUID) -> None:
+    """Carry over every handle the canonical founder does not already hold, and only those.
+
+    The shared handle is usually *why* the two rows are being merged, so moving the duplicate's
+    identity row across wholesale puts one value on the canonical founder twice and
+    `uq_identity_founder_<kind>` rejects it — the merge fails on exactly the input that motivated
+    it. Values are canonical tokens (`app.identity`), so equality here is identity, not spelling.
+    A row emptied of everything it carried is dropped rather than left as a founder-shaped blank.
+    """
+    held: dict[str, set[str]] = {kind: set() for kind in ALL_KINDS}
+    for identity in db.execute(
+        select(Identity).where(Identity.founder_id == canonical_id)
+    ).scalars():
+        for kind in ALL_KINDS:
+            if (value := getattr(identity, kind)) is not None:
+                held[kind].add(value)
+    duplicate_identities = (
+        db.execute(select(Identity).where(Identity.founder_id == duplicate_id)).scalars().all()
+    )
+    for identity in duplicate_identities:
+        for kind in ALL_KINDS:
+            value = getattr(identity, kind)
+            if value is None:
+                continue
+            if value in held[kind]:
+                setattr(identity, kind, None)
+            else:
+                held[kind].add(value)
+        carries_anything = any(
+            getattr(identity, field) is not None for field in (*ALL_KINDS, "email", "other_socials")
+        )
+        if carries_anything:
+            identity.founder_id = canonical_id
+        else:
+            db.delete(identity)
+
+
+_STATUS_RANK = {"screening": 0, "diligence": 1, "rejected": 2, "decided": 2}
+"""How far a deal has got. A recorded outcome outranks an in-flight stage; the two outcomes are
+deliberately equal, because inventing a precedence between `rejected` and `decided` would let a
+merge overwrite a real verdict with the other copy's."""
+
+
+def _fold_opportunity(db: Session, survivor: Opportunity, loser: Opportunity) -> None:
+    """Combine two deals for one (founder, company), keeping the fund's work on both."""
+    existing_axes = {axis.axis for axis in survivor.axes}
+    for axis in db.execute(select(ThreeAxis).where(ThreeAxis.opportunity_id == loser.id)).scalars():
+        # uq_three_axis_opportunity_axis allows one row per axis. The survivor's verdict stands;
+        # the axes it was never scored on come across.
+        if axis.axis in existing_axes:
+            db.delete(axis)
+        else:
+            axis.opportunity_id = survivor.id
+            existing_axes.add(axis.axis)
+    db.flush()
+    for table, column in (
+        (Memo, Memo.opportunity_id),
+        (Claim, Claim.opportunity_id),
+        (TraceStep, TraceStep.opportunity_id),
+    ):
+        db.execute(
+            update(table)
+            .where(column == loser.id)
+            .values({column.key: survivor.id})
+            .execution_options(synchronize_session=False)
+        )
+    for field in ("company_name", "idea", "sector", "geo", "source", "decision", "decided_at"):
+        if getattr(survivor, field) is None:
+            setattr(survivor, field, getattr(loser, field))
+    if _STATUS_RANK[loser.status] > _STATUS_RANK[survivor.status]:
+        survivor.status = loser.status
+    # Provenance stays truthful: the deal is as old as the earliest copy of it.
+    for field in ("first_signal_at", "created_at"):
+        loser_value, survivor_value = getattr(loser, field), getattr(survivor, field)
+        if loser_value is not None and (survivor_value is None or loser_value < survivor_value):
+            setattr(survivor, field, loser_value)
+    db.flush()
+    # Core delete: an ORM delete would run relationship synchronization over the collections just
+    # moved and null their opportunity_id back out. Dependents are already on the survivor, so the
+    # database-level CASCADE has nothing left to take.
+    db.execute(
+        delete(Opportunity)
+        .where(Opportunity.id == loser.id)
+        .execution_options(synchronize_session=False)
+    )
+    db.expunge(loser)
+    # The rows above moved in SQL, so the survivor's loaded collections predate them.
+    db.expire(survivor, ["axes", "claims"])
+
+
+def _move_opportunities(db: Session, canonical_id: uuid.UUID, duplicate_id: uuid.UUID) -> None:
+    """One person and one venture is one deal (`uq_opportunity_founder_company`).
+
+    A blind `UPDATE opportunity SET founder_id` produced a second deal for the pair whenever both
+    founder rows had been screened against the same company. Deleting the loser outright is not an
+    option either: `three_axis`, `memo`, `claim` and `trace_step` all hang off an opportunity with
+    ondelete=CASCADE, so it would take the screening with it.
+    """
+    canonical_deals = {
+        deal.company_id: deal
+        for deal in db.execute(
+            select(Opportunity).where(Opportunity.founder_id == canonical_id)
+        ).scalars()
+        if deal.company_id is not None
+    }
+    duplicate_deals = (
+        db.execute(select(Opportunity).where(Opportunity.founder_id == duplicate_id))
+        .scalars()
+        .all()
+    )
+    for deal in duplicate_deals:
+        # A company-less idea-stage deal is outside the unique index and always moves.
+        survivor = canonical_deals.get(deal.company_id) if deal.company_id is not None else None
+        if survivor is None:
+            deal.founder_id = canonical_id
+            if deal.company_id is not None:
+                canonical_deals[deal.company_id] = deal
+        else:
+            _fold_opportunity(db, survivor, deal)
 
 
 def _move_aliases(db: Session, canonical_id: uuid.UUID, duplicate_id: uuid.UUID) -> None:
@@ -238,15 +375,29 @@ def merge_founders(
     _move_founder_companies(db, canonical.id, duplicate.id)
     _move_aliases(db, canonical.id, duplicate.id)
     _move_signal_attributions(db, canonical.id, duplicate.id)
+    _move_identities(db, canonical.id, duplicate.id)
+    _move_opportunities(db, canonical.id, duplicate.id)
     for table, column in (
-        (Opportunity, Opportunity.founder_id),
         (ScoreHistory, ScoreHistory.founder_id),
         (TraceStep, TraceStep.founder_id),
+        # The record of why these two were ever held apart survives the merge that answers it.
+        # founder_id is ondelete=CASCADE, so leaving it behind deleted the review outright.
+        (FounderResolutionReview, FounderResolutionReview.founder_id),
+        (FounderResolutionReview, FounderResolutionReview.counterpart_founder_id),
     ):
         db.execute(update(table).where(column == duplicate.id).values({column.key: canonical.id}))
+    # A review naming the merged pair now names one founder twice, which is no longer a conflict
+    # to review — it is a resolved one, and the merge itself is the audit record.
     db.execute(
-        update(Identity).where(Identity.founder_id == duplicate.id).values(founder_id=canonical.id)
+        update(FounderResolutionReview)
+        .where(FounderResolutionReview.counterpart_founder_id == canonical.id)
+        .where(FounderResolutionReview.founder_id == canonical.id)
+        .values(counterpart_founder_id=None)
     )
+    # The alias moves above are still pending in the session, and it runs autoflush=False — so the
+    # existence check below would query the database, miss them, and insert a duplicate that
+    # `uq_founder_alias` rejects. One collision rolls back every merge in the run, forever.
+    db.flush()
     duplicate_name = compact_person_name(duplicate.display_name)
     alias_exists = db.scalar(
         select(FounderAlias.id).where(
@@ -266,6 +417,7 @@ def merge_founders(
     db.add(
         EntityMerge(
             canonical_founder_id=canonical.id,
+            canonical_founder_ref=canonical.id,
             merged_founder_id=duplicate.id,
             merged_founder_ref=duplicate.id,
             method=method,
